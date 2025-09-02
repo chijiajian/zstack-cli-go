@@ -1,3 +1,4 @@
+# .goreleaser.yml
 version: 2
 
 before:
@@ -8,9 +9,9 @@ builds:
   - id: linux-amd64
     env:
       - CGO_ENABLED=0
-    mod_timestamp: '{{ .CommitTimestamp }}'
     flags:
       - -trimpath
+    mod_timestamp: '{{ .CommitTimestamp }}'
     ldflags:
       - '-s -w -X main.version={{.Version}} -X main.commit={{.Commit}}'
     goos:
@@ -19,34 +20,72 @@ builds:
       - amd64
     binary: '{{ .ProjectName }}_v{{ .Version }}_linux_amd64'
 
+  - id: linux-arm64
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    ldflags:
+      - '-s -w -X main.version={{.Version}} -X main.commit={{.Commit}}'
+    goos:
+      - linux
+    goarch:
+      - arm64
+    binary: '{{ .ProjectName }}_v{{ .Version }}_linux_arm64'
+
   - id: windows-amd64
     env:
       - CGO_ENABLED=0
-    mod_timestamp: '{{ .CommitTimestamp }}'
     flags:
       - -trimpath
+    mod_timestamp: '{{ .CommitTimestamp }}'
     ldflags:
       - '-s -w -X main.version={{.Version}} -X main.commit={{.Commit}}'
     goos:
       - windows
     goarch:
       - amd64
-    binary: '{{ .ProjectName }}_v{{ .Version }}_windows_amd64'
+    binary: '{{ .ProjectName }}_v{{ .Version }}_windows_amd64.exe'
+
+  - id: darwin-amd64
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    ldflags:
+      - '-s -w -X main.version={{.Version}} -X main.commit={{.Commit}}'
+    goos:
+      - darwin
+    goarch:
+      - amd64
+    binary: '{{ .ProjectName }}_v{{ .Version }}_darwin_amd64'
 
 archives:
   - id: linux-amd64
-    format: tar.gz
-    files:
-      - none*
     builds:
-      - id: linux-amd64
+      - linux-amd64
+    format: tar.gz
+    name_template: '{{ .ProjectName }}_{{ .Version }}_linux_amd64'
+
+  - id: linux-arm64
+    builds:
+      - linux-arm64
+    format: tar.gz
+    name_template: '{{ .ProjectName }}_{{ .Version }}_linux_arm64'
 
   - id: windows-amd64
-    format: zip
-    files:
-      - none*
     builds:
-      - id: windows-amd64
+      - windows-amd64
+    format: zip
+    name_template: '{{ .ProjectName }}_{{ .Version }}_windows_amd64'
+
+  - id: darwin-amd64
+    builds:
+      - darwin-amd64
+    format: tar.gz
+    name_template: '{{ .ProjectName }}_{{ .Version }}_darwin_amd64'
 
 checksum:
   name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
@@ -67,8 +106,6 @@ release:
   github:
     owner: zstackio
     name: zstack-cli
-  draft: true
-  replace_existing_draft: true
 
 changelog:
   filters:

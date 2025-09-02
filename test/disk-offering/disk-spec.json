@@ -1,0 +1,8 @@
+{
+  "name": "large-disk",
+  "description": "Large disk offering for database servers",
+  "diskSize": "500G",
+  "allocatorStrategy": "DefaultHostAllocatorStrategy",
+  "sortKey": 100
+}
+

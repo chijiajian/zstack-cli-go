@@ -1,3 +1,17 @@
+// Copyright 2025 zstack.io
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package get
 
 import (
@@ -5,11 +19,10 @@ import (
 
 	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
-	"github.com/chijiajian/zstack-cli-go/pkg/output"
+	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
-// 定义格式化的虚拟机脚本结构体
 type FormattedVmInstanceScript struct {
 	Name        string `json:"name" yaml:"name" header:"NAME"`
 	UUID        string `json:"uuid" yaml:"uuid" header:"UUID"`
@@ -23,47 +36,40 @@ type FormattedVmInstanceScript struct {
 	EncodingType  string `json:"encodingType" yaml:"encodingType" header:"ENCODING TYPE"`
 }
 
-// vmScriptsCmd 表示 vm-scripts 命令
 var vmScriptsCmd = &cobra.Command{
 	Use:   "vm-scripts [name]",
 	Short: "List VM instance scripts",
 	Long:  `List all VM instance scripts in the ZStack cloud platform.`,
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cobraCmd *cobra.Command, args []string) {
-		// 1. 创建客户端
+
 		zsClient := client.GetClient()
 		if zsClient == nil {
 			fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
 			return
 		}
 
-		// 2. 创建查询参数
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
 		if err != nil {
 			fmt.Printf("Error building query parameters: %s\n", err)
 			return
 		}
 
-		// 3. 调用 API
 		scripts, err := zsClient.QueryVmInstanceScript(*queryParam)
 		if err != nil {
 			fmt.Printf("Error querying VM instance scripts: %s\n", err)
 			return
 		}
 
-		// 4. 格式化输出
 		outputFormat, _ := cobraCmd.Flags().GetString("output")
-		format := output.ParseFormat(outputFormat)
+		format := utils.ParseFormat(outputFormat)
 
 		fields, _ := cobraCmd.Flags().GetStringSlice("fields")
-
-		// 检查是否需要显示完整的脚本内容
 		showFullScript, _ := cobraCmd.Flags().GetBool("show-full-script")
 
-		// 准备格式化的数据
 		var formattedResults []FormattedVmInstanceScript
 		for _, script := range scripts {
-			// 如果不显示完整脚本内容，则截断显示
+
 			scriptContent := script.ScriptContent
 			if !showFullScript && len(scriptContent) > 50 {
 				scriptContent = scriptContent[:50] + "..."
@@ -84,8 +90,7 @@ var vmScriptsCmd = &cobra.Command{
 			formattedResults = append(formattedResults, formatted)
 		}
 
-		// 使用 output 包进行输出
-		err = output.PrintWithFields(formattedResults, format, fields)
+		err = utils.PrintWithFields(formattedResults, format, fields)
 		if err != nil {
 			fmt.Printf("Error formatting output: %s\n", err)
 			return

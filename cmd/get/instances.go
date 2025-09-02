@@ -1,3 +1,17 @@
+// Copyright 2025 zstack.io
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package get
 
 import (
@@ -6,14 +20,12 @@ import (
 
 	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
-	"github.com/chijiajian/zstack-cli-go/pkg/output"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/view"
 
 	"github.com/spf13/cobra"
 )
 
-// 定义格式化的虚拟机实例结构体
 type FormattedVmInstance struct {
 	Name        string `json:"name" yaml:"name" header:"NAME"`
 	UUID        string `json:"uuid" yaml:"uuid" header:"UUID"`
@@ -41,41 +53,37 @@ type FormattedVmInstance struct {
 	Volumes              string `json:"volumes" yaml:"volumes" header:"VOLUMES"`
 }
 
-// vmInstancesCmd 表示 vm-instances 命令
 var vmInstancesCmd = &cobra.Command{
 	Use:   "instances [name]",
 	Short: "List VM instances",
 	Long:  `List all VM instances in the ZStack cloud platform.`,
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cobraCmd *cobra.Command, args []string) {
-		// 1. 创建客户端
+
 		zsClient := client.GetClient()
 		if zsClient == nil {
 			fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
 			return
 		}
 
-		// 2. 创建查询参数
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
 		if err != nil {
 			fmt.Printf("Error building query parameters: %s\n", err)
 			return
 		}
 
-		// 3. 处理上下文过滤标志（区域、集群、主机）
 		err = common.ProcessBasicContextFlags(cobraCmd, queryParam)
 		if err != nil {
 			fmt.Printf("Error processing context filters: %s\n", err)
 			return
 		}
 
-		// 检查是否请求分页
 		usePagination, _ := cobraCmd.Flags().GetBool("pagination")
 		var vmInstances []view.VmInstanceInventoryView
 		var total int
 
 		if usePagination {
-			// 3a. 调用分页API
+
 			vmInstances, total, err = zsClient.PageVmInstance(*queryParam)
 			if err != nil {
 				fmt.Printf("Error querying VM instances: %s\n", err)
@@ -83,7 +91,7 @@ var vmInstancesCmd = &cobra.Command{
 			}
 			fmt.Printf("Total: %d\n", total)
 		} else {
-			// 3b. 调用非分页API
+
 			vmInstances, err = zsClient.QueryVmInstance(*queryParam)
 			if err != nil {
 				fmt.Printf("Error querying VM instances: %s\n", err)
@@ -91,16 +99,14 @@ var vmInstancesCmd = &cobra.Command{
 			}
 		}
 
-		// 4. 格式化输出
 		outputFormat, _ := cobraCmd.Flags().GetString("output")
-		format := output.ParseFormat(outputFormat)
+		format := utils.ParseFormat(outputFormat)
 
 		fields, _ := cobraCmd.Flags().GetStringSlice("fields")
 
-		// 准备格式化的数据
 		var formattedResults []FormattedVmInstance
 		for _, vm := range vmInstances {
-			// 收集所有IP地址
+
 			var ips []string
 			for _, nic := range vm.VMNics {
 				if nic.IP != "" {
@@ -108,7 +114,6 @@ var vmInstancesCmd = &cobra.Command{
 				}
 			}
 
-			// 收集所有卷名称
 			var volumes []string
 			for _, vol := range vm.AllVolumes {
 				volumes = append(volumes, vol.Name)
@@ -143,8 +148,7 @@ var vmInstancesCmd = &cobra.Command{
 			formattedResults = append(formattedResults, formatted)
 		}
 
-		// 使用 output 包进行输出
-		err = output.PrintWithFields(formattedResults, format, fields)
+		err = utils.PrintWithFields(formattedResults, format, fields)
 		if err != nil {
 			fmt.Printf("Error formatting output: %s\n", err)
 			return

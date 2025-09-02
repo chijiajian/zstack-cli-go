@@ -1,4 +1,18 @@
-package output
+// Copyright 2025 zstack.io
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package utils
 
 import (
 	"encoding/json"
@@ -7,12 +21,13 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"text/tabwriter"
+	"time"
 
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v3"
 )
 
-// Format 表示输出格式类型
 type Format string
 
 const (
@@ -22,12 +37,10 @@ const (
 	TextFormat  Format = "text"
 )
 
-// Formatter 是输出格式化器接口
 type Formatter interface {
 	Format(data interface{}, fields []string) error
 }
 
-// GetFormatter 根据指定的格式返回相应的格式化器
 func GetFormatter(format Format) Formatter {
 	switch format {
 	case TableFormat:
@@ -39,17 +52,15 @@ func GetFormatter(format Format) Formatter {
 	case TextFormat:
 		return &TextFormatter{}
 	default:
-		// 默认使用表格格式
 		return &TableFormatter{}
 	}
 }
 
-// JSONFormatter 实现 JSON 格式输出
 type JSONFormatter struct{}
 
 func (f *JSONFormatter) Format(data interface{}, fields []string) error {
 	if len(fields) > 0 {
-		// 如果指定了字段，过滤数据
+
 		filteredData, err := filterFields(data, fields)
 		if err != nil {
 			return err
@@ -65,12 +76,10 @@ func (f *JSONFormatter) Format(data interface{}, fields []string) error {
 	return nil
 }
 
-// YAMLFormatter 实现 YAML 格式输出
 type YAMLFormatter struct{}
 
 func (f *YAMLFormatter) Format(data interface{}, fields []string) error {
 	if len(fields) > 0 {
-		// 如果指定了字段，过滤数据
 		filteredData, err := filterFields(data, fields)
 		if err != nil {
 			return err
@@ -86,12 +95,10 @@ func (f *YAMLFormatter) Format(data interface{}, fields []string) error {
 	return nil
 }
 
-// TextFormatter 实现纯文本格式输出
 type TextFormatter struct{}
 
 func (f *TextFormatter) Format(data interface{}, fields []string) error {
 	if len(fields) > 0 {
-		// 如果指定了字段，过滤数据
 		filteredData, err := filterFields(data, fields)
 		if err != nil {
 			return err
@@ -103,19 +110,15 @@ func (f *TextFormatter) Format(data interface{}, fields []string) error {
 	return nil
 }
 
-// TableFormatter 实现表格格式输出
 type TableFormatter struct{}
 
 func (f *TableFormatter) Format(data interface{}, fields []string) error {
-	// 处理不同类型的数据
 	v := reflect.ValueOf(data)
 
-	// 如果是指针，获取它指向的值
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
 
-	// 根据数据类型选择不同的表格渲染方式
 	switch v.Kind() {
 	case reflect.Slice, reflect.Array:
 		return formatSlice(v.Interface(), fields)
@@ -124,33 +127,27 @@ func (f *TableFormatter) Format(data interface{}, fields []string) error {
 	case reflect.Struct:
 		return formatStruct(data, fields)
 	default:
-		// 对于简单类型，直接打印
 		fmt.Printf("%v\n", data)
 		return nil
 	}
 }
 
-// formatSlice 格式化切片或数组为表格
 func formatSlice(data interface{}, fields []string) error {
 	v := reflect.ValueOf(data)
 
-	// 如果是空切片，显示提示信息
 	if v.Len() == 0 {
 		fmt.Println("No resources found.")
 		return nil
 	}
 
-	// 获取第一个元素，用于确定表头
 	firstElem := v.Index(0)
 
-	// 如果元素是结构体，使用结构体字段作为表头
 	if firstElem.Kind() == reflect.Struct {
 		return formatStructSlice(data, fields)
 	} else if firstElem.Kind() == reflect.Map {
 		return formatMapSlice(data, fields)
 	}
 
-	// 对于基本类型切片，简单列出
 	table := tablewriter.NewWriter(os.Stdout)
 	table.Header([]string{"Value"})
 
@@ -163,32 +160,27 @@ func formatSlice(data interface{}, fields []string) error {
 	return nil
 }
 
-// formatStructSlice 格式化结构体切片为表格
 func formatStructSlice(data interface{}, fields []string) error {
 	v := reflect.ValueOf(data)
 	if v.Len() == 0 {
 		return nil
 	}
 
-	// 获取第一个元素的类型
 	elemType := reflect.TypeOf(v.Index(0).Interface())
 
-	// 提取字段名作为表头
 	var headers []string
 	var fieldIndices []int
 
 	for i := 0; i < elemType.NumField(); i++ {
 		field := elemType.Field(i)
-		// 使用 json 标签作为列名，如果没有则使用字段名
 		tagName := field.Tag.Get("json")
 		fieldName := field.Name
 		if tagName != "" && tagName != "-" {
-			// 去除 json 标签中的选项部分
+
 			tagParts := strings.Split(tagName, ",")
 			fieldName = tagParts[0]
 		}
 
-		// 如果指定了字段列表，则只显示这些字段
 		if len(fields) > 0 {
 			include := false
 			for _, f := range fields {
@@ -206,11 +198,9 @@ func formatStructSlice(data interface{}, fields []string) error {
 		fieldIndices = append(fieldIndices, i)
 	}
 
-	// 创建表格
 	table := tablewriter.NewWriter(os.Stdout)
 	table.Header(headers)
 
-	// 添加数据行
 	for i := 0; i < v.Len(); i++ {
 		item := v.Index(i)
 		var row []string
@@ -227,19 +217,17 @@ func formatStructSlice(data interface{}, fields []string) error {
 	return nil
 }
 
-// formatMapSlice 格式化 map 切片为表格
 func formatMapSlice(data interface{}, fields []string) error {
 	v := reflect.ValueOf(data)
 	if v.Len() == 0 {
 		return nil
 	}
 
-	// 收集所有可能的键作为表头
 	keysSet := make(map[string]bool)
 	for i := 0; i < v.Len(); i++ {
 		mapItem := v.Index(i).Interface().(map[string]interface{})
 		for key := range mapItem {
-			// 如果指定了字段列表，则只考虑这些字段
+
 			if len(fields) > 0 {
 				include := false
 				for _, f := range fields {
@@ -256,18 +244,15 @@ func formatMapSlice(data interface{}, fields []string) error {
 		}
 	}
 
-	// 将键转换为有序切片
 	var headers []string
 	for key := range keysSet {
 		headers = append(headers, key)
 	}
-	sort.Strings(headers) // 对表头进行排序，使输出更一致
+	sort.Strings(headers)
 
-	// 创建表格
 	table := tablewriter.NewWriter(os.Stdout)
 	table.Header(headers)
 
-	// 添加数据行
 	for i := 0; i < v.Len(); i++ {
 		mapItem := v.Index(i).Interface().(map[string]interface{})
 		var row []string
@@ -288,26 +273,22 @@ func formatMapSlice(data interface{}, fields []string) error {
 	return nil
 }
 
-// formatMap 格式化单个 map 为表格
 func formatMap(data interface{}, fields []string) error {
 	m, ok := data.(map[string]interface{})
 	if !ok {
-		// 尝试处理其他类型的 map
+
 		v := reflect.ValueOf(data)
 		if v.Kind() != reflect.Map {
 			return fmt.Errorf("expected map, got %T", data)
 		}
 
-		// 创建表格
 		table := tablewriter.NewWriter(os.Stdout)
 		table.Header([]string{"Key", "Value"})
 
-		// 遍历 map 的键值对
 		iter := v.MapRange()
 		for iter.Next() {
 			key := fmt.Sprintf("%v", iter.Key().Interface())
 
-			// 如果指定了字段列表，则只显示这些字段
 			if len(fields) > 0 {
 				include := false
 				for _, f := range fields {
@@ -329,14 +310,12 @@ func formatMap(data interface{}, fields []string) error {
 		return nil
 	}
 
-	// 处理 map[string]interface{} 类型
 	table := tablewriter.NewWriter(os.Stdout)
 	table.Header([]string{"Key", "Value"})
 
-	// 为了保证输出顺序一致，对键进行排序
 	var keys []string
 	for k := range m {
-		// 如果指定了字段列表，则只显示这些字段
+
 		if len(fields) > 0 {
 			include := false
 			for _, f := range fields {
@@ -362,7 +341,6 @@ func formatMap(data interface{}, fields []string) error {
 	return nil
 }
 
-// formatStruct 格式化结构体为表格
 func formatStruct(data interface{}, fields []string) error {
 	v := reflect.ValueOf(data)
 	if v.Kind() == reflect.Ptr {
@@ -381,16 +359,14 @@ func formatStruct(data interface{}, fields []string) error {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 
-		// 使用 json 标签作为字段名，如果没有则使用字段名
 		fieldName := field.Name
 		tagName := field.Tag.Get("json")
 		if tagName != "" && tagName != "-" {
-			// 去除 json 标签中的选项部分
+
 			tagParts := strings.Split(tagName, ",")
 			fieldName = tagParts[0]
 		}
 
-		// 如果指定了字段列表，则只显示这些字段
 		if len(fields) > 0 {
 			include := false
 			for _, f := range fields {
@@ -412,35 +388,29 @@ func formatStruct(data interface{}, fields []string) error {
 	return nil
 }
 
-// filterFields 根据字段列表过滤数据
 func filterFields(data interface{}, fields []string) (interface{}, error) {
 	v := reflect.ValueOf(data)
 
-	// 如果是指针，获取它指向的值
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
 
-	// 处理切片类型
 	if v.Kind() == reflect.Slice || v.Kind() == reflect.Array {
-		// 创建一个新的切片来存储过滤后的数据
+
 		resultSlice := reflect.MakeSlice(v.Type(), 0, v.Len())
 
 		for i := 0; i < v.Len(); i++ {
 			elem := v.Index(i)
 
-			// 如果元素是结构体，过滤其字段
 			if elem.Kind() == reflect.Struct {
-				// 创建一个新的结构体
+
 				newElem := reflect.New(elem.Type()).Elem()
 
-				// 复制指定的字段
 				for j := 0; j < elem.NumField(); j++ {
 					field := elem.Type().Field(j)
 					fieldName := field.Name
 					tagName := field.Tag.Get("json")
 					if tagName != "" && tagName != "-" {
-						// 去除 json 标签中的选项部分
 						tagParts := strings.Split(tagName, ",")
 						fieldName = tagParts[0]
 					}
@@ -460,7 +430,7 @@ func filterFields(data interface{}, fields []string) (interface{}, error) {
 
 				resultSlice = reflect.Append(resultSlice, newElem)
 			} else if elem.Kind() == reflect.Map {
-				// 处理 map 类型的元素
+
 				newMap := reflect.MakeMap(elem.Type())
 
 				iter := elem.MapRange()
@@ -483,14 +453,14 @@ func filterFields(data interface{}, fields []string) (interface{}, error) {
 
 				resultSlice = reflect.Append(resultSlice, newMap)
 			} else {
-				// 对于其他类型，直接添加
+
 				resultSlice = reflect.Append(resultSlice, elem)
 			}
 		}
 
 		return resultSlice.Interface(), nil
 	} else if v.Kind() == reflect.Struct {
-		// 处理单个结构体
+
 		newStruct := reflect.New(v.Type()).Elem()
 
 		for i := 0; i < v.NumField(); i++ {
@@ -517,7 +487,7 @@ func filterFields(data interface{}, fields []string) (interface{}, error) {
 
 		return newStruct.Interface(), nil
 	} else if v.Kind() == reflect.Map {
-		// 处理 map
+
 		newMap := reflect.MakeMap(v.Type())
 
 		iter := v.MapRange()
@@ -541,22 +511,18 @@ func filterFields(data interface{}, fields []string) (interface{}, error) {
 		return newMap.Interface(), nil
 	}
 
-	// 对于其他类型，返回原始数据
 	return data, nil
 }
 
-// Print 是一个便捷函数，根据指定的格式输出数据
 func Print(data interface{}, format Format) error {
 	return PrintWithFields(data, format, nil)
 }
 
-// PrintWithFields 是一个便捷函数，根据指定的格式和字段列表输出数据
 func PrintWithFields(data interface{}, format Format, fields []string) error {
 	formatter := GetFormatter(format)
 	return formatter.Format(data, fields)
 }
 
-// ParseFormat 将字符串转换为 Format 类型
 func ParseFormat(format string) Format {
 	switch strings.ToLower(format) {
 	case "json":
@@ -572,7 +538,6 @@ func ParseFormat(format string) Format {
 	}
 }
 
-// PrintDryRun 打印dry-run模式下的参数
 func PrintDryRun(data interface{}, format string) {
 	switch format {
 	case "json":
@@ -586,17 +551,304 @@ func PrintDryRun(data interface{}, format string) {
 	}
 }
 
-// PrintOperationResult 打印操作结果
-func PrintOperationResult(resourceType string, data interface{}, format string) {
+type ResourceTableDefinition struct {
+	Headers []string
+	Fields  []FieldDefinition
+}
+
+type FieldDefinition struct {
+	Path      []string
+	Formatter func(interface{}) string
+}
+
+var resourceTableDefinitions = map[string]ResourceTableDefinition{
+	"image": {
+		Headers: []string{"NAME", "UUID", "STATUS", "SIZE", "MEDIA-TYPE", "FORMAT", "CREATED"},
+		Fields: []FieldDefinition{
+			{Path: []string{"Name"}, Formatter: stringFormatter},
+			{Path: []string{"UUID"}, Formatter: stringFormatter},
+			{Path: []string{"Status"}, Formatter: stringFormatter},
+			{Path: []string{"Size"}, Formatter: sizeFormatter},
+			{Path: []string{"MediaType"}, Formatter: stringFormatter},
+			{Path: []string{"Format"}, Formatter: stringFormatter},
+			{Path: []string{"CreateDate"}, Formatter: timeFormatter},
+		},
+	},
+	"instance": {
+		Headers: []string{"NAME", "UUID", "STATUS", "HOST", "CPU", "MEMORY", "IMAGE", "CREATED"},
+		Fields: []FieldDefinition{
+			{Path: []string{"Name"}, Formatter: stringFormatter},
+			{Path: []string{"UUID"}, Formatter: stringFormatter},
+			{Path: []string{"State"}, Formatter: stringFormatter},
+			{Path: []string{"HostUUID"}, Formatter: stringFormatter},
+			{Path: []string{"CPUNum"}, Formatter: intFormatter},
+			{Path: []string{"MemorySize"}, Formatter: sizeFormatter},
+			{Path: []string{"ImageUUID"}, Formatter: stringFormatter},
+			{Path: []string{"CreateDate"}, Formatter: timeFormatter},
+		},
+	},
+	"instanceoffering": {
+		Headers: []string{"NAME", "UUID", "CPU", "MEMORY", "TYPE", "ALLOCATOR_STRATEGY", "STATE"},
+		Fields: []FieldDefinition{
+			{Path: []string{"Name"}, Formatter: stringFormatter},
+			{Path: []string{"UUID"}, Formatter: stringFormatter},
+			{Path: []string{"CpuNum"}, Formatter: intFormatter},
+			{Path: []string{"MemorySize"}, Formatter: sizeFormatter},
+			{Path: []string{"Type"}, Formatter: stringFormatter},
+			{Path: []string{"AllocatorStrategy"}, Formatter: stringFormatter},
+			{Path: []string{"State"}, Formatter: stringFormatter},
+		},
+	},
+	"diskoffering": {
+		Headers: []string{"NAME", "UUID", "DISK_SIZE", "TYPE", "ALLOCATOR_STRATEGY", "STATE", "CREATED"},
+		Fields: []FieldDefinition{
+			{Path: []string{"Name"}, Formatter: stringFormatter},
+			{Path: []string{"UUID"}, Formatter: stringFormatter},
+			{Path: []string{"DiskSize"}, Formatter: sizeFormatter},
+			{Path: []string{"Type"}, Formatter: stringFormatter},
+			{Path: []string{"AllocatorStrategy"}, Formatter: stringFormatter},
+			{Path: []string{"State"}, Formatter: stringFormatter},
+			{Path: []string{"CreateDate"}, Formatter: timeFormatter},
+		},
+	},
+}
+
+var resourceTypeAliases = map[string]string{
+	"virtualmachine":    "instance",
+	"l3network":         "network",
+	"network":           "network",
+	"instanceoffering":  "instanceoffering",
+	"instance":          "instance",
+	"vm":                "instance",
+	"instance-offering": "instanceoffering",
+}
+
+func PrintOperationResult(resourceType string, result interface{}, format string) {
 	switch format {
 	case "json":
-		jsonData, _ := json.MarshalIndent(data, "", "  ")
-		fmt.Println(string(jsonData))
+		printJSON(result)
 	case "yaml":
-		yamlData, _ := yaml.Marshal(data)
-		fmt.Println(string(yamlData))
+		printYAML(result)
+	case "wide":
+		printWideFormat(resourceType, result)
+	case "name":
+		printNameOnly(resourceType, result)
 	default:
-		fmt.Printf("%s created successfully\n", resourceType)
-		fmt.Printf("Details: %+v\n", data)
+		printSimpleFormat(resourceType, result)
 	}
+}
+
+func printSimpleFormat(resourceType string, result interface{}) {
+	name := extractName(result)
+	if name != "" {
+		fmt.Printf("%s/%s created\n", strings.ToLower(resourceType), name)
+	} else {
+		fmt.Printf("%s created successfully\n", resourceType)
+	}
+}
+
+func printNameOnly(resourceType string, result interface{}) {
+	name := extractName(result)
+	if name != "" {
+		fmt.Printf("%s/%s\n", strings.ToLower(resourceType), name)
+	} else {
+		fmt.Printf("%s\n", resourceType)
+	}
+}
+
+func extractName(result interface{}) string {
+	if result == nil {
+		return ""
+	}
+
+	return getFieldValueAsString(result, "Name")
+}
+
+func printWideFormat(resourceType string, result interface{}) {
+	if result == nil {
+		fmt.Printf("No result data to display\n")
+		return
+	}
+
+	normalizedType := normalizeResourceType(resourceType)
+
+	tableDef, found := resourceTableDefinitions[normalizedType]
+	if !found {
+
+		fmt.Printf("No table definition for resource type '%s', using JSON format:\n", resourceType)
+		printJSON(result)
+		return
+	}
+
+	printResourceTable(result, tableDef)
+}
+
+func normalizeResourceType(resourceType string) string {
+	lowerType := strings.ToLower(resourceType)
+	if alias, found := resourceTypeAliases[lowerType]; found {
+		return alias
+	}
+	return lowerType
+}
+
+func printResourceTable(result interface{}, tableDef ResourceTableDefinition) {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
+
+	fmt.Fprintln(w, strings.Join(tableDef.Headers, "\t"))
+
+	var values []string
+	for _, fieldDef := range tableDef.Fields {
+		value := getFieldValue(result, fieldDef.Path)
+		formattedValue := fieldDef.Formatter(value)
+		values = append(values, formattedValue)
+	}
+	fmt.Fprintln(w, strings.Join(values, "\t"))
+
+	w.Flush()
+}
+
+func getFieldValue(obj interface{}, path []string) interface{} {
+	if obj == nil || len(path) == 0 {
+		return nil
+	}
+
+	val := reflect.ValueOf(obj)
+	if val.Kind() == reflect.Ptr {
+		val = val.Elem()
+	}
+
+	if val.Kind() != reflect.Struct {
+		return nil
+	}
+
+	fieldName := path[0]
+	field := val.FieldByName(fieldName)
+	if !field.IsValid() {
+		return nil
+	}
+
+	if len(path) == 1 {
+		return field.Interface()
+	}
+
+	return getFieldValue(field.Interface(), path[1:])
+}
+
+func getFieldValueAsString(obj interface{}, fieldName string) string {
+	value := getFieldValue(obj, []string{fieldName})
+	if value == nil {
+		return ""
+	}
+
+	switch v := value.(type) {
+	case string:
+		return v
+	case fmt.Stringer:
+		return v.String()
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+func stringFormatter(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+	return fmt.Sprintf("%v", value)
+}
+
+func intFormatter(value interface{}) string {
+	if value == nil {
+		return "0"
+	}
+
+	switch v := value.(type) {
+	case int:
+		return fmt.Sprintf("%d", v)
+	case int32:
+		return fmt.Sprintf("%d", v)
+	case int64:
+		return fmt.Sprintf("%d", v)
+	case float64:
+		return fmt.Sprintf("%d", int(v))
+	default:
+		return fmt.Sprintf("%v", value)
+	}
+}
+
+func sizeFormatter(value interface{}) string {
+	if value == nil {
+		return "0"
+	}
+
+	var size int64
+	switch v := value.(type) {
+	case int:
+		size = int64(v)
+	case int32:
+		size = int64(v)
+	case int64:
+		size = v
+	case float64:
+		size = int64(v)
+	default:
+		return fmt.Sprintf("%v", value)
+	}
+
+	return formatSize(size)
+}
+
+func timeFormatter(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+
+	switch v := value.(type) {
+	case time.Time:
+		return formatTime(v)
+	case string:
+
+		t, err := time.Parse(time.RFC3339, v)
+		if err == nil {
+			return formatTime(t)
+		}
+		return v
+	default:
+		return fmt.Sprintf("%v", value)
+	}
+}
+
+func formatSize(size int64) string {
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+	div, exp := int64(unit), 0
+	for n := size / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(size)/float64(div), "KMGTPE"[exp])
+}
+
+func formatTime(t time.Time) string {
+	return t.Format("2006-01-02 15:04:05")
+}
+
+func printJSON(result interface{}) {
+	jsonData, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		fmt.Printf("Error marshalling to JSON: %s\n", err)
+		return
+	}
+	fmt.Println(string(jsonData))
+}
+
+func printYAML(result interface{}) {
+	yamlData, err := yaml.Marshal(result)
+	if err != nil {
+		fmt.Printf("Error marshalling to YAML: %s\n", err)
+		return
+	}
+	fmt.Println(string(yamlData))
 }

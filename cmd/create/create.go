@@ -1,3 +1,17 @@
+// Copyright 2025 zstack.io
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // cmd/create/create.go
 package create
 
@@ -15,13 +29,13 @@ var (
 	verboseFlag bool
 )
 
-// CreateCmd 表示 create 命令
+// CreateCmd
 var CreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create one or many resources",
 	Long:  `Create one or many ZStack resources.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// 如果没有子命令或文件标志，显示帮助
+
 		if len(args) == 0 && fileFlag == "" {
 			cmd.Help()
 			return
@@ -30,18 +44,16 @@ var CreateCmd = &cobra.Command{
 	PersistentPreRunE: preRunCheckFile,
 }
 
-// 初始化命令
 func init() {
-	// 添加通用标志
+
 	CreateCmd.PersistentFlags().StringVarP(&fileFlag, "file", "f", "", "Filename, directory, or URL to files containing resource definitions")
 	CreateCmd.PersistentFlags().StringVarP(&outputFlag, "output", "o", "", "Output format (json|yaml)")
 	CreateCmd.PersistentFlags().BoolVar(&dryRunFlag, "dry-run", false, "Only print the object that would be sent, without sending it")
 	CreateCmd.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "Enable verbose output")
 }
 
-// 预运行函数，检查文件标志
 func preRunCheckFile(cmd *cobra.Command, args []string) error {
-	// 如果指定了文件标志，处理文件
+
 	if fileFlag != "" {
 		if dryRunFlag {
 			fmt.Println("Dry run mode: would process file", fileFlag)
@@ -57,9 +69,8 @@ func preRunCheckFile(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		// 如果成功处理了文件，可以选择跳过常规命令执行
 		cmd.Run = func(cmd *cobra.Command, args []string) {
-			// 文件已处理，无需进一步操作
+
 		}
 	}
 	return nil

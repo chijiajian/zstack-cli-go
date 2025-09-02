@@ -1,3 +1,17 @@
+// Copyright 2025 zstack.io
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package get
 
 import (
@@ -5,11 +19,10 @@ import (
 
 	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
-	"github.com/chijiajian/zstack-cli-go/pkg/output"
+	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
-// 定义格式化的EIP结构体，添加适当的标签以便表格正确显示
 type FormattedEip struct {
 	Name        string `json:"name" yaml:"name" header:"NAME"`
 	UUID        string `json:"uuid" yaml:"uuid" header:"UUID"`
@@ -21,45 +34,39 @@ type FormattedEip struct {
 	Description string `json:"description" yaml:"description" header:"DESCRIPTION"`
 }
 
-// eipsCmd 表示 eips 命令
 var eipsCmd = &cobra.Command{
 	Use:   "eips [name]",
 	Short: "List elastic IPs",
 	Long:  `List all elastic IPs (EIPs) in the ZStack cloud platform.`,
 	Run: func(cobraCmd *cobra.Command, args []string) {
-		// 1. 创建客户端
+
 		zsClient := client.GetClient()
 		if zsClient == nil {
 			fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
 			return
 		}
 
-		// 2. 创建查询参数
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
 		if err != nil {
 			fmt.Printf("Error building query parameters: %s\n", err)
 			return
 		}
 
-		// 3. 调用 API
 		eips, err := zsClient.QueryEip(*queryParam)
 		if err != nil {
 			fmt.Printf("Error querying elastic IPs: %s\n", err)
 			return
 		}
 
-		// 如果没有找到EIP，显示适当的消息
 		if len(eips) == 0 {
 			fmt.Println("No elastic IPs found.")
 			return
 		}
 
-		// 4. 格式化输出
 		outputFormat, _ := cobraCmd.Flags().GetString("output")
-		format := output.ParseFormat(outputFormat)
+		format := utils.ParseFormat(outputFormat)
 		fields, _ := cobraCmd.Flags().GetStringSlice("fields")
 
-		// 准备格式化的数据
 		var formattedResults []FormattedEip
 		for _, eip := range eips {
 			formatted := FormattedEip{
@@ -75,8 +82,7 @@ var eipsCmd = &cobra.Command{
 			formattedResults = append(formattedResults, formatted)
 		}
 
-		// 使用 output 包进行输出
-		err = output.PrintWithFields(formattedResults, format, fields)
+		err = utils.PrintWithFields(formattedResults, format, fields)
 		if err != nil {
 			fmt.Printf("Error formatting output: %s\n", err)
 			return

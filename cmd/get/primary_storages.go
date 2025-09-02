@@ -1,3 +1,17 @@
+// Copyright 2025 zstack.io
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package get
 
 import (
@@ -6,12 +20,10 @@ import (
 
 	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
-	"github.com/chijiajian/zstack-cli-go/pkg/output"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
-// 定义格式化的主存储结构体
 type FormattedPrimaryStorage struct {
 	Name                      string `json:"name" yaml:"name" header:"NAME"`
 	UUID                      string `json:"uuid" yaml:"uuid" header:"UUID"`
@@ -32,41 +44,36 @@ type FormattedPrimaryStorage struct {
 	PoolCount int `json:"poolCount" yaml:"poolCount" header:"POOL COUNT"`
 }
 
-// primaryStorageCmd 表示 primary-storage 命令
 var primaryStorageCmd = &cobra.Command{
 	Use:   "primary-storages [name]",
 	Short: "List primary storages",
 	Long:  `List all primary storages in the ZStack cloud platform.`,
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cobraCmd *cobra.Command, args []string) {
-		// 1. 创建客户端
+
 		zsClient := client.GetClient()
 		if zsClient == nil {
 			fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
 			return
 		}
 
-		// 2. 创建查询参数
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
 		if err != nil {
 			fmt.Printf("Error building query parameters: %s\n", err)
 			return
 		}
 
-		// 3. 调用 API
 		primaryStorages, err := zsClient.QueryPrimaryStorage(*queryParam)
 		if err != nil {
 			fmt.Printf("Error querying primary storages: %s\n", err)
 			return
 		}
 
-		// 4. 格式化输出
 		outputFormat, _ := cobraCmd.Flags().GetString("output")
-		format := output.ParseFormat(outputFormat)
+		format := utils.ParseFormat(outputFormat)
 
 		fields, _ := cobraCmd.Flags().GetStringSlice("fields")
 
-		// 准备格式化的数据
 		var formattedResults []FormattedPrimaryStorage
 		for _, ps := range primaryStorages {
 			formatted := FormattedPrimaryStorage{
@@ -85,14 +92,13 @@ var primaryStorageCmd = &cobra.Command{
 				Status:                    ps.Status,
 				AttachedClusterUuids:      strings.Join(ps.AttachedClusterUuids, ","),
 
-				MonCount:  len(ps.Mons),  // 只显示Mons的数量，不显示具体内容
-				PoolCount: len(ps.Pools), // 只显示Pools的数量，不显示具体内容
+				MonCount:  len(ps.Mons),
+				PoolCount: len(ps.Pools),
 			}
 			formattedResults = append(formattedResults, formatted)
 		}
 
-		// 使用 output 包进行输出
-		err = output.PrintWithFields(formattedResults, format, fields)
+		err = utils.PrintWithFields(formattedResults, format, fields)
 		if err != nil {
 			fmt.Printf("Error formatting output: %s\n", err)
 			return

@@ -1,6 +1,16 @@
-/*
-Copyright © 2025 zstack.io
-*/
+// Copyright 2025 zstack.io
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package cmd
 
 import (
@@ -9,31 +19,45 @@ import (
 	"path/filepath"
 
 	"github.com/chijiajian/zstack-cli-go/cmd/create"
+	"github.com/chijiajian/zstack-cli-go/cmd/del"
+	"github.com/chijiajian/zstack-cli-go/cmd/expunge"
 	"github.com/chijiajian/zstack-cli-go/cmd/get"
-	"github.com/chijiajian/zstack-cli-go/pkg/output"
+	"github.com/chijiajian/zstack-cli-go/pkg/config"
+	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var (
-	cfgFile     string
 	outputFlags struct {
 		Format string
 	}
+	version = "dev"
+	commit  = "none"
 )
 
-// rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "zstack-cli",
-	Short: "A CLI for interacting with the ZStack API",
+	Short: "ZStack CLI - manage your ZStack resources",
 	Long:  `zstack-cli is a command-line interface for managing ZStack resources.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if v, _ := cmd.Flags().GetBool("version"); v {
+			fmt.Printf("zstack-cli version: %s, commit: %s\n", version, commit)
+			os.Exit(0)
+		}
+		_, err := config.LoadConfig()
+		return err
+	},
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
+func getConfigFilePath() string {
+	if envCfg := os.Getenv("ZSTACK_CONFIG"); envCfg != "" {
+		return envCfg
+	}
+
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".zstack-cli", "config.yaml")
+}
+
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -42,52 +66,98 @@ func Execute() {
 }
 
 func init() {
-	// 在这里调用 cobra.OnInitialize 来注册我们的配置初始化函数
-	cobra.OnInitialize(initConfig)
 
 	rootCmd.AddCommand(get.GetCmd)
 
-	// 这里可以定义全局标志，比如 --config
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.zstack-cli/config.yaml)")
 	rootCmd.PersistentFlags().StringVarP(&outputFlags.Format, "output", "o", "table", "Output format (table|json|yaml|text)")
 	rootCmd.AddCommand(create.CreateCmd)
+	rootCmd.AddCommand(loginCmd)
+	rootCmd.AddCommand(config.ConfigCmd)
+	rootCmd.AddCommand(del.DeleteCmd)
+	rootCmd.AddCommand(expunge.ExpungeCmd)
+	rootCmd.AddCommand(completionCmd)
+
+	rootCmd.ValidArgs = []string{"create", "delete", "expunge", "get", "login", "config"}
+	rootCmd.Args = cobra.OnlyValidArgs
+
+	create.CreateCmd.ValidArgs = []string{"disk-offering", "instance-offering", "image", "instance"}
+	create.CreateCmd.Args = cobra.OnlyValidArgs
+
+	del.DeleteCmd.ValidArgs = []string{"images", "instances"}
+	del.DeleteCmd.Args = cobra.OnlyValidArgs
+
+	expunge.ExpungeCmd.ValidArgs = []string{"images", "instances"}
+	expunge.ExpungeCmd.Args = cobra.OnlyValidArgs
+
+	get.GetCmd.ValidArgs = []string{
+		"clusters", "disk-offerings", "disks", "eips", "hosts",
+		"images", "image-storages", "instance-offerings", "instances",
+		"l2-networks", "l3-networks", "management-nodes",
+		"primary-storages", "vips", "virtual-router-offerings",
+		"virtual-routers", "vm-scripts", "zones",
+	}
+
+	get.GetCmd.Args = cobra.OnlyValidArgs
+
+	rootCmd.AddCommand(&cobra.Command{
+		Use:   "version",
+		Short: "Show zstack-cli version",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("zstack-cli version: %s, commit: %s\n", version, commit)
+		},
+	})
+
 }
 
-// initConfig 会在 cobra 初始化时被调用
-// 这是解决问题的关键！
-func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// Find home directory.
-		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
+var completionCmd = &cobra.Command{
+	Use:   "completion [bash|zsh|fish|powershell]",
+	Short: "Generate completion script",
+	Long: `To load completions:
 
-		// Search config in home directory with name ".zstack-cli" (without extension).
-		configDir := filepath.Join(home, ".zstack-cli")
-		viper.AddConfigPath(configDir)
-		viper.SetConfigType("yaml")
-		viper.SetConfigName("config")
-	}
+Bash:
+  source <(zstack-cli completion bash)
 
-	viper.AutomaticEnv() // read in environment variables that match
+  # To load completions for each session, execute once:
+  # Linux:
+  zstack-cli completion bash > /etc/bash_completion.d/zstack-cli
+  # macOS:
+  zstack-cli completion bash > /usr/local/etc/bash_completion.d/zstack-cli
 
-	// 重点：尝试读取配置文件
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Debug: Using config file:", viper.ConfigFileUsed())
-	} else {
-		// 如果文件不存在，这并非一个错误，因为 login 命令会创建它
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			// 如果是其他读取错误，打印出来
-			fmt.Println("Debug: Error reading config file:", err)
-		} else {
-			fmt.Println("Debug: No config file found. Login might be required.")
+Zsh:
+  # If shell completion is not already enabled in your environment,
+  # you will need to enable it. You can execute once:
+  echo "autoload -U compinit; compinit" >> ~/.zshrc
+
+  # To load completions for each session, execute once:
+  zstack-cli completion zsh > "${fpath[1]}/_zstack-cli"
+
+Fish:
+  zstack-cli completion fish | source
+  zstack-cli completion fish > ~/.config/fish/completions/zstack-cli.fish
+
+PowerShell:
+  zstack-cli completion powershell | Out-String | Invoke-Expression
+  zstack-cli completion powershell > zstack-cli.ps1
+  # and source this file from your PowerShell profile.
+`,
+	DisableFlagsInUseLine: true,
+	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
+	Args:                  cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
+	Run: func(cmd *cobra.Command, args []string) {
+		switch args[0] {
+		case "bash":
+			cmd.Root().GenBashCompletion(os.Stdout)
+		case "zsh":
+			cmd.Root().GenZshCompletion(os.Stdout)
+		case "fish":
+			cmd.Root().GenFishCompletion(os.Stdout, true)
+		case "powershell":
+			cmd.Root().GenPowerShellCompletion(os.Stdout)
 		}
-	}
+	},
 }
 
 func FormatOutput(data interface{}) error {
-	format := output.ParseFormat(outputFlags.Format)
-	return output.Print(data, format)
+	format := utils.ParseFormat(outputFlags.Format)
+	return utils.Print(data, format)
 }

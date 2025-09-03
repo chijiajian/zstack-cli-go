@@ -6,86 +6,36 @@ before:
     - go mod tidy
 
 builds:
-  - id: linux-amd64
-    env:
+  - env:
       - CGO_ENABLED=0
+    mod_timestamp: '{{ .CommitTimestamp }}'
     flags:
       - -trimpath
-    mod_timestamp: '{{ .CommitTimestamp }}'
     ldflags:
-      - '-s -w -X main.version={{.Version}} -X main.commit={{.Commit}}'
+      - '-s -w -X main.version={{ .Version }} -X main.commit={{ .Commit }}'
     goos:
       - linux
-    goarch:
-      - amd64
-    binary: '{{ .ProjectName }}_v{{ .Version }}_linux_amd64'
-
-  - id: linux-arm64
-    env:
-      - CGO_ENABLED=0
-    flags:
-      - -trimpath
-    mod_timestamp: '{{ .CommitTimestamp }}'
-    ldflags:
-      - '-s -w -X main.version={{.Version}} -X main.commit={{.Commit}}'
-    goos:
-      - linux
-    goarch:
-      - arm64
-    binary: '{{ .ProjectName }}_v{{ .Version }}_linux_arm64'
-
-  - id: windows-amd64
-    env:
-      - CGO_ENABLED=0
-    flags:
-      - -trimpath
-    mod_timestamp: '{{ .CommitTimestamp }}'
-    ldflags:
-      - '-s -w -X main.version={{.Version}} -X main.commit={{.Commit}}'
-    goos:
       - windows
-    goarch:
-      - amd64
-    binary: '{{ .ProjectName }}_v{{ .Version }}_windows_amd64.exe'
-
-  - id: darwin-amd64
-    env:
-      - CGO_ENABLED=0
-    flags:
-      - -trimpath
-    mod_timestamp: '{{ .CommitTimestamp }}'
-    ldflags:
-      - '-s -w -X main.version={{.Version}} -X main.commit={{.Commit}}'
-    goos:
       - darwin
     goarch:
       - amd64
-    binary: '{{ .ProjectName }}_v{{ .Version }}_darwin_amd64'
+      - '386'
+      - arm
+      - arm64
+    ignore:
+      - goos: darwin
+        goarch: '386'
+    binary: '{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 
 archives:
-  - id: linux-amd64
-    builds:
-      - linux-amd64
-    format: tar.gz
-    name_template: '{{ .ProjectName }}_{{ .Version }}_linux_amd64'
-
-  - id: linux-arm64
-    builds:
-      - linux-arm64
-    format: tar.gz
-    name_template: '{{ .ProjectName }}_{{ .Version }}_linux_arm64'
-
-  - id: windows-amd64
-    builds:
-      - windows-amd64
-    format: zip
-    name_template: '{{ .ProjectName }}_{{ .Version }}_windows_amd64'
-
-  - id: darwin-amd64
-    builds:
-      - darwin-amd64
-    format: tar.gz
-    name_template: '{{ .ProjectName }}_{{ .Version }}_darwin_amd64'
+  - format: tar.gz
+    files:
+      - '{{ .Binary }}'
+    name_template: '{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+  - format: zip
+    files:
+      - '{{ .Binary }}'
+    name_template: '{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 
 checksum:
   name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'

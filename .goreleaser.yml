@@ -104,8 +104,8 @@ signs:
 
 release:
   github:
-    owner: zstackio
-    name: zstack-cli
+    owner: chijiajian
+    name: zstack-cli-go
 
 changelog:
   filters:

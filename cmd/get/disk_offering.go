@@ -65,7 +65,7 @@ var diskOfferingsCmd = &cobra.Command{
 			formatted := FormattedDiskOffering{
 				Name:              offering.Name,
 				UUID:              offering.UUID,
-				DiskSize:          utils.FormatDiskSize(offering.DiskSize),
+				DiskSize:          utils.FormatDiskSize(int64(offering.DiskSize)),
 				Type:              offering.Type,
 				AllocatorStrategy: offering.AllocatorStrategy,
 				State:             offering.State,

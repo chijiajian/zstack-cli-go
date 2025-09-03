@@ -32,19 +32,15 @@ archives:
   - id: tar
     format: tar.gz
     files:
-      - src: 'LICENSE*'
-        dst: 'LICENSE'
-      - src: 'README*'
-        dst: 'README.md'
+      - LICENSE*
+      - README*
     name_template: '{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}'
     
   - id: zip
     format: zip
     files:
-      - src: 'LICENSE*'
-        dst: 'LICENSE'
-      - src: 'README*'
-        dst: 'README.md'
+      - LICENSE
+      - README*
     name_template: '{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 
 checksum:

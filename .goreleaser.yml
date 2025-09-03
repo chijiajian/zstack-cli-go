@@ -7,7 +7,6 @@ before:
 builds:
   - env:
       - CGO_ENABLED=0
-    mod_timestamp: '{{ .CommitTimestamp }}'
     flags:
       - -trimpath
     ldflags:
@@ -30,13 +29,13 @@ archives:
   - id: tar
     formats: [tar.gz]
     files:
-      - '{{ .Binary }}'
+      - 'dist/{{ .Binary }}'
     name_template: '{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 
   - id: zip
     formats: [zip]
     files:
-      - '{{ .Binary }}'
+      - 'dist/{{ .Binary }}'
     name_template: '{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 
 checksum:
@@ -58,11 +57,3 @@ release:
   github:
     owner: chijiajian
     name: zstack-cli-go
-
-changelog:
-  filters:
-    exclude:
-      - '^docs:'
-      - '^chore:'
-      - '^test:'
-      - '^style:'

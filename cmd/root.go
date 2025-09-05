@@ -22,6 +22,7 @@ import (
 	"github.com/chijiajian/zstack-cli-go/cmd/del"
 	"github.com/chijiajian/zstack-cli-go/cmd/expunge"
 	"github.com/chijiajian/zstack-cli-go/cmd/get"
+	"github.com/chijiajian/zstack-cli-go/cmd/resources"
 	"github.com/chijiajian/zstack-cli-go/pkg/config"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
@@ -76,6 +77,8 @@ func init() {
 	rootCmd.AddCommand(del.DeleteCmd)
 	rootCmd.AddCommand(expunge.ExpungeCmd)
 	rootCmd.AddCommand(completionCmd)
+	rootCmd.AddCommand(resources.InstanceCmd)
+	//rootCmd.AddCommand(cmdutil.ResourceCommand)
 
 	rootCmd.ValidArgs = []string{"create", "delete", "expunge", "get", "login", "config"}
 	rootCmd.Args = cobra.OnlyValidArgs

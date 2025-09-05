@@ -16,19 +16,19 @@ case "$OS" in
       echo "Removed $BIN_PATH"
     fi
 
-    # 删除 bash 补全
+
     if [ -f "$COMPLETION_DIR_BASH/$BIN_NAME" ]; then
       sudo rm -f "$COMPLETION_DIR_BASH/$BIN_NAME"
       echo "Removed bash completion"
     fi
 
-    # 删除 zsh 补全
+ 
     if [ -f "$COMPLETION_DIR_ZSH/_$BIN_NAME" ]; then
       rm -f "$COMPLETION_DIR_ZSH/_$BIN_NAME"
       echo "Removed zsh completion"
     fi
 
-    # 删除 fish 补全
+
     if [ -f "$COMPLETION_DIR_FISH/$BIN_NAME.fish" ]; then
       rm -f "$COMPLETION_DIR_FISH/$BIN_NAME.fish"
       echo "Removed fish completion"

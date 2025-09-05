@@ -73,11 +73,11 @@ func deleteImage(cmd *cobra.Command, nameOrUUID string) error {
 		fmt.Printf("- %s (%s)\n", img.Name, img.UUID)
 	}
 
-	fmt.Print("Are you sure you want to delete these images? (yes/no): ")
+	fmt.Print("Are you sure you want to delete these images? (yes/No): ")
 	reader := bufio.NewReader(os.Stdin)
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(strings.ToLower(input))
-	if input != "yes" {
+	if input != "yes" && input != "y" {
 		fmt.Printf("Aborted. No images were deleted.\n")
 		return nil
 	}

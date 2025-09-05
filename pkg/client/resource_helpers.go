@@ -341,7 +341,7 @@ func GetReadyVMsByNameOrUUID(cli *sdkClient.ZSClient, nameOrUUID string) ([]view
 
 	readyVMs := []view.VmInstanceInventoryView{}
 	for _, vm := range vms {
-		if vm.State == "Running" || vm.State == "Stopped" {
+		if vm.State == "Running" || vm.State == "Stopped" || vm.State == "Paused" {
 			readyVMs = append(readyVMs, vm)
 		}
 	}

@@ -28,20 +28,20 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Format string
+type OutputFormat string
 
 const (
-	TableFormat Format = "table"
-	JSONFormat  Format = "json"
-	YAMLFormat  Format = "yaml"
-	TextFormat  Format = "text"
+	TableFormat OutputFormat = "table"
+	JSONFormat  OutputFormat = "json"
+	YAMLFormat  OutputFormat = "yaml"
+	TextFormat  OutputFormat = "text"
 )
 
 type Formatter interface {
 	Format(data interface{}, fields []string) error
 }
 
-func GetFormatter(format Format) Formatter {
+func GetFormatter(format OutputFormat) Formatter {
 	switch format {
 	case TableFormat:
 		return &TableFormatter{}
@@ -514,16 +514,16 @@ func filterFields(data interface{}, fields []string) (interface{}, error) {
 	return data, nil
 }
 
-func Print(data interface{}, format Format) error {
+func Print(data interface{}, format OutputFormat) error {
 	return PrintWithFields(data, format, nil)
 }
 
-func PrintWithFields(data interface{}, format Format, fields []string) error {
+func PrintWithFields(data interface{}, format OutputFormat, fields []string) error {
 	formatter := GetFormatter(format)
 	return formatter.Format(data, fields)
 }
 
-func ParseFormat(format string) Format {
+func ParseFormat(format string) OutputFormat {
 	switch strings.ToLower(format) {
 	case "json":
 		return JSONFormat

@@ -66,7 +66,7 @@ func deleteVmInstance(cmd *cobra.Command, nameOrUUID string) error {
 	var input string
 	fmt.Print("Are you sure you want to delete the above VM instances? Type 'yes' to confirm: ")
 	fmt.Scanln(&input)
-	if input != "yes" {
+	if input != "yes" && input != "y" {
 		fmt.Println("Aborted by user.")
 		return nil
 	}

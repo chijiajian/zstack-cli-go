@@ -30,7 +30,7 @@ Example:
 
 func init() {
 	InstanceCmd.AddCommand(StopInstanceCmd)
-	StopInstanceCmd.Flags().Bool("stop-ha", false, "Completely shut down HA VM if applicable")
+	StopInstanceCmd.Flags().Bool("stop-ha", true, "Completely shut down HA VM if applicable")
 	//StopInstanceCmd.Flags().String("stop-type", "grace", "grace stop or not")
 }
 
@@ -112,7 +112,7 @@ func runStopInstance(cmd *cobra.Command, identifier string) {
 	p := param.StopVmInstanceParam{
 		StopVmInstance: param.StopVmInstanceDetailParam{
 			Type:   "grace",
-			StopHA: stopHA,
+			StopHA: stopHA, //bug if true bu restart auto
 		},
 	}
 
@@ -139,7 +139,6 @@ func runStopInstance(cmd *cobra.Command, identifier string) {
 		}
 	}
 
-	// 输出格式
 	outputFormat, _ := cmd.Flags().GetString("output")
 	format := utils.ParseFormat(outputFormat)
 	fields, _ := cmd.Flags().GetStringSlice("fields")

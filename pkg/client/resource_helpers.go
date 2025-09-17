@@ -147,6 +147,8 @@ func GetImageUUIDByName(cli *sdkClient.ZSClient, nameOrUUID string) (string, err
 
 	queryParam := param.NewQueryParam()
 	queryParam.AddQ(fmt.Sprintf("name~=%s", nameOrUUID))
+	queryParam.AddQ("state=Enabled")
+	queryParam.AddQ("status=Ready")
 
 	images, err := cli.QueryImage(queryParam)
 	if err != nil {
@@ -159,6 +161,8 @@ func GetImageUUIDByName(cli *sdkClient.ZSClient, nameOrUUID string) (string, err
 
 	queryParam = param.NewQueryParam()
 	queryParam.AddQ(fmt.Sprintf("uuid~=%s", nameOrUUID))
+	queryParam.AddQ("state=Enabled")
+	queryParam.AddQ("status=Ready")
 
 	images, err = cli.QueryImage(queryParam)
 	if err != nil {

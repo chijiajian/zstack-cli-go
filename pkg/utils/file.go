@@ -32,6 +32,7 @@ const (
 	KindImage            ResourceKind = "Image"
 	KindInstanceOffering ResourceKind = "InstanceOffering"
 	KindL3Network        ResourceKind = "L3Network"
+	KindInstance         ResourceKind = "Instance"
 )
 
 type ResourceSpec struct {

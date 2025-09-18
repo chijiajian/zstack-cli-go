@@ -18,17 +18,9 @@ metadata:
   name: "advanced-vm-from-yaml"
   description: "Advanced VM created from YAML file"
 spec:
-  imageUuid: "c76"
-  instanceOfferingUuid: "min"
-  l3NetworkUuids:
+  image: "c84"
+  instanceOffering: "min"
+  l3Networks:
     - "test"
-  systemTags:
-    - "hostname::advanced-vm"
-    - "staticIp::test::172.30.3.159"
-  defaultL3NetworkUuid: "test"
-  strategy: "InstantStart"
-  rootDiskOfferingUuid: "min"
-  zoneUuid: "ZONE-1"
-  clusterUuid: "Cluster-1"
-  hostUuid: "Host-1"
+  primaryStorage: "test"
 

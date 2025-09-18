@@ -24,34 +24,34 @@ import (
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
 	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 type VmInstanceSpec struct {
-	Name                            string   `json:"name" yaml:"name"`
-	InstanceOfferingUUID            string   `json:"instanceOfferingUuid" yaml:"instanceOfferingUuid"`
-	CpuNum                          int64    `json:"cpuNum" yaml:"cpuNum"`
-	MemorySize                      string   `json:"memorySize" yaml:"memorySize"`
-	ImageUUID                       string   `json:"imageUuid" yaml:"imageUuid"`
-	L3NetworkUuids                  []string `json:"l3NetworkUuids" yaml:"l3NetworkUuids"`
-	Type                            string   `json:"type" yaml:"type"`
-	RootDiskOfferingUuid            string   `json:"rootDiskOfferingUuid" yaml:"rootDiskOfferingUuid"`
-	RootDiskSize                    string   `json:"rootDiskSize" yaml:"rootDiskSize"`
-	DataDiskOfferingUuids           []string `json:"dataDiskOfferingUuids" yaml:"dataDiskOfferingUuids"`
-	DataDiskSizes                   []string `json:"dataDiskSizes" yaml:"dataDiskSizes"`
-	ZoneUuid                        string   `json:"zoneUuid" yaml:"zoneUuid"`
-	ClusterUUID                     string   `json:"clusterUuid" yaml:"clusterUuid"`
-	HostUuid                        string   `json:"hostUuid" yaml:"hostUuid"`
-	PrimaryStorageUuidForRootVolume string   `json:"primaryStorageUuidForRootVolume" yaml:"primaryStorageUuidForRootVolume"`
-	Description                     string   `json:"description" yaml:"description"`
-	DefaultL3NetworkUuid            string   `json:"defaultL3NetworkUuid" yaml:"defaultL3NetworkUuid"`
-	ResourceUuid                    string   `json:"resourceUuid" yaml:"resourceUuid"`
-	TagUuids                        []string `json:"tagUuids" yaml:"tagUuids"`
-	Strategy                        string   `json:"strategy" yaml:"strategy"`
-	RootVolumeSystemTags            []string `json:"rootVolumeSystemTags" yaml:"rootVolumeSystemTags"`
-	DataVolumeSystemTags            []string `json:"dataVolumeSystemTags" yaml:"dataVolumeSystemTags"`
-	SystemTags                      []string `json:"systemTags" yaml:"systemTags"`
-	UserTags                        []string `json:"userTags" yaml:"userTags"`
+	Name                 string   `json:"name" yaml:"name"`
+	InstanceOffering     string   `json:"instanceOffering" yaml:"instanceOffering"`
+	CpuNum               int64    `json:"cpuNum" yaml:"cpuNum"`
+	MemorySize           string   `json:"memorySize" yaml:"memorySize"`
+	Image                string   `json:"image" yaml:"image"`
+	L3Networks           []string `json:"l3Networks" yaml:"l3Networks"`
+	Type                 string   `json:"type" yaml:"type"`
+	RootDiskOffering     string   `json:"rootDiskOffering" yaml:"rootDiskOffering"`
+	RootDiskSize         string   `json:"rootDiskSize" yaml:"rootDiskSize"`
+	DataDiskOfferings    []string `json:"dataDiskOfferings" yaml:"dataDiskOfferings"`
+	DataDiskSizes        []string `json:"dataDiskSizes" yaml:"dataDiskSizes"`
+	Zone                 string   `json:"zone" yaml:"zone"`
+	Cluster              string   `json:"cluster" yaml:"cluster"`
+	Host                 string   `json:"host" yaml:"host"`
+	PrimaryStorage       string   `json:"primaryStorage" yaml:"primaryStorage"`
+	Description          string   `json:"description" yaml:"description"`
+	DefaultL3Network     string   `json:"defaultL3Network" yaml:"defaultL3Network"`
+	ResourceUuid         string   `json:"resourceUuid" yaml:"resourceUuid"`
+	TagUuids             []string `json:"tagUuids" yaml:"tagUuids"`
+	Strategy             string   `json:"strategy" yaml:"strategy"`
+	RootVolumeSystemTags []string `json:"rootVolumeSystemTags" yaml:"rootVolumeSystemTags"`
+	DataVolumeSystemTags []string `json:"dataVolumeSystemTags" yaml:"dataVolumeSystemTags"`
+	SystemTags           []string `json:"systemTags" yaml:"systemTags"`
+	UserTags             []string `json:"userTags" yaml:"userTags"`
 }
 
 var instanceCmd = &cobra.Command{
@@ -94,7 +94,6 @@ Examples:
 }
 
 func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) {
-
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		fmt.Printf("Error reading file %s: %v\n", filePath, err)
@@ -102,28 +101,53 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 	}
 
 	var vmSpec VmInstanceSpec
+	var resourceSpec utils.ResourceSpec
+	isGenericFormat := false
 
-	if strings.HasSuffix(filePath, ".json") {
-		if err := json.Unmarshal(data, &vmSpec); err != nil {
-			fmt.Printf("Error parsing JSON file: %v\n", err)
-			return
-		}
-	} else {
-		if err := yaml.Unmarshal(data, &vmSpec); err != nil {
-			fmt.Printf("Error parsing YAML file: %v\n", err)
-			return
+	// 通用抽象结构解析
+	if err := yaml.Unmarshal(data, &resourceSpec); err == nil {
+		if resourceSpec.Kind == utils.KindInstance && resourceSpec.Spec != nil {
+			isGenericFormat = true
+			specData, err := json.Marshal(resourceSpec.Spec)
+			if err != nil {
+				fmt.Printf("Error converting resource spec: %v\n", err)
+				return
+			}
+			if err := json.Unmarshal(specData, &vmSpec); err != nil {
+				fmt.Printf("Error parsing Instance spec: %v\n", err)
+				return
+			}
+			if name == "" {
+				name = resourceSpec.Metadata.Name
+			}
 		}
 	}
 
+	// 直接解析
+	if !isGenericFormat {
+		if strings.HasSuffix(filePath, ".json") {
+			if err := json.Unmarshal(data, &vmSpec); err != nil {
+				fmt.Printf("Error parsing JSON file: %v\n", err)
+				return
+			}
+		} else {
+			if err := yaml.Unmarshal(data, &vmSpec); err != nil {
+				fmt.Printf("Error parsing YAML file: %v\n", err)
+				return
+			}
+		}
+	}
+
+	// 默认名字
 	if name != "" {
 		vmSpec.Name = name
 	}
-
 	if vmSpec.Name == "" {
 		fmt.Println("Error: VM instance name is required")
 		return
 	}
 
+	// 解析内存/磁盘大小
 	var memorySizeBytes int64
 	if vmSpec.MemorySize != "" {
 		parsed, err := utils.ParseMemorySize(vmSpec.MemorySize)
@@ -144,105 +168,110 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 		rootDiskSizeBytes = &parsed
 	}
 
-	var dataDiskSizes []int64
-	if len(vmSpec.DataDiskSizes) > 0 {
-		for _, size := range vmSpec.DataDiskSizes {
-			parsed, err := utils.ParseMemorySize(size)
-			if err != nil {
-				fmt.Printf("Error parsing data disk size: %v\n", err)
-				return
-			}
-			dataDiskSizes = append(dataDiskSizes, parsed)
+	var dataDiskSizesBytes []int64
+	for _, size := range vmSpec.DataDiskSizes {
+		parsed, err := utils.ParseMemorySize(size)
+		if err != nil {
+			fmt.Printf("Error parsing data disk size: %v\n", err)
+			return
 		}
+		dataDiskSizesBytes = append(dataDiskSizesBytes, parsed)
 	}
 
 	cli := client.GetClient()
-
-	imageStr, _ := cmd.Flags().GetString("image")
-	instanceOfferingStr, _ := cmd.Flags().GetString("instance-offering")
-	l3NetworkStr, _ := cmd.Flags().GetStringSlice("l3-network")
-	zoneStr, _ := cmd.Flags().GetString("zone")
-	clusterStr, _ := cmd.Flags().GetString("cluster")
-	hostStr, _ := cmd.Flags().GetString("host")
-	primaryStorageStr, _ := cmd.Flags().GetString("primary-storage")
-
-	if primaryStorageStr == "" {
-		fmt.Printf("Error: required flag --primary-storage not set\n")
-		cmd.Help()
+	if cli == nil {
+		fmt.Println("Error: Client not initialized. Please run 'zstack-cli login' first.")
 		return
 	}
 
-	if imageStr == "" {
-		fmt.Println("Error: required flag --image not set")
-		cmd.Help()
+	// Image
+	if vmSpec.Image == "" {
+		fmt.Println("Error: image is required")
 		return
 	}
-
-	if l3NetworkStr == nil || len(l3NetworkStr) == 0 {
-		fmt.Println("Error: required flag --l3-network not set")
-		cmd.Help()
-		return
-	}
-
-	imageUuid, err := client.GetImageUUIDByName(cli, imageStr)
+	imageUuid, err := client.GetImageUUIDByName(cli, vmSpec.Image)
 	if err != nil {
-		fmt.Printf("Error: %s\n", err)
+		fmt.Printf("Error finding image '%s': %v\n", vmSpec.Image, err)
 		return
 	}
 
-	primaryStorageUuid, err := client.GetPrimaryStorageUUIDByName(cli, primaryStorageStr)
-	if err != nil {
-		fmt.Printf("Error: %s\n", err)
-		return
-	}
-	vmSpec.PrimaryStorageUuidForRootVolume = primaryStorageUuid
-
-	vmSpec.ImageUUID = imageUuid
-	if instanceOfferingStr != "" {
-		instanceOfferingUuid, err := client.GetInstanceUUIDByName(cli, instanceOfferingStr)
+	// InstanceOffering
+	var instanceOfferingUuid string
+	if vmSpec.InstanceOffering != "" {
+		instanceOfferingUuid, err = client.GetInstanceOfferingUUIDByName(cli, vmSpec.InstanceOffering)
 		if err != nil {
-			fmt.Printf("Error: %s\n", err)
+			fmt.Printf("Error finding instance offering '%s': %v\n", vmSpec.InstanceOffering, err)
 			return
 		}
-		vmSpec.InstanceOfferingUUID = instanceOfferingUuid
 	}
 
-	l3NetworkUuids := make([]string, 0, len(l3NetworkStr))
-	for _, nameOrUUID := range l3NetworkStr {
-		uuid, err := client.GetL3NetworkUUIDByName(cli, nameOrUUID)
+	// L3Networks
+	if len(vmSpec.L3Networks) == 0 {
+		fmt.Println("Error: At least one L3 network is required")
+		return
+	}
+	l3NetworkUuids := make([]string, 0, len(vmSpec.L3Networks))
+	for _, n := range vmSpec.L3Networks {
+		uuid, err := client.GetL3NetworkUUIDByName(cli, n)
 		if err != nil {
-			fmt.Printf("Error: %s\n", err)
+			fmt.Printf("Error finding L3 network '%s': %v\n", n, err)
 			return
 		}
 		l3NetworkUuids = append(l3NetworkUuids, uuid)
 	}
-	vmSpec.L3NetworkUuids = l3NetworkUuids
 
-	if zoneStr != "" {
-		zoneUuid, err := client.GetZoneUUIDByName(cli, zoneStr)
+	// Zone
+	var zoneUuid string
+	if vmSpec.Zone != "" {
+		zoneUuid, err = client.GetZoneUUIDByName(cli, vmSpec.Zone)
 		if err != nil {
-			fmt.Printf("Error: %s\n", err)
+			fmt.Printf("Error finding zone '%s': %v\n", vmSpec.Zone, err)
 			return
 		}
-		vmSpec.ZoneUuid = zoneUuid
 	}
 
-	if clusterStr != "" {
-		clusterUuid, err := client.GetClusterUUIDByName(cli, clusterStr)
+	// Cluster
+	var clusterUuid string
+	if vmSpec.Cluster != "" {
+		clusterUuid, err = client.GetClusterUUIDByName(cli, vmSpec.Cluster)
 		if err != nil {
-			fmt.Printf("Error: %s\n", err)
+			fmt.Printf("Error finding cluster '%s': %v\n", vmSpec.Cluster, err)
 			return
 		}
-		vmSpec.ClusterUUID = clusterUuid
 	}
 
-	if hostStr != "" {
-		hostUuid, err := client.GetHostUUIDByName(cli, hostStr)
+	// Host
+	var hostUuid string
+	if vmSpec.Host != "" {
+		hostUuid, err = client.GetHostUUIDByName(cli, vmSpec.Host)
 		if err != nil {
-			fmt.Printf("Error: %s\n", err)
+			fmt.Printf("Error finding host '%s': %v\n", vmSpec.Host, err)
 			return
 		}
-		vmSpec.HostUuid = hostUuid
+	}
+
+	// PrimaryStorage
+	var primaryStorageUuid string
+	if vmSpec.PrimaryStorage != "" {
+		primaryStorageUuid, err = client.GetPrimaryStorageUUIDByName(cli, vmSpec.PrimaryStorage)
+		if err != nil {
+			fmt.Printf("Error finding primary storage '%s': %v\n", vmSpec.PrimaryStorage, err)
+			return
+		}
+	}
+	var primaryStoragePtr *string
+	if primaryStorageUuid != "" {
+		primaryStoragePtr = &primaryStorageUuid
+	}
+
+	// DefaultL3Network
+	var defaultL3NetworkUuid string
+	if vmSpec.DefaultL3Network != "" {
+		defaultL3NetworkUuid, err = client.GetL3NetworkUUIDByName(cli, vmSpec.DefaultL3Network)
+		if err != nil {
+			fmt.Printf("Error finding default L3 network '%s': %v\n", vmSpec.DefaultL3Network, err)
+			return
+		}
 	}
 
 	vmParam := param.CreateVmInstanceParam{
@@ -252,22 +281,22 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 		},
 		Params: param.CreateVmInstanceDetailParam{
 			Name:                            vmSpec.Name,
-			InstanceOfferingUUID:            vmSpec.InstanceOfferingUUID,
+			InstanceOfferingUUID:            instanceOfferingUuid,
 			CpuNum:                          vmSpec.CpuNum,
 			MemorySize:                      memorySizeBytes,
-			ImageUUID:                       vmSpec.ImageUUID,
-			L3NetworkUuids:                  vmSpec.L3NetworkUuids,
+			ImageUUID:                       imageUuid,
+			L3NetworkUuids:                  l3NetworkUuids,
 			Type:                            param.InstanceType(vmSpec.Type),
-			RootDiskOfferingUuid:            vmSpec.RootDiskOfferingUuid,
+			RootDiskOfferingUuid:            vmSpec.RootDiskOffering,
 			RootDiskSize:                    rootDiskSizeBytes,
-			DataDiskOfferingUuids:           vmSpec.DataDiskOfferingUuids,
-			DataDiskSizes:                   dataDiskSizes,
-			ZoneUuid:                        vmSpec.ZoneUuid,
-			ClusterUUID:                     vmSpec.ClusterUUID,
-			HostUuid:                        vmSpec.HostUuid,
-			PrimaryStorageUuidForRootVolume: &vmSpec.PrimaryStorageUuidForRootVolume,
+			DataDiskOfferingUuids:           vmSpec.DataDiskOfferings,
+			DataDiskSizes:                   dataDiskSizesBytes,
+			ZoneUuid:                        zoneUuid,
+			ClusterUUID:                     clusterUuid,
+			HostUuid:                        hostUuid,
+			PrimaryStorageUuidForRootVolume: primaryStoragePtr,
 			Description:                     vmSpec.Description,
-			DefaultL3NetworkUuid:            vmSpec.DefaultL3NetworkUuid,
+			DefaultL3NetworkUuid:            defaultL3NetworkUuid,
 			ResourceUuid:                    vmSpec.ResourceUuid,
 			TagUuids:                        vmSpec.TagUuids,
 			Strategy:                        param.InstanceStrategy(vmSpec.Strategy),
@@ -276,29 +305,29 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 		},
 	}
 
+	// ==== dry-run 支持 ====
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	if dryRun {
 		format, _ := cmd.Flags().GetString("output")
 		if format == "" {
 			format = "yaml"
 		}
-
 		utils.PrintDryRun(vmParam, format)
 		return
 	}
 
+	// ==== 调用 API ====
 	resp, err := cli.CreateVmInstance(vmParam)
 	if err != nil {
 		fmt.Printf("Error creating VM instance: %v\n", err)
 		return
 	}
 
+	fmt.Printf("VM instance created successfully: %s\n", resp.UUID)
 	format, _ := cmd.Flags().GetString("output")
 	if format == "" {
 		format = "table"
 	}
-
-	fmt.Printf("VM instance created successfully: %s\n", resp.UUID)
 	utils.PrintOperationResult("instance", resp, format)
 }
 
@@ -382,7 +411,7 @@ func createVmInstanceFromFlags(cmd *cobra.Command, name string) {
 
 	var instanceOfferingUuidValue string
 	if instanceOfferingStr != "" {
-		instanceOfferingUuidValue, err = client.GetInstanceUUIDByName(cli, instanceOfferingStr)
+		instanceOfferingUuidValue, err = client.GetInstanceOfferingUUIDByName(cli, instanceOfferingStr)
 		if err != nil {
 			fmt.Printf("Error finding instance offering '%s': %v\n", instanceOfferingStr, err)
 			return

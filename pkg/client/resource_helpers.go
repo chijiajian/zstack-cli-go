@@ -149,6 +149,7 @@ func GetImageUUIDByName(cli *sdkClient.ZSClient, nameOrUUID string) (string, err
 	queryParam.AddQ(fmt.Sprintf("name~=%s", nameOrUUID))
 	queryParam.AddQ("state=Enabled")
 	queryParam.AddQ("status=Ready")
+	queryParam.Sort("-createDate")
 
 	images, err := cli.QueryImage(queryParam)
 	if err != nil {
@@ -159,10 +160,12 @@ func GetImageUUIDByName(cli *sdkClient.ZSClient, nameOrUUID string) (string, err
 		return images[0].UUID, nil
 	}
 
+	//if not found by name, try to find it by uuid
 	queryParam = param.NewQueryParam()
 	queryParam.AddQ(fmt.Sprintf("uuid~=%s", nameOrUUID))
 	queryParam.AddQ("state=Enabled")
 	queryParam.AddQ("status=Ready")
+	queryParam.Sort("-createDate")
 
 	images, err = cli.QueryImage(queryParam)
 	if err != nil {
@@ -177,7 +180,7 @@ func GetImageUUIDByName(cli *sdkClient.ZSClient, nameOrUUID string) (string, err
 }
 
 // GetInstanceUUIDByName
-func GetInstanceUUIDByName(cli *sdkClient.ZSClient, nameOrUUID string) (string, error) {
+func GetInstanceOfferingUUIDByName(cli *sdkClient.ZSClient, nameOrUUID string) (string, error) {
 
 	queryParam := param.NewQueryParam()
 	queryParam.AddQ(fmt.Sprintf("name~=%s", nameOrUUID))
@@ -235,6 +238,8 @@ func GetL3NetworkUUIDByName(cli *sdkClient.ZSClient, nameOrUUID string) (string,
 
 	return "", fmt.Errorf("L3 network with name or UUID '%s' not found", nameOrUUID)
 }
+
+// Get InstanceOfferingUUIDByName
 
 // GetPrimaryStorageUUIDByName
 func GetPrimaryStorageUUIDByName(cli *sdkClient.ZSClient, nameOrUUID string) (string, error) {

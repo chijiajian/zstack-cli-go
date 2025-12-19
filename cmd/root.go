@@ -16,7 +16,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/chijiajian/zstack-cli-go/cmd/create"
 	"github.com/chijiajian/zstack-cli-go/cmd/del"
@@ -48,15 +47,6 @@ var rootCmd = &cobra.Command{
 		_, err := config.LoadConfig()
 		return err
 	},
-}
-
-func getConfigFilePath() string {
-	if envCfg := os.Getenv("ZSTACK_CONFIG"); envCfg != "" {
-		return envCfg
-	}
-
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".zstack-cli", "config.yaml")
 }
 
 func Execute() {

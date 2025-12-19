@@ -17,29 +17,10 @@ package common
 import (
 	"fmt"
 	"net/url"
-	"sync"
 
 	"github.com/spf13/cobra"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
 	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 )
-
-var (
-	zsClient    *client.ZSClient
-	clientMutex sync.Mutex
-)
-
-func SetClient(client *client.ZSClient) {
-	clientMutex.Lock()
-	defer clientMutex.Unlock()
-	zsClient = client
-}
-
-func GetClient() *client.ZSClient {
-	clientMutex.Lock()
-	defer clientMutex.Unlock()
-	return zsClient
-}
 
 func AddQueryFlags(cmd *cobra.Command) {
 	cmd.Flags().StringArrayP("q", "q", []string{}, "Query condition, can be specified multiple times")

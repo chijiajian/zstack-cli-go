@@ -17,6 +17,7 @@ package client
 import (
 	"fmt"
 
+	"github.com/chijiajian/zstack-cli-go/pkg/types"
 	sdkClient "github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
 	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/view"
@@ -292,7 +293,7 @@ func GetReadyImagesByNameOrUUID(cli *sdkClient.ZSClient, nameOrUUID string) ([]v
 
 	readyImages := []view.ImageView{}
 	for _, img := range images {
-		if img.Status == "Ready" {
+		if types.IsImageReady(img.Status) {
 			readyImages = append(readyImages, img)
 		}
 	}
@@ -319,14 +320,14 @@ func GetDeletedImagesByNameOrUUID(cli *sdkClient.ZSClient, nameOrUUID string) ([
 		}
 	}
 
-	readyImages := []view.ImageView{}
+	deletedImages := []view.ImageView{}
 	for _, img := range images {
-		if img.Status == "Deleted" {
-			readyImages = append(readyImages, img)
+		if img.Status == types.ImageStatusDeleted {
+			deletedImages = append(deletedImages, img)
 		}
 	}
 
-	return readyImages, nil
+	return deletedImages, nil
 }
 
 // GetReadyVMsByNameOrUUID
@@ -348,14 +349,14 @@ func GetReadyVMsByNameOrUUID(cli *sdkClient.ZSClient, nameOrUUID string) ([]view
 		}
 	}
 
-	readyVMs := []view.VmInstanceInventoryView{}
+	activeVMs := []view.VmInstanceInventoryView{}
 	for _, vm := range vms {
-		if vm.State == "Running" || vm.State == "Stopped" || vm.State == "Paused" {
-			readyVMs = append(readyVMs, vm)
+		if types.IsVMActive(vm.State) {
+			activeVMs = append(activeVMs, vm)
 		}
 	}
 
-	return readyVMs, nil
+	return activeVMs, nil
 }
 
 // GetReadyVMsByNameOrUUID
@@ -377,12 +378,12 @@ func GetDestroyedVMsByNameOrUUID(cli *sdkClient.ZSClient, nameOrUUID string) ([]
 		}
 	}
 
-	readyVMs := []view.VmInstanceInventoryView{}
+	destroyedVMs := []view.VmInstanceInventoryView{}
 	for _, vm := range vms {
-		if vm.State == "Destroyed" {
-			readyVMs = append(readyVMs, vm)
+		if vm.State == types.VMStateDestroyed {
+			destroyedVMs = append(destroyedVMs, vm)
 		}
 	}
 
-	return readyVMs, nil
+	return destroyedVMs, nil
 }

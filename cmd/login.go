@@ -91,9 +91,9 @@ Example:
 			return
 		}
 
-		cfg, _ := config.LoadConfig()
-		if err != nil {
-			fmt.Printf("Failed to load config: %s\n", err)
+		cfg, loadErr := config.LoadConfig()
+		if loadErr != nil {
+			fmt.Printf("Failed to load config: %s\n", loadErr)
 			return
 		}
 

@@ -21,6 +21,7 @@ import (
 
 	"github.com/chijiajian/zstack-cli-go/pkg/config"
 	zsclient "github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
+	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
 )
 
 var clientMutex sync.Mutex
@@ -30,8 +31,13 @@ func GetClient() *zsclient.ZSClient {
 	clientMutex.Lock()
 	defer clientMutex.Unlock()
 
+	// If client exists, validate the session before returning
 	if globalClient != nil {
-		return globalClient
+		if validateSession(globalClient) {
+			return globalClient
+		}
+		// Session expired, reset and re-authenticate
+		globalClient = nil
 	}
 
 	cfg, err := config.LoadConfig()
@@ -69,6 +75,20 @@ func GetClient() *zsclient.ZSClient {
 	globalClient = client
 	return client
 
+}
+
+// validateSession checks if the current session is still valid
+// by making a lightweight API call
+func validateSession(client *zsclient.ZSClient) bool {
+	if client == nil {
+		return false
+	}
+	// Try to query zones as a lightweight validation call
+	// If session is invalid, this will return an error
+	queryParam := param.NewQueryParam()
+	queryParam.Limit(1)
+	_, err := client.QueryZone(queryParam)
+	return err == nil
 }
 
 func ResetClient() {

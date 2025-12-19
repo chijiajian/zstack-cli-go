@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/chijiajian/zstack-cli-go/pkg/client"
+	"github.com/chijiajian/zstack-cli-go/pkg/types"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
 	sdkView "github.com/terraform-zstack-modules/zstack-sdk-go/pkg/view"
@@ -50,7 +51,7 @@ func runRestartInstance(cmd *cobra.Command, identifier string) {
 
 	var toRestart, skipped []sdkView.VmInstanceInventoryView
 	for _, vm := range vms {
-		if vm.State == "Running" {
+		if vm.State == types.VMStateRunning {
 			toRestart = append(toRestart, vm)
 		} else {
 			skipped = append(skipped, vm)

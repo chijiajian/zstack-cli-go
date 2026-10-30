@@ -16,12 +16,10 @@ package get
 
 import (
 	"fmt"
-	"strings"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 	"time"
 
-	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
-	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -30,48 +28,17 @@ var managementNodesCmd = &cobra.Command{
 	Short: "Query management nodes",
 	Long:  `Query management nodes in the ZStack cloud platform.`,
 	Args:  cobra.MaximumNArgs(1),
-	Run: func(cobraCmd *cobra.Command, args []string) {
-
-		fmt.Printf("Debug: Command arguments: %v\n", args)
-
-		zsClient := client.GetClient()
-		if zsClient == nil {
-			fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-			return
-		}
+	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "hostName")
 		if err != nil {
-			fmt.Printf("Error building query parameters: %s\n", err)
-			return
+			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
-		fmt.Printf("Debug: Query parameters: %+v\n", queryParam)
-
-		nodes, err := zsClient.QueryManagementNode(*queryParam)
+		result, err := common.Fetch[view.ManagementNodeInventoryView](cobraCmd, queryParam, "v1/management-nodes")
+		nodes := result.Items
 		if err != nil {
-			fmt.Printf("Error querying management nodes: %s\n", err)
-			return
-		}
-
-		outputFormat, _ := cobraCmd.Flags().GetString("output")
-		format := utils.ParseFormat(outputFormat)
-
-		fields, _ := cobraCmd.Flags().GetStringSlice("fields")
-		processedFields := []string{}
-
-		for _, field := range fields {
-			parts := strings.Split(field, ",")
-			for _, part := range parts {
-				trimmed := strings.TrimSpace(part)
-				if trimmed != "" {
-					processedFields = append(processedFields, trimmed)
-				}
-			}
-		}
-
-		if len(processedFields) > 0 {
-			fmt.Printf("Debug: Processed fields: %v\n", processedFields)
+			return fmt.Errorf("Error querying management nodes: %w", err)
 		}
 
 		var formattedResults []FormattedManagementNode
@@ -85,10 +52,11 @@ var managementNodesCmd = &cobra.Command{
 			formattedResults = append(formattedResults, formatted)
 		}
 
-		err = utils.PrintWithFields(formattedResults, format, processedFields)
+		err = common.PrintQuery(cobraCmd, formattedResults, result.Total)
 		if err != nil {
-			fmt.Printf("Error formatting output: %s\n", err)
+			return fmt.Errorf("Error formatting output: %w", err)
 		}
+		return nil
 	},
 }
 

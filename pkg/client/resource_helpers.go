@@ -16,283 +16,105 @@ package client
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/chijiajian/zstack-cli-go/pkg/types"
-	sdkClient "github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/view"
+	sdkClient "github.com/zstackio/zstack-sdk-go-v2/pkg/client"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
 
-// GetZoneUUIDByName
 func GetZoneUUIDByName(cli *sdkClient.ZSClient, nameOrUUID string) (string, error) {
-
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("name=%s", nameOrUUID))
-
-	zones, err := cli.QueryZone(queryParam)
+	resource, err := ResolveOneResource(cli, "zone", nameOrUUID)
 	if err != nil {
 		return "", err
 	}
-
-	if len(zones) > 0 {
-		return zones[0].UUID, nil
-	}
-
-	queryParam = param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("uuid=%s", nameOrUUID))
-
-	zones, err = cli.QueryZone(queryParam)
-	if err != nil {
-		return "", err
-	}
-
-	if len(zones) > 0 {
-		return zones[0].UUID, nil
-	}
-
-	return "", fmt.Errorf("zone with name or UUID '%s' not found", nameOrUUID)
+	return resource.UUID, nil
 }
 
-// GetClusterUUIDByName
 func GetClusterUUIDByName(cli *sdkClient.ZSClient, nameOrUUID string) (string, error) {
-
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("name=%s", nameOrUUID))
-
-	clusters, err := cli.QueryCluster(queryParam)
+	resource, err := ResolveOneResource(cli, "cluster", nameOrUUID)
 	if err != nil {
 		return "", err
 	}
-
-	if len(clusters) > 0 {
-		return clusters[0].Uuid, nil
-	}
-
-	queryParam = param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("uuid=%s", nameOrUUID))
-
-	clusters, err = cli.QueryCluster(queryParam)
-	if err != nil {
-		return "", err
-	}
-
-	if len(clusters) > 0 {
-		return clusters[0].Uuid, nil
-	}
-
-	return "", fmt.Errorf("cluster with name or UUID '%s' not found", nameOrUUID)
+	return resource.UUID, nil
 }
 
-// GetHostUUIDByName
 func GetHostUUIDByName(cli *sdkClient.ZSClient, nameOrUUID string) (string, error) {
-
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("name=%s", nameOrUUID))
-
-	hosts, err := cli.QueryHost(queryParam)
+	resource, err := ResolveOneResource(cli, "host", nameOrUUID)
 	if err != nil {
 		return "", err
 	}
-
-	if len(hosts) > 0 {
-		return hosts[0].UUID, nil
-	}
-
-	queryParam = param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("uuid=%s", nameOrUUID))
-
-	hosts, err = cli.QueryHost(queryParam)
-	if err != nil {
-		return "", err
-	}
-
-	if len(hosts) > 0 {
-		return hosts[0].UUID, nil
-	}
-
-	return "", fmt.Errorf("host with name or UUID '%s' not found", nameOrUUID)
+	return resource.UUID, nil
 }
 
-// GetBackupStorageUUIDByName
 func GetBackupStorageUUIDByName(cli *sdkClient.ZSClient, nameOrUUID string) (string, error) {
-
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("name=%s", nameOrUUID))
-
-	backupStorages, err := cli.QueryBackupStorage(queryParam)
+	resource, err := ResolveOneResource(cli, "backup-storage", nameOrUUID)
 	if err != nil {
 		return "", err
 	}
-
-	if len(backupStorages) > 0 {
-		return backupStorages[0].UUID, nil
-	}
-
-	queryParam = param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("uuid=%s", nameOrUUID))
-
-	backupStorages, err = cli.QueryBackupStorage(queryParam)
-	if err != nil {
-		return "", err
-	}
-
-	if len(backupStorages) > 0 {
-		return backupStorages[0].UUID, nil
-	}
-
-	return "", fmt.Errorf("backup storage with name or UUID '%s' not found", nameOrUUID)
+	return resource.UUID, nil
 }
 
-// GetImageUUIDByName
 func GetImageUUIDByName(cli *sdkClient.ZSClient, nameOrUUID string) (string, error) {
-
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("name~=%s", nameOrUUID))
-	queryParam.AddQ("state=Enabled")
-	queryParam.AddQ("status=Ready")
-	queryParam.Sort("-createDate")
-
-	images, err := cli.QueryImage(queryParam)
+	resource, err := ResolveOneResource(cli, "image", nameOrUUID)
 	if err != nil {
 		return "", err
 	}
-
-	if len(images) > 0 {
-		return images[0].UUID, nil
+	if resource.State != types.ImageStateEnabled || resource.Status != types.ImageStatusReady {
+		return "", fmt.Errorf("image %q must be Enabled and Ready", nameOrUUID)
 	}
-
-	//if not found by name, try to find it by uuid
-	queryParam = param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("uuid~=%s", nameOrUUID))
-	queryParam.AddQ("state=Enabled")
-	queryParam.AddQ("status=Ready")
-	queryParam.Sort("-createDate")
-
-	images, err = cli.QueryImage(queryParam)
-	if err != nil {
-		return "", err
-	}
-
-	if len(images) > 0 {
-		return images[0].UUID, nil
-	}
-
-	return "", fmt.Errorf("image with name or UUID '%s' not found", nameOrUUID)
+	return resource.UUID, nil
 }
 
-// GetInstanceUUIDByName
 func GetInstanceOfferingUUIDByName(cli *sdkClient.ZSClient, nameOrUUID string) (string, error) {
-
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("name~=%s", nameOrUUID))
-
-	instances, err := cli.QueryInstaceOffering(queryParam)
+	resource, err := ResolveOneResource(cli, "instance-offering", nameOrUUID)
 	if err != nil {
 		return "", err
 	}
-
-	if len(instances) > 0 {
-		return instances[0].UUID, nil
-	}
-
-	queryParam = param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("uuid=%s", nameOrUUID))
-
-	instances, err = cli.QueryInstaceOffering(queryParam)
-	if err != nil {
-		return "", err
-	}
-
-	if len(instances) > 0 {
-		return instances[0].UUID, nil
-	}
-
-	return "", fmt.Errorf("instance with name or UUID '%s' not found", nameOrUUID)
+	return resource.UUID, nil
 }
 
-// GetL3NetworkUUIDByName
 func GetL3NetworkUUIDByName(cli *sdkClient.ZSClient, nameOrUUID string) (string, error) {
-
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("name~=%s", nameOrUUID))
-
-	l3Networks, err := cli.QueryL3Network(queryParam)
+	resource, err := ResolveOneResource(cli, "l3-network", nameOrUUID)
 	if err != nil {
 		return "", err
 	}
-
-	if len(l3Networks) > 0 {
-		return l3Networks[0].UUID, nil
-	}
-
-	queryParam = param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("uuid=%s", nameOrUUID))
-
-	l3Networks, err = cli.QueryL3Network(queryParam)
-	if err != nil {
-		return "", err
-	}
-
-	if len(l3Networks) > 0 {
-		return l3Networks[0].UUID, nil
-	}
-
-	return "", fmt.Errorf("L3 network with name or UUID '%s' not found", nameOrUUID)
+	return resource.UUID, nil
 }
 
-// Get InstanceOfferingUUIDByName
-
-// GetPrimaryStorageUUIDByName
 func GetPrimaryStorageUUIDByName(cli *sdkClient.ZSClient, nameOrUUID string) (string, error) {
-
-	queryParam := param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("name~=%s", nameOrUUID))
-
-	primaryStorages, err := cli.QueryPrimaryStorage(queryParam)
+	resource, err := ResolveOneResource(cli, "primary-storage", nameOrUUID)
 	if err != nil {
 		return "", err
 	}
-
-	if len(primaryStorages) > 0 {
-		return primaryStorages[0].UUID, nil
-	}
-
-	queryParam = param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("uuid=%s", nameOrUUID))
-
-	primaryStorages, err = cli.QueryPrimaryStorage(queryParam)
-	if err != nil {
-		return "", err
-	}
-
-	if len(primaryStorages) > 0 {
-		return primaryStorages[0].UUID, nil
-	}
-
-	return "", fmt.Errorf("primary storage with name or UUID '%s' not found", nameOrUUID)
+	return resource.UUID, nil
 }
 
 // GetReadyImagesByNameOrUUID
-func GetReadyImagesByNameOrUUID(cli *sdkClient.ZSClient, nameOrUUID string) ([]view.ImageView, error) {
+func GetReadyImagesByNameOrUUID(cli *sdkClient.ZSClient, nameOrUUID string) ([]view.ImageInventoryView, error) {
 	queryParam := param.NewQueryParam()
 
-	queryParam.AddQ(fmt.Sprintf("name~=%s", nameOrUUID))
-	images, err := cli.QueryImage(queryParam)
+	queryParam.AddQ(fmt.Sprintf("uuid=%s", nameOrUUID))
+	images, err := cli.QueryImage(&queryParam)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(images) == 0 {
 		queryParam = param.NewQueryParam()
-		queryParam.AddQ(fmt.Sprintf("uuid=%s", nameOrUUID))
-		images, err = cli.QueryImage(queryParam)
+		queryParam.AddQ(fmt.Sprintf("name=%s", nameOrUUID))
+		images, err = cli.QueryImage(&queryParam)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	readyImages := []view.ImageView{}
+	readyImages := []view.ImageInventoryView{}
 	for _, img := range images {
+		if strings.TrimSpace(img.UUID) == "" {
+			return nil, fmt.Errorf("image query returned a resource without UUID")
+		}
 		if types.IsImageReady(img.Status) {
 			readyImages = append(readyImages, img)
 		}
@@ -302,26 +124,29 @@ func GetReadyImagesByNameOrUUID(cli *sdkClient.ZSClient, nameOrUUID string) ([]v
 }
 
 // GetReadyImagesByNameOrUUID
-func GetDeletedImagesByNameOrUUID(cli *sdkClient.ZSClient, nameOrUUID string) ([]view.ImageView, error) {
+func GetDeletedImagesByNameOrUUID(cli *sdkClient.ZSClient, nameOrUUID string) ([]view.ImageInventoryView, error) {
 	queryParam := param.NewQueryParam()
 
-	queryParam.AddQ(fmt.Sprintf("name~=%s", nameOrUUID))
-	images, err := cli.QueryImage(queryParam)
+	queryParam.AddQ(fmt.Sprintf("uuid=%s", nameOrUUID))
+	images, err := cli.QueryImage(&queryParam)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(images) == 0 {
 		queryParam = param.NewQueryParam()
-		queryParam.AddQ(fmt.Sprintf("uuid=%s", nameOrUUID))
-		images, err = cli.QueryImage(queryParam)
+		queryParam.AddQ(fmt.Sprintf("name=%s", nameOrUUID))
+		images, err = cli.QueryImage(&queryParam)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	deletedImages := []view.ImageView{}
+	deletedImages := []view.ImageInventoryView{}
 	for _, img := range images {
+		if strings.TrimSpace(img.UUID) == "" {
+			return nil, fmt.Errorf("image query returned a resource without UUID")
+		}
 		if img.Status == types.ImageStatusDeleted {
 			deletedImages = append(deletedImages, img)
 		}
@@ -333,17 +158,17 @@ func GetDeletedImagesByNameOrUUID(cli *sdkClient.ZSClient, nameOrUUID string) ([
 // GetReadyVMsByNameOrUUID
 func GetReadyVMsByNameOrUUID(cli *sdkClient.ZSClient, nameOrUUID string) ([]view.VmInstanceInventoryView, error) {
 	queryParam := param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("name~=%s", nameOrUUID))
+	queryParam.AddQ(fmt.Sprintf("uuid=%s", nameOrUUID))
 
-	vms, err := cli.QueryVmInstance(queryParam)
+	vms, err := cli.QueryVmInstance(&queryParam)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(vms) == 0 {
 		queryParam = param.NewQueryParam()
-		queryParam.AddQ(fmt.Sprintf("uuid=%s", nameOrUUID))
-		vms, err = cli.QueryVmInstance(queryParam)
+		queryParam.AddQ(fmt.Sprintf("name=%s", nameOrUUID))
+		vms, err = cli.QueryVmInstance(&queryParam)
 		if err != nil {
 			return nil, err
 		}
@@ -351,6 +176,9 @@ func GetReadyVMsByNameOrUUID(cli *sdkClient.ZSClient, nameOrUUID string) ([]view
 
 	activeVMs := []view.VmInstanceInventoryView{}
 	for _, vm := range vms {
+		if strings.TrimSpace(vm.UUID) == "" {
+			return nil, fmt.Errorf("instance query returned a resource without UUID")
+		}
 		if types.IsVMActive(vm.State) {
 			activeVMs = append(activeVMs, vm)
 		}
@@ -362,17 +190,17 @@ func GetReadyVMsByNameOrUUID(cli *sdkClient.ZSClient, nameOrUUID string) ([]view
 // GetReadyVMsByNameOrUUID
 func GetDestroyedVMsByNameOrUUID(cli *sdkClient.ZSClient, nameOrUUID string) ([]view.VmInstanceInventoryView, error) {
 	queryParam := param.NewQueryParam()
-	queryParam.AddQ(fmt.Sprintf("name~=%s", nameOrUUID))
+	queryParam.AddQ(fmt.Sprintf("uuid=%s", nameOrUUID))
 
-	vms, err := cli.QueryVmInstance(queryParam)
+	vms, err := cli.QueryVmInstance(&queryParam)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(vms) == 0 {
 		queryParam = param.NewQueryParam()
-		queryParam.AddQ(fmt.Sprintf("uuid=%s", nameOrUUID))
-		vms, err = cli.QueryVmInstance(queryParam)
+		queryParam.AddQ(fmt.Sprintf("name=%s", nameOrUUID))
+		vms, err = cli.QueryVmInstance(&queryParam)
 		if err != nil {
 			return nil, err
 		}
@@ -380,6 +208,9 @@ func GetDestroyedVMsByNameOrUUID(cli *sdkClient.ZSClient, nameOrUUID string) ([]
 
 	destroyedVMs := []view.VmInstanceInventoryView{}
 	for _, vm := range vms {
+		if strings.TrimSpace(vm.UUID) == "" {
+			return nil, fmt.Errorf("instance query returned a resource without UUID")
+		}
 		if vm.State == types.VMStateDestroyed {
 			destroyedVMs = append(destroyedVMs, vm)
 		}

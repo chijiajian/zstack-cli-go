@@ -16,9 +16,9 @@ package get
 
 import (
 	"fmt"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 	"strings"
 
-	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
@@ -39,9 +39,6 @@ type FormattedPrimaryStorage struct {
 	State                     string `json:"state" yaml:"state" header:"STATE"`
 	Status                    string `json:"status" yaml:"status" header:"STATUS"`
 	AttachedClusterUuids      string `json:"attachedClusterUuids" yaml:"attachedClusterUuids" header:"ATTACHED CLUSTER UUIDS"`
-
-	MonCount  int `json:"monCount" yaml:"monCount" header:"MON COUNT"`
-	PoolCount int `json:"poolCount" yaml:"poolCount" header:"POOL COUNT"`
 }
 
 var primaryStorageCmd = &cobra.Command{
@@ -49,30 +46,18 @@ var primaryStorageCmd = &cobra.Command{
 	Short: "List primary storages",
 	Long:  `List all primary storages in the ZStack cloud platform.`,
 	Args:  cobra.MaximumNArgs(1),
-	Run: func(cobraCmd *cobra.Command, args []string) {
-
-		zsClient := client.GetClient()
-		if zsClient == nil {
-			fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-			return
-		}
+	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
 		if err != nil {
-			fmt.Printf("Error building query parameters: %s\n", err)
-			return
+			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
-		primaryStorages, err := zsClient.QueryPrimaryStorage(*queryParam)
+		result, err := common.Fetch[view.PrimaryStorageInventoryView](cobraCmd, queryParam, "v1/primary-storage")
+		primaryStorages := result.Items
 		if err != nil {
-			fmt.Printf("Error querying primary storages: %s\n", err)
-			return
+			return fmt.Errorf("Error querying primary storages: %w", err)
 		}
-
-		outputFormat, _ := cobraCmd.Flags().GetString("output")
-		format := utils.ParseFormat(outputFormat)
-
-		fields, _ := cobraCmd.Flags().GetStringSlice("fields")
 
 		var formattedResults []FormattedPrimaryStorage
 		for _, ps := range primaryStorages {
@@ -91,18 +76,15 @@ var primaryStorageCmd = &cobra.Command{
 				State:                     ps.State,
 				Status:                    ps.Status,
 				AttachedClusterUuids:      strings.Join(ps.AttachedClusterUuids, ","),
-
-				MonCount:  len(ps.Mons),
-				PoolCount: len(ps.Pools),
 			}
 			formattedResults = append(formattedResults, formatted)
 		}
 
-		err = utils.PrintWithFields(formattedResults, format, fields)
+		err = common.PrintQuery(cobraCmd, formattedResults, result.Total)
 		if err != nil {
-			fmt.Printf("Error formatting output: %s\n", err)
-			return
+			return fmt.Errorf("Error formatting output: %w", err)
 		}
+		return nil
 	},
 }
 

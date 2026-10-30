@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+
+.zstack-cli/
+
+zstack-cli
+dist/
+*.test
+*.out
+
+__pycache__/
+
+.DS_Store

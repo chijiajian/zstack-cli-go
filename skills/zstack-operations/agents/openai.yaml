@@ -1,0 +1,4 @@
+interface:
+  display_name: "ZStack Operations"
+  short_description: "Operate ZStack through CLI with scoped validation"
+  default_prompt: "使用 $zstack-operations 在我指定的环境执行 ZStack 操作，并验证结果与清理状态。"

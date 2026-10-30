@@ -10,8 +10,8 @@ import (
 	"github.com/chijiajian/zstack-cli-go/pkg/types"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
-	sdkView "github.com/terraform-zstack-modules/zstack-sdk-go/pkg/view"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
+	sdkView "github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
 
 var StopInstanceCmd = &cobra.Command{
@@ -24,8 +24,8 @@ for confirmation unless -y/--yes is provided.
 Example:
   zstack-cli instance stop my-vm`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		runStopInstance(cmd, args[0])
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runStopInstance(cmd, args[0])
 	},
 }
 
@@ -35,21 +35,18 @@ func init() {
 	//StopInstanceCmd.Flags().String("stop-type", "grace", "grace stop or not")
 }
 
-func runStopInstance(cmd *cobra.Command, identifier string) {
+func runStopInstance(cmd *cobra.Command, identifier string) error {
 	cli := client.GetClient()
 	if cli == nil {
-		fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-		return
+		return fmt.Errorf("Not logged in. Please run 'zstack-cli login' first.")
 	}
 
 	vms, err := client.GetReadyVMsByNameOrUUID(cli, identifier)
 	if err != nil {
-		fmt.Printf("Error querying VMs: %v\n", err)
-		return
+		return fmt.Errorf("Error querying VMs: %w", err)
 	}
 	if len(vms) == 0 {
-		fmt.Printf("No VMs found with name or UUID '%s'.\n", identifier)
-		return
+		return fmt.Errorf("No VMs found with name or UUID '%s'.", identifier)
 	}
 
 	var toStop, skipped []sdkView.VmInstanceInventoryView
@@ -69,7 +66,7 @@ func runStopInstance(cmd *cobra.Command, identifier string) {
 				fmt.Printf("  - %s (%s) state=%s\n", s.Name, s.UUID, s.State)
 			}
 		}
-		return
+		return nil
 	}
 
 	fmt.Printf("Matched %d VM(s); %d will be stopped, %d will be skipped.\n", len(vms), len(toStop), len(skipped))
@@ -87,7 +84,7 @@ func runStopInstance(cmd *cobra.Command, identifier string) {
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	if dryRun {
 		fmt.Println("Dry-run: no API calls will be made.")
-		return
+		return nil
 	}
 
 	autoYes, _ := cmd.Flags().GetBool("yes")
@@ -98,7 +95,7 @@ func runStopInstance(cmd *cobra.Command, identifier string) {
 		line = strings.TrimSpace(strings.ToLower(line))
 		if line != "y" && line != "yes" {
 			fmt.Println("Aborted by user.")
-			return
+			return nil
 		}
 	}
 
@@ -110,10 +107,15 @@ func runStopInstance(cmd *cobra.Command, identifier string) {
 		Err error
 	}
 
+	stopType := "grace"
+	stopHAValue := "false"
+	if stopHA {
+		stopHAValue = "true"
+	}
 	p := param.StopVmInstanceParam{
-		StopVmInstance: param.StopVmInstanceDetailParam{
-			Type:   "grace",
-			StopHA: stopHA, //bug if true bu restart auto
+		Params: param.StopVmInstanceParamDetail{
+			Type:   &stopType,
+			StopHA: &stopHAValue, //bug if true bu restart auto
 		},
 	}
 
@@ -125,7 +127,7 @@ func runStopInstance(cmd *cobra.Command, identifier string) {
 				VM  sdkView.VmInstanceInventoryView
 				Err error
 			}{VM: vm, Err: err})
-			fmt.Printf("Failed to stop %s (%s): %v\n", vm.Name, vm.UUID, err)
+			fmt.Fprintf(os.Stderr, "Failed to stop %s (%s): %v\n", vm.Name, vm.UUID, err)
 			continue
 		}
 		successes = append(successes, *resp)
@@ -134,9 +136,9 @@ func runStopInstance(cmd *cobra.Command, identifier string) {
 
 	fmt.Printf("\nSummary: %d stopped, %d failed, %d skipped\n", len(successes), len(failures), len(skipped))
 	if len(failures) > 0 {
-		fmt.Println("Failures:")
+		fmt.Fprintln(os.Stderr, "Failures:")
 		for _, f := range failures {
-			fmt.Printf("  - %s (%s): %v\n", f.VM.Name, f.VM.UUID, f.Err)
+			fmt.Fprintf(os.Stderr, "  - %s (%s): %v\n", f.VM.Name, f.VM.UUID, f.Err)
 		}
 	}
 
@@ -146,7 +148,12 @@ func runStopInstance(cmd *cobra.Command, identifier string) {
 
 	if len(successes) > 0 {
 		if err := utils.PrintVMs(successes, format, fields); err != nil {
-			fmt.Printf("Error formatting output: %s\n", err)
+			return fmt.Errorf("Error formatting output: %w", err)
 		}
 	}
+
+	if len(failures) > 0 {
+		return fmt.Errorf("%d VM operations failed", len(failures))
+	}
+	return nil
 }

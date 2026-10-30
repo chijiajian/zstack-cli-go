@@ -17,8 +17,8 @@ package create
 
 import (
 	"fmt"
+	"github.com/chijiajian/zstack-cli-go/pkg/clierr"
 
-	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -34,14 +34,16 @@ var CreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create one or many resources",
 	Long:  `Create one or many ZStack resources.`,
-	Run: func(cmd *cobra.Command, args []string) {
-
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if fileFlag != "" {
+			return fmt.Errorf("create --file is not supported on the parent command; use 'zstack-cli create <resource> --file %s'", fileFlag)
+		}
 		if len(args) == 0 && fileFlag == "" {
 			cmd.Help()
-			return
+			return nil
 		}
+		return nil
 	},
-	PersistentPreRunE: preRunCheckFile,
 }
 
 func init() {
@@ -52,26 +54,47 @@ func init() {
 	CreateCmd.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "Enable verbose output")
 }
 
-func preRunCheckFile(cmd *cobra.Command, args []string) error {
-
-	if fileFlag != "" {
-		if dryRunFlag {
-			fmt.Println("Dry run mode: would process file", fileFlag)
-			return nil
-		}
-
-		if verboseFlag {
-			fmt.Printf("Processing file: %s\n", fileFlag)
-		}
-
-		err := utils.ProcessFilePath(fileFlag)
-		if err != nil {
-			return err
-		}
-
-		cmd.Run = func(cmd *cobra.Command, args []string) {
-
-		}
+func exactOneArgUnlessFile(cmd *cobra.Command, args []string) error {
+	filePath, _ := cmd.Flags().GetString("file")
+	if filePath != "" {
+		return cobra.MaximumNArgs(1)(cmd, args)
 	}
-	return nil
+	return cobra.ExactArgs(1)(cmd, args)
+}
+
+func stringPtrIfNotEmpty(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+func intPtrFromInt64IfNotZero(value int64) *int {
+	if value == 0 {
+		return nil
+	}
+	intValue := int(value)
+	return &intValue
+}
+
+func int64PtrIfNotZero(value int64) *int64 {
+	if value == 0 {
+		return nil
+	}
+	return &value
+}
+
+func boolPtr(value bool) *bool {
+	return &value
+}
+
+// Keep machine-readable output a single document; human progress must also
+// propagate writer errors instead of hiding a partially successful operation.
+func printCreateProgress(cmd *cobra.Command, message string, args ...any) error {
+	format, _ := cmd.Flags().GetString("output")
+	if format == "json" || format == "yaml" || format == "name" {
+		return nil
+	}
+	_, err := fmt.Fprintf(cmd.OutOrStdout(), message, args...)
+	return clierr.Wrap(clierr.Output, err)
 }

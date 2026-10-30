@@ -16,38 +16,31 @@
 package expunge
 
 import (
-	"bufio"
+	"errors"
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/chijiajian/zstack-cli-go/pkg/client"
+	"github.com/chijiajian/zstack-cli-go/pkg/common"
 	"github.com/spf13/cobra"
 )
 
 var ExpungeImagesCmd = &cobra.Command{
-	Use:   "image [name]",
-	Short: "Expunge image(s) by name",
+	Use:     "image [name]",
+	Aliases: []string{"images"},
+	Short:   "Expunge image(s) by name",
 	Long: `Expunge one or more images by name. ,
 Examples:
-  # Delete a single image
+  # Expunge a single image
   zstack-cli expunge image my-image
 
-  # Delete multiple images (same name matched)
+  # Expunge multiple images (same name matched)
   zstack-cli expunge image my-image`,
-	Args: cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) != 1 {
-			fmt.Println("Error: image name is required")
-			return
-		}
-		if err := expungeImage(cmd, args[0]); err != nil {
-			fmt.Printf("Error: %v\n", err)
-		}
-	},
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error { return expungeImage(cmd, args[0]) },
 }
 
 func init() {
+	ExpungeImagesCmd.Flags().BoolP("yes", "y", false, "Automatic yes to confirmation prompts")
 	ExpungeCmd.AddCommand(ExpungeImagesCmd)
 }
 
@@ -63,35 +56,42 @@ func expungeImage(cmd *cobra.Command, nameOrUUID string) error {
 	}
 
 	if len(images) == 0 {
-		fmt.Println("no Ready images found with name or UUID: %s", nameOrUUID)
+		fmt.Printf("no Deleted images found with name or UUID: %s\n", nameOrUUID)
 		return nil
 	}
 
-	fmt.Println("The following images will be deleted:")
+	fmt.Println("The following images will be expunged:")
 	for _, img := range images {
 		fmt.Printf("- %s (%s)\n", img.Name, img.UUID)
 	}
 
-	fmt.Print("Are you sure you want to delete these images? (yes/no): ")
-	reader := bufio.NewReader(os.Stdin)
-	input, _ := reader.ReadString('\n')
-	input = strings.TrimSpace(strings.ToLower(input))
-	if input != "yes" {
-		fmt.Printf("Aborted. No images were deleted.\n")
+	if dryRunFlag {
+		fmt.Println("Dry-run: no resources were changed.")
 		return nil
 	}
 
+	confirmed, err := common.Confirm(cmd, "Are you sure you want to expunge these images? (yes/no): ")
+	if err != nil {
+		return err
+	}
+	if !confirmed {
+		_, err := fmt.Fprintln(cmd.OutOrStdout(), "Aborted. No images were expunged.")
+		return err
+	}
+
+	var failures []error
 	for _, img := range images {
 		if dryRunFlag {
-			fmt.Printf("[Dry-run] Would delete image: %s (%s)\n", img.Name, img.UUID)
+			fmt.Printf("[Dry-run] Would expunge image: %s (%s)\n", img.Name, img.UUID)
 			continue
 		}
 
 		if err := zsClient.ExpungeImage(img.UUID); err != nil {
-			fmt.Printf("Failed to delete image %s (%s): %s\n", img.Name, img.UUID, err)
+			failures = append(failures, fmt.Errorf("Failed to expunge image %s (%s): %w", img.Name, img.UUID, err))
+			continue
 		}
-		fmt.Printf("Deleted image: %s (%s)\n", img.Name, img.UUID)
+		fmt.Printf("Expunged image: %s (%s)\n", img.Name, img.UUID)
 
 	}
-	return nil
+	return errors.Join(failures...)
 }

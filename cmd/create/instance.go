@@ -23,7 +23,7 @@ import (
 	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 	"gopkg.in/yaml.v3"
 )
 
@@ -72,7 +72,7 @@ Examples:
   # Create VM instance in stopped state
   zstack-cli create instance my-vm --image 2162b130d30c49f2a3aad8585517e668 --instance-offering 2162b130d30c49f2a3aad8585517e668 --l3-network 2162b130d30c49f2a3aad8585517e668 --strategy CreateStopped`,
 	Args: cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		filePath, _ := cmd.Flags().GetString("file")
 
 		var name string
@@ -81,23 +81,38 @@ Examples:
 		}
 
 		if filePath != "" {
-			createVmInstanceFromFile(cmd, name, filePath)
+			return createVmInstanceFromFile(cmd, name, filePath)
 		} else {
 			if name == "" {
-				fmt.Println("Error: VM instance name is required when not using --file")
 				cmd.Help()
-				return
+				return fmt.Errorf("VM instance name is required when not using --file")
 			}
-			createVmInstanceFromFlags(cmd, name)
+
+			imageStr, _ := cmd.Flags().GetString("image")
+			if imageStr == "" {
+				return fmt.Errorf("--image is required")
+			}
+
+			l3NetworkStrs, _ := cmd.Flags().GetStringSlice("l3-network")
+			if len(l3NetworkStrs) == 0 {
+				return fmt.Errorf("at least one --l3-network is required")
+			}
+
+			instanceOfferingStr, _ := cmd.Flags().GetString("instance-offering")
+			cpuNum, _ := cmd.Flags().GetInt64("cpu")
+			memorySize, _ := cmd.Flags().GetString("memory")
+			if instanceOfferingStr == "" && (cpuNum == 0 || memorySize == "") {
+				return fmt.Errorf("either --instance-offering or both --cpu and --memory must be specified")
+			}
+			return createVmInstanceFromFlags(cmd, name)
 		}
 	},
 }
 
-func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) {
+func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) error {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		fmt.Printf("Error reading file %s: %v\n", filePath, err)
-		return
+		return fmt.Errorf("Error reading file %s: %w", filePath, err)
 	}
 
 	var vmSpec VmInstanceSpec
@@ -110,12 +125,10 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 			isGenericFormat = true
 			specData, err := json.Marshal(resourceSpec.Spec)
 			if err != nil {
-				fmt.Printf("Error converting resource spec: %v\n", err)
-				return
+				return fmt.Errorf("Error converting resource spec: %w", err)
 			}
 			if err := json.Unmarshal(specData, &vmSpec); err != nil {
-				fmt.Printf("Error parsing Instance spec: %v\n", err)
-				return
+				return fmt.Errorf("Error parsing Instance spec: %w", err)
 			}
 			if name == "" {
 				name = resourceSpec.Metadata.Name
@@ -127,13 +140,11 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 	if !isGenericFormat {
 		if strings.HasSuffix(filePath, ".json") {
 			if err := json.Unmarshal(data, &vmSpec); err != nil {
-				fmt.Printf("Error parsing JSON file: %v\n", err)
-				return
+				return fmt.Errorf("Error parsing JSON file: %w", err)
 			}
 		} else {
 			if err := yaml.Unmarshal(data, &vmSpec); err != nil {
-				fmt.Printf("Error parsing YAML file: %v\n", err)
-				return
+				return fmt.Errorf("Error parsing YAML file: %w", err)
 			}
 		}
 	}
@@ -143,8 +154,7 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 		vmSpec.Name = name
 	}
 	if vmSpec.Name == "" {
-		fmt.Println("Error: VM instance name is required")
-		return
+		return fmt.Errorf("Error: VM instance name is required")
 	}
 
 	// 解析内存/磁盘大小
@@ -152,8 +162,7 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 	if vmSpec.MemorySize != "" {
 		parsed, err := utils.ParseMemorySize(vmSpec.MemorySize)
 		if err != nil {
-			fmt.Printf("Error parsing memory size: %v\n", err)
-			return
+			return fmt.Errorf("Error parsing memory size: %w", err)
 		}
 		memorySizeBytes = parsed
 	}
@@ -162,8 +171,7 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 	if vmSpec.RootDiskSize != "" {
 		parsed, err := utils.ParseMemorySize(vmSpec.RootDiskSize)
 		if err != nil {
-			fmt.Printf("Error parsing root disk size: %v\n", err)
-			return
+			return fmt.Errorf("Error parsing root disk size: %w", err)
 		}
 		rootDiskSizeBytes = &parsed
 	}
@@ -172,27 +180,23 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 	for _, size := range vmSpec.DataDiskSizes {
 		parsed, err := utils.ParseMemorySize(size)
 		if err != nil {
-			fmt.Printf("Error parsing data disk size: %v\n", err)
-			return
+			return fmt.Errorf("Error parsing data disk size: %w", err)
 		}
 		dataDiskSizesBytes = append(dataDiskSizesBytes, parsed)
 	}
 
 	cli := client.GetClient()
 	if cli == nil {
-		fmt.Println("Error: Client not initialized. Please run 'zstack-cli login' first.")
-		return
+		return fmt.Errorf("Error: Client not initialized. Please run 'zstack-cli login' first.")
 	}
 
 	// Image
 	if vmSpec.Image == "" {
-		fmt.Println("Error: image is required")
-		return
+		return fmt.Errorf("Error: image is required")
 	}
 	imageUuid, err := client.GetImageUUIDByName(cli, vmSpec.Image)
 	if err != nil {
-		fmt.Printf("Error finding image '%s': %v\n", vmSpec.Image, err)
-		return
+		return fmt.Errorf("Error finding image '%s': %w", vmSpec.Image, err)
 	}
 
 	// InstanceOffering
@@ -200,22 +204,19 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 	if vmSpec.InstanceOffering != "" {
 		instanceOfferingUuid, err = client.GetInstanceOfferingUUIDByName(cli, vmSpec.InstanceOffering)
 		if err != nil {
-			fmt.Printf("Error finding instance offering '%s': %v\n", vmSpec.InstanceOffering, err)
-			return
+			return fmt.Errorf("Error finding instance offering '%s': %w", vmSpec.InstanceOffering, err)
 		}
 	}
 
 	// L3Networks
 	if len(vmSpec.L3Networks) == 0 {
-		fmt.Println("Error: At least one L3 network is required")
-		return
+		return fmt.Errorf("Error: At least one L3 network is required")
 	}
 	l3NetworkUuids := make([]string, 0, len(vmSpec.L3Networks))
 	for _, n := range vmSpec.L3Networks {
 		uuid, err := client.GetL3NetworkUUIDByName(cli, n)
 		if err != nil {
-			fmt.Printf("Error finding L3 network '%s': %v\n", n, err)
-			return
+			return fmt.Errorf("Error finding L3 network '%s': %w", n, err)
 		}
 		l3NetworkUuids = append(l3NetworkUuids, uuid)
 	}
@@ -225,8 +226,7 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 	if vmSpec.Zone != "" {
 		zoneUuid, err = client.GetZoneUUIDByName(cli, vmSpec.Zone)
 		if err != nil {
-			fmt.Printf("Error finding zone '%s': %v\n", vmSpec.Zone, err)
-			return
+			return fmt.Errorf("Error finding zone '%s': %w", vmSpec.Zone, err)
 		}
 	}
 
@@ -235,8 +235,7 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 	if vmSpec.Cluster != "" {
 		clusterUuid, err = client.GetClusterUUIDByName(cli, vmSpec.Cluster)
 		if err != nil {
-			fmt.Printf("Error finding cluster '%s': %v\n", vmSpec.Cluster, err)
-			return
+			return fmt.Errorf("Error finding cluster '%s': %w", vmSpec.Cluster, err)
 		}
 	}
 
@@ -245,8 +244,7 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 	if vmSpec.Host != "" {
 		hostUuid, err = client.GetHostUUIDByName(cli, vmSpec.Host)
 		if err != nil {
-			fmt.Printf("Error finding host '%s': %v\n", vmSpec.Host, err)
-			return
+			return fmt.Errorf("Error finding host '%s': %w", vmSpec.Host, err)
 		}
 	}
 
@@ -255,8 +253,7 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 	if vmSpec.PrimaryStorage != "" {
 		primaryStorageUuid, err = client.GetPrimaryStorageUUIDByName(cli, vmSpec.PrimaryStorage)
 		if err != nil {
-			fmt.Printf("Error finding primary storage '%s': %v\n", vmSpec.PrimaryStorage, err)
-			return
+			return fmt.Errorf("Error finding primary storage '%s': %w", vmSpec.PrimaryStorage, err)
 		}
 	}
 	var primaryStoragePtr *string
@@ -269,8 +266,7 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 	if vmSpec.DefaultL3Network != "" {
 		defaultL3NetworkUuid, err = client.GetL3NetworkUUIDByName(cli, vmSpec.DefaultL3Network)
 		if err != nil {
-			fmt.Printf("Error finding default L3 network '%s': %v\n", vmSpec.DefaultL3Network, err)
-			return
+			return fmt.Errorf("Error finding default L3 network '%s': %w", vmSpec.DefaultL3Network, err)
 		}
 	}
 
@@ -279,27 +275,27 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 			SystemTags: vmSpec.SystemTags,
 			UserTags:   vmSpec.UserTags,
 		},
-		Params: param.CreateVmInstanceDetailParam{
+		Params: param.CreateVmInstanceParamDetail{
 			Name:                            vmSpec.Name,
-			InstanceOfferingUUID:            instanceOfferingUuid,
-			CpuNum:                          vmSpec.CpuNum,
-			MemorySize:                      memorySizeBytes,
-			ImageUUID:                       imageUuid,
+			InstanceOfferingUuid:            stringPtrIfNotEmpty(instanceOfferingUuid),
+			CpuNum:                          intPtrFromInt64IfNotZero(vmSpec.CpuNum),
+			MemorySize:                      int64PtrIfNotZero(memorySizeBytes),
+			ImageUuid:                       stringPtrIfNotEmpty(imageUuid),
 			L3NetworkUuids:                  l3NetworkUuids,
-			Type:                            param.InstanceType(vmSpec.Type),
-			RootDiskOfferingUuid:            vmSpec.RootDiskOffering,
+			Type:                            stringPtrIfNotEmpty(vmSpec.Type),
+			RootDiskOfferingUuid:            stringPtrIfNotEmpty(vmSpec.RootDiskOffering),
 			RootDiskSize:                    rootDiskSizeBytes,
 			DataDiskOfferingUuids:           vmSpec.DataDiskOfferings,
 			DataDiskSizes:                   dataDiskSizesBytes,
-			ZoneUuid:                        zoneUuid,
-			ClusterUUID:                     clusterUuid,
-			HostUuid:                        hostUuid,
+			ZoneUuid:                        stringPtrIfNotEmpty(zoneUuid),
+			ClusterUuid:                     stringPtrIfNotEmpty(clusterUuid),
+			HostUuid:                        stringPtrIfNotEmpty(hostUuid),
 			PrimaryStorageUuidForRootVolume: primaryStoragePtr,
-			Description:                     vmSpec.Description,
-			DefaultL3NetworkUuid:            defaultL3NetworkUuid,
-			ResourceUuid:                    vmSpec.ResourceUuid,
+			Description:                     stringPtrIfNotEmpty(vmSpec.Description),
+			DefaultL3NetworkUuid:            stringPtrIfNotEmpty(defaultL3NetworkUuid),
+			ResourceUuid:                    stringPtrIfNotEmpty(vmSpec.ResourceUuid),
 			TagUuids:                        vmSpec.TagUuids,
-			Strategy:                        param.InstanceStrategy(vmSpec.Strategy),
+			Strategy:                        stringPtrIfNotEmpty(vmSpec.Strategy),
 			RootVolumeSystemTags:            vmSpec.RootVolumeSystemTags,
 			DataVolumeSystemTags:            vmSpec.DataVolumeSystemTags,
 		},
@@ -312,26 +308,26 @@ func createVmInstanceFromFile(cmd *cobra.Command, name string, filePath string) 
 		if format == "" {
 			format = "yaml"
 		}
-		utils.PrintDryRun(vmParam, format)
-		return
+		return utils.PrintDryRun(vmParam, format)
 	}
 
 	// ==== 调用 API ====
 	resp, err := cli.CreateVmInstance(vmParam)
 	if err != nil {
-		fmt.Printf("Error creating VM instance: %v\n", err)
-		return
+		return fmt.Errorf("Error creating VM instance: %w", err)
 	}
 
-	fmt.Printf("VM instance created successfully: %s\n", resp.UUID)
+	if err := printCreateProgress(cmd, "VM instance created successfully: %s\n", resp.UUID); err != nil {
+		return err
+	}
 	format, _ := cmd.Flags().GetString("output")
 	if format == "" {
 		format = "table"
 	}
-	utils.PrintOperationResult("instance", resp, format)
+	return utils.PrintOperationResult("instance", resp, format)
 }
 
-func createVmInstanceFromFlags(cmd *cobra.Command, name string) {
+func createVmInstanceFromFlags(cmd *cobra.Command, name string) error {
 	imageStr, _ := cmd.Flags().GetString("image")
 	instanceOfferingStr, _ := cmd.Flags().GetString("instance-offering")
 	cpuNum, _ := cmd.Flags().GetInt64("cpu")
@@ -353,24 +349,20 @@ func createVmInstanceFromFlags(cmd *cobra.Command, name string) {
 	userTags, _ := cmd.Flags().GetStringSlice("user-tag")
 
 	if imageStr == "" {
-		fmt.Println("Error: --image is required")
-		return
+		return fmt.Errorf("Error: --image is required")
 	}
 	if len(l3NetworkStrs) == 0 {
-		fmt.Println("Error: At least one --l3-network is required")
-		return
+		return fmt.Errorf("Error: At least one --l3-network is required")
 	}
 	if instanceOfferingStr == "" && (cpuNum == 0 || memorySize == "") {
-		fmt.Println("Error: Either --instance-offering or both --cpu and --memory must be specified")
-		return
+		return fmt.Errorf("Error: Either --instance-offering or both --cpu and --memory must be specified")
 	}
 
 	var memorySizeBytes int64
 	if memorySize != "" {
 		parsed, err := utils.ParseMemorySize(memorySize)
 		if err != nil {
-			fmt.Printf("Error parsing memory size: %v\n", err)
-			return
+			return fmt.Errorf("Error parsing memory size: %w", err)
 		}
 		memorySizeBytes = parsed
 	}
@@ -379,8 +371,7 @@ func createVmInstanceFromFlags(cmd *cobra.Command, name string) {
 	if rootDiskSize != "" {
 		parsed, err := utils.ParseMemorySize(rootDiskSize)
 		if err != nil {
-			fmt.Printf("Error parsing root disk size: %v\n", err)
-			return
+			return fmt.Errorf("Error parsing root disk size: %w", err)
 		}
 		rootDiskSizeBytes = &parsed
 	}
@@ -390,8 +381,7 @@ func createVmInstanceFromFlags(cmd *cobra.Command, name string) {
 		for _, size := range dataDiskSizes {
 			parsed, err := utils.ParseMemorySize(size)
 			if err != nil {
-				fmt.Printf("Error parsing data disk size: %v\n", err)
-				return
+				return fmt.Errorf("Error parsing data disk size: %w", err)
 			}
 			dataDiskSizesBytes = append(dataDiskSizesBytes, parsed)
 		}
@@ -399,22 +389,19 @@ func createVmInstanceFromFlags(cmd *cobra.Command, name string) {
 
 	cli := client.GetClient()
 	if cli == nil {
-		fmt.Println("Error: Client not initialized. Please run 'zstack-cli login' first.")
-		return
+		return fmt.Errorf("Error: Client not initialized. Please run 'zstack-cli login' first.")
 	}
 
 	imageUuidValue, err := client.GetImageUUIDByName(cli, imageStr)
 	if err != nil {
-		fmt.Printf("Error finding image '%s': %v\n", imageStr, err)
-		return
+		return fmt.Errorf("Error finding image '%s': %w", imageStr, err)
 	}
 
 	var instanceOfferingUuidValue string
 	if instanceOfferingStr != "" {
 		instanceOfferingUuidValue, err = client.GetInstanceOfferingUUIDByName(cli, instanceOfferingStr)
 		if err != nil {
-			fmt.Printf("Error finding instance offering '%s': %v\n", instanceOfferingStr, err)
-			return
+			return fmt.Errorf("Error finding instance offering '%s': %w", instanceOfferingStr, err)
 		}
 	}
 
@@ -422,8 +409,7 @@ func createVmInstanceFromFlags(cmd *cobra.Command, name string) {
 	for _, nameOrUUID := range l3NetworkStrs {
 		uuid, err := client.GetL3NetworkUUIDByName(cli, nameOrUUID)
 		if err != nil {
-			fmt.Printf("Error finding L3 network '%s': %v\n", nameOrUUID, err)
-			return
+			return fmt.Errorf("Error finding L3 network '%s': %w", nameOrUUID, err)
 		}
 		l3NetworkUuidValues = append(l3NetworkUuidValues, uuid)
 	}
@@ -432,8 +418,7 @@ func createVmInstanceFromFlags(cmd *cobra.Command, name string) {
 	if zoneStr != "" {
 		zoneUuidValue, err = client.GetZoneUUIDByName(cli, zoneStr)
 		if err != nil {
-			fmt.Printf("Error finding zone '%s': %v\n", zoneStr, err)
-			return
+			return fmt.Errorf("Error finding zone '%s': %w", zoneStr, err)
 		}
 	}
 
@@ -441,8 +426,7 @@ func createVmInstanceFromFlags(cmd *cobra.Command, name string) {
 	if clusterStr != "" {
 		clusterUuidValue, err = client.GetClusterUUIDByName(cli, clusterStr)
 		if err != nil {
-			fmt.Printf("Error finding cluster '%s': %v\n", clusterStr, err)
-			return
+			return fmt.Errorf("Error finding cluster '%s': %w", clusterStr, err)
 		}
 	}
 
@@ -450,8 +434,7 @@ func createVmInstanceFromFlags(cmd *cobra.Command, name string) {
 	if hostStr != "" {
 		hostUuidValue, err = client.GetHostUUIDByName(cli, hostStr)
 		if err != nil {
-			fmt.Printf("Error finding host '%s': %v\n", hostStr, err)
-			return
+			return fmt.Errorf("Error finding host '%s': %w", hostStr, err)
 		}
 	}
 
@@ -459,8 +442,7 @@ func createVmInstanceFromFlags(cmd *cobra.Command, name string) {
 	if primaryStorageStr != "" {
 		primaryStorageUuidValue, err = client.GetPrimaryStorageUUIDByName(cli, primaryStorageStr)
 		if err != nil {
-			fmt.Printf("Error finding primary storage '%s': %v\n", primaryStorageStr, err)
-			return
+			return fmt.Errorf("Error finding primary storage '%s': %w", primaryStorageStr, err)
 		}
 	}
 	var primaryStoragePtr *string
@@ -472,8 +454,7 @@ func createVmInstanceFromFlags(cmd *cobra.Command, name string) {
 	if defaultL3NetworkStr != "" {
 		defaultL3NetworkUuidValue, err = client.GetL3NetworkUUIDByName(cli, defaultL3NetworkStr)
 		if err != nil {
-			fmt.Printf("Error finding default L3 network '%s': %v\n", defaultL3NetworkStr, err)
-			return
+			return fmt.Errorf("Error finding default L3 network '%s': %w", defaultL3NetworkStr, err)
 		}
 	}
 
@@ -482,25 +463,25 @@ func createVmInstanceFromFlags(cmd *cobra.Command, name string) {
 			SystemTags: systemTags,
 			UserTags:   userTags,
 		},
-		Params: param.CreateVmInstanceDetailParam{
+		Params: param.CreateVmInstanceParamDetail{
 			Name:                            name,
-			InstanceOfferingUUID:            instanceOfferingUuidValue,
-			CpuNum:                          cpuNum,
-			MemorySize:                      memorySizeBytes,
-			ImageUUID:                       imageUuidValue,
+			InstanceOfferingUuid:            stringPtrIfNotEmpty(instanceOfferingUuidValue),
+			CpuNum:                          intPtrFromInt64IfNotZero(cpuNum),
+			MemorySize:                      int64PtrIfNotZero(memorySizeBytes),
+			ImageUuid:                       stringPtrIfNotEmpty(imageUuidValue),
 			L3NetworkUuids:                  l3NetworkUuidValues,
-			RootDiskOfferingUuid:            rootDiskOfferingStr,
+			RootDiskOfferingUuid:            stringPtrIfNotEmpty(rootDiskOfferingStr),
 			RootDiskSize:                    rootDiskSizeBytes,
 			DataDiskOfferingUuids:           dataDiskOfferingStrs,
 			DataDiskSizes:                   dataDiskSizesBytes,
-			ZoneUuid:                        zoneUuidValue,
-			ClusterUUID:                     clusterUuidValue,
-			HostUuid:                        hostUuidValue,
+			ZoneUuid:                        stringPtrIfNotEmpty(zoneUuidValue),
+			ClusterUuid:                     stringPtrIfNotEmpty(clusterUuidValue),
+			HostUuid:                        stringPtrIfNotEmpty(hostUuidValue),
 			PrimaryStorageUuidForRootVolume: primaryStoragePtr,
-			Description:                     description,
-			DefaultL3NetworkUuid:            defaultL3NetworkUuidValue,
-			ResourceUuid:                    resourceUuid,
-			Strategy:                        param.InstanceStrategy(strategy),
+			Description:                     stringPtrIfNotEmpty(description),
+			DefaultL3NetworkUuid:            stringPtrIfNotEmpty(defaultL3NetworkUuidValue),
+			ResourceUuid:                    stringPtrIfNotEmpty(resourceUuid),
+			Strategy:                        stringPtrIfNotEmpty(strategy),
 		},
 	}
 
@@ -510,23 +491,23 @@ func createVmInstanceFromFlags(cmd *cobra.Command, name string) {
 		if format == "" {
 			format = "yaml"
 		}
-		utils.PrintDryRun(vmParam, format)
-		return
+		return utils.PrintDryRun(vmParam, format)
 	}
 
 	resp, err := cli.CreateVmInstance(vmParam)
 	if err != nil {
-		fmt.Printf("Error creating VM instance: %v\n", err)
-		return
+		return fmt.Errorf("Error creating VM instance: %w", err)
 	}
 
-	fmt.Printf("VM instance created successfully: %s\n", resp.UUID)
+	if err := printCreateProgress(cmd, "VM instance created successfully: %s\n", resp.UUID); err != nil {
+		return err
+	}
 	format, _ := cmd.Flags().GetString("output")
 	if format == "" {
 		format = "table"
 	}
 
-	utils.PrintOperationResult("instance", resp, format)
+	return utils.PrintOperationResult("instance", resp, format)
 }
 
 func init() {

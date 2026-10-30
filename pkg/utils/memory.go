@@ -17,6 +17,7 @@ package utils
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -46,16 +47,21 @@ func ParseMemorySize(memoryStr string) (int64, error) {
 		return value, nil
 	}
 
+	multiplier := int64(1)
 	switch unit[0] {
 	case 'K':
-		return value * 1024, nil
+		multiplier = 1 << 10
 	case 'M':
-		return value * 1024 * 1024, nil
+		multiplier = 1 << 20
 	case 'G':
-		return value * 1024 * 1024 * 1024, nil
+		multiplier = 1 << 30
 	case 'T':
-		return value * 1024 * 1024 * 1024 * 1024, nil
+		multiplier = 1 << 40
 	default:
 		return 0, fmt.Errorf("unsupported memory unit: %s", unit)
 	}
+	if value > math.MaxInt64/multiplier {
+		return 0, fmt.Errorf("size exceeds int64 byte range")
+	}
+	return value * multiplier, nil
 }

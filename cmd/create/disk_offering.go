@@ -25,7 +25,7 @@ import (
 	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 	"gopkg.in/yaml.v3"
 )
 
@@ -42,7 +42,7 @@ type DiskOfferingSpec struct {
 }
 
 var diskOfferingCmd = &cobra.Command{
-	Use:   "disk-offering NAME",
+	Use:   "disk-offering [NAME]",
 	Short: "Create a new disk offering",
 	Long: `Create a new disk offering in ZStack cloud platform.
 	
@@ -55,39 +55,44 @@ Examples:
   
   # Create a disk offering from a YAML or JSON file
   zstack-cli create disk-offering my-disk-offering -f disk-spec.yaml`,
-	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		name := args[0]
+	Args: exactOneArgUnlessFile,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		var name string
+		if len(args) > 0 {
+			name = args[0]
+		}
 
 		filePath, _ := cmd.Flags().GetString("file")
 		if filePath != "" {
-			createDiskOfferingFromFile(cmd, name, filePath)
-			return
+			return createDiskOfferingFromFile(cmd, name, filePath)
 		}
 
-		createDiskOfferingFromFlags(cmd, name)
+		diskSize, _ := cmd.Flags().GetString("size")
+		if diskSize == "" {
+			cmd.Help()
+			return fmt.Errorf("required flag --size not set")
+		}
+
+		return createDiskOfferingFromFlags(cmd, name)
 	},
 }
 
-func createDiskOfferingFromFile(cmd *cobra.Command, name string, filePath string) {
+func createDiskOfferingFromFile(cmd *cobra.Command, name string, filePath string) error {
 
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		fmt.Printf("Error reading file %s: %v\n", filePath, err)
-		return
+		return fmt.Errorf("Error reading file %s: %w", filePath, err)
 	}
 
 	var diskOfferingSpec DiskOfferingSpec
 
 	if strings.HasSuffix(filePath, ".json") {
 		if err := json.Unmarshal(data, &diskOfferingSpec); err != nil {
-			fmt.Printf("Error parsing JSON file: %v\n", err)
-			return
+			return fmt.Errorf("Error parsing JSON file: %w", err)
 		}
 	} else {
 		if err := yaml.Unmarshal(data, &diskOfferingSpec); err != nil {
-			fmt.Printf("Error parsing YAML file: %v\n", err)
-			return
+			return fmt.Errorf("Error parsing YAML file: %w", err)
 		}
 	}
 
@@ -96,8 +101,7 @@ func createDiskOfferingFromFile(cmd *cobra.Command, name string, filePath string
 	} else if diskOfferingSpec.Name != "" {
 		name = diskOfferingSpec.Name
 	} else {
-		fmt.Println("Error: name is required in disk offering specification")
-		return
+		return fmt.Errorf("Error: name is required in disk offering specification")
 	}
 
 	var diskSizeBytes int64
@@ -105,18 +109,15 @@ func createDiskOfferingFromFile(cmd *cobra.Command, name string, filePath string
 	if diskOfferingSpec.DiskSize != "" {
 		diskSizeBytes, parseErr = utils.ParseMemorySize(diskOfferingSpec.DiskSize)
 		if parseErr != nil {
-			fmt.Printf("Error parsing disk size: %v\n", parseErr)
-			return
+			return fmt.Errorf("Error parsing disk size: %w", parseErr)
 		}
 	} else {
-		fmt.Println("Error: diskSize is required in disk offering specification")
-		return
+		return fmt.Errorf("Error: diskSize is required in disk offering specification")
 	}
 
 	cli := client.GetClient()
 	if cli == nil {
-		fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-		return
+		return fmt.Errorf("Error: Not logged in. Please run 'zstack-cli login' first.")
 	}
 
 	var description *string
@@ -139,59 +140,52 @@ func createDiskOfferingFromFile(cmd *cobra.Command, name string, filePath string
 		resourceUuid = &diskOfferingSpec.ResourceUUID
 	}
 
-	var sortKey *int
-	if diskOfferingSpec.SortKey != 0 {
-		sortKey = &diskOfferingSpec.SortKey
-	}
-
 	offeringParam := param.CreateDiskOfferingParam{
-		Params: param.CreateDiskOfferingDetailParam{
-			Name:              diskOfferingSpec.Name,
-			Description:       description,
-			DiskSize:          diskSizeBytes,
-			AllocatorStrategy: allocatorStrategy,
-			SortKey:           sortKey,
-			Type:              offeringType,
-			ResourceUuid:      resourceUuid,
-			SystemTags:        diskOfferingSpec.SystemTags,
-			UserTags:          diskOfferingSpec.UserTags,
+		BaseParam: param.BaseParam{
+			SystemTags: diskOfferingSpec.SystemTags,
+			UserTags:   diskOfferingSpec.UserTags,
+		},
+		Params: param.CreateDiskOfferingParamDetail{
+			Name:               diskOfferingSpec.Name,
+			Description:        description,
+			DiskSize:           diskSizeBytes,
+			AllocationStrategy: allocatorStrategy,
+			SortKey:            diskOfferingSpec.SortKey,
+			Type:               offeringType,
+			ResourceUuid:       resourceUuid,
 		},
 	}
 
 	if dryRunFlag {
-		utils.PrintDryRun(offeringParam, outputFlag)
-		return
+		return utils.PrintDryRun(offeringParam, outputFlag)
 	}
 
-	fmt.Printf("Creating disk offering '%s' from file...\n", diskOfferingSpec.Name)
-	result, err := cli.CreateDiskOffering(&offeringParam)
+	if err := printCreateProgress(cmd, "Creating disk offering '%s' from file...\n", diskOfferingSpec.Name); err != nil {
+		return err
+	}
+	result, err := cli.CreateDiskOffering(offeringParam)
 	if err != nil {
-		fmt.Printf("Error creating disk offering: %s\n", err)
-		return
+		return fmt.Errorf("Error creating disk offering: %w", err)
 	}
 
-	utils.PrintOperationResult("DiskOffering", result, outputFlag)
+	return utils.PrintOperationResult("DiskOffering", result, outputFlag)
 }
 
-func createDiskOfferingFromFlags(cmd *cobra.Command, name string) {
+func createDiskOfferingFromFlags(cmd *cobra.Command, name string) error {
 	diskSizeStr, _ := cmd.Flags().GetString("size")
 
 	if diskSizeStr == "" {
-		fmt.Println("Error: required flag --size not set")
-		cmd.Help()
-		return
+		return fmt.Errorf("Error: required flag --size not set")
 	}
 
 	diskSizeBytes, err := utils.ParseMemorySize(diskSizeStr)
 	if err != nil {
-		fmt.Printf("Error parsing disk size: %v\n", err)
-		return
+		return fmt.Errorf("Error parsing disk size: %w", err)
 	}
 
 	cli := client.GetClient()
 	if cli == nil {
-		fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-		return
+		return fmt.Errorf("Error: Not logged in. Please run 'zstack-cli login' first.")
 	}
 	description, _ := cmd.Flags().GetString("description")
 	allocatorStrategy, _ := cmd.Flags().GetString("allocator-strategy")
@@ -221,37 +215,34 @@ func createDiskOfferingFromFlags(cmd *cobra.Command, name string) {
 		resourceUuidPtr = &resourceUuid
 	}
 
-	var sortKeyPtr *int
-	if cmd.Flags().Changed("sort-key") {
-		sortKeyPtr = &sortKey
-	}
-
 	offeringParam := param.CreateDiskOfferingParam{
-		Params: param.CreateDiskOfferingDetailParam{
-			Name:              name,
-			Description:       descPtr,
-			DiskSize:          diskSizeBytes,
-			AllocatorStrategy: allocatorPtr,
-			SortKey:           sortKeyPtr,
-			Type:              typePtr,
-			ResourceUuid:      resourceUuidPtr,
-			SystemTags:        systemTags,
-			UserTags:          userTags,
+		BaseParam: param.BaseParam{
+			SystemTags: systemTags,
+			UserTags:   userTags,
+		},
+		Params: param.CreateDiskOfferingParamDetail{
+			Name:               name,
+			Description:        descPtr,
+			DiskSize:           diskSizeBytes,
+			AllocationStrategy: allocatorPtr,
+			SortKey:            sortKey,
+			Type:               typePtr,
+			ResourceUuid:       resourceUuidPtr,
 		},
 	}
 
 	if dryRunFlag {
-		utils.PrintDryRun(offeringParam, outputFlag)
-		return
+		return utils.PrintDryRun(offeringParam, outputFlag)
 	}
 
-	fmt.Printf("Creating disk offering '%s'...\n", name)
-	result, err := cli.CreateDiskOffering(&offeringParam)
-	if err != nil {
-		fmt.Printf("Error creating disk offering: %s\n", err)
-		return
+	if err := printCreateProgress(cmd, "Creating disk offering '%s'...\n", name); err != nil {
+		return err
 	}
-	utils.PrintOperationResult("DiskOffering", result, outputFlag)
+	result, err := cli.CreateDiskOffering(offeringParam)
+	if err != nil {
+		return fmt.Errorf("Error creating disk offering: %w", err)
+	}
+	return utils.PrintOperationResult("DiskOffering", result, outputFlag)
 }
 
 func init() {

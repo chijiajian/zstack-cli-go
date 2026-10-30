@@ -18,7 +18,6 @@ package del
 import (
 	"fmt"
 
-	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -33,11 +32,15 @@ var DeleteCmd = &cobra.Command{
 	Use:   "delete",
 	Short: "Delete one or many resources",
 	Long:  `Delete one or many ZStack resources.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if fileFlag != "" {
+			return fmt.Errorf("delete --file is not supported yet; use a concrete delete subcommand")
+		}
 		if len(args) == 0 && fileFlag == "" {
 			cmd.Help()
-			return
+			return nil
 		}
+		return nil
 	},
 	PersistentPreRunE: preRunCheckFile,
 }
@@ -53,23 +56,7 @@ func init() {
 
 func preRunCheckFile(cmd *cobra.Command, args []string) error {
 	if fileFlag != "" {
-		if dryRunFlag {
-			fmt.Println("Dry run mode: would process file", fileFlag)
-			return nil
-		}
-
-		if verboseFlag {
-			fmt.Printf("Processing file for deletion: %s\n", fileFlag)
-		}
-
-		err := utils.ProcessFilePath(fileFlag)
-		if err != nil {
-			return err
-		}
-
-		cmd.Run = func(cmd *cobra.Command, args []string) {
-
-		}
+		return fmt.Errorf("delete --file is not supported yet; use a concrete delete subcommand")
 	}
 	return nil
 }

@@ -16,13 +16,17 @@ package common
 
 import (
 	"fmt"
+	"github.com/chijiajian/zstack-cli-go/pkg/clierr"
 	"net/url"
+	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 func AddQueryFlags(cmd *cobra.Command) {
+	cmd.Flags().Bool("all-pages", false, "Fetch every page; --limit is the page size")
+	cmd.Flags().Duration("request-timeout", 30*time.Second, "Deadline for authentication and all query pages")
 	cmd.Flags().StringArrayP("q", "q", []string{}, "Query condition, can be specified multiple times")
 	cmd.Flags().IntP("limit", "l", 0, "Maximum number of results to return")
 	cmd.Flags().IntP("start", "s", 0, "Starting index for results")
@@ -36,6 +40,22 @@ func AddQueryFlags(cmd *cobra.Command) {
 
 func BuildQueryParams(cmd *cobra.Command, args []string, nameField string) (*param.QueryParam, error) {
 	queryParam := param.NewQueryParam()
+	limitValue, _ := cmd.Flags().GetInt("limit")
+	startValue, _ := cmd.Flags().GetInt("start")
+	timeout, _ := cmd.Flags().GetDuration("request-timeout")
+	if limitValue < 0 || startValue < 0 || timeout <= 0 {
+		return nil, clierr.Wrap(clierr.Usage, fmt.Errorf("limit/start must be nonnegative and request-timeout must be positive"))
+	}
+	output, _ := cmd.Flags().GetString("output")
+	switch output {
+	case "table", "json", "yaml", "text":
+	default:
+		return nil, clierr.Wrap(clierr.Usage, fmt.Errorf("unsupported output format %q", output))
+	}
+	pagination, _ := cmd.Flags().GetBool("pagination")
+	if pagination {
+		queryParam.ReplyWithCount(true)
+	}
 
 	if len(args) == 1 && nameField != "" {
 		resourceName := args[0]
@@ -77,10 +97,7 @@ func BuildQueryParams(cmd *cobra.Command, args []string, nameField string) (*par
 		queryParam.GroupBy(groupBy)
 	}
 
-	fields, _ := cmd.Flags().GetStringSlice("fields")
-	if len(fields) > 0 {
-		queryParam.Fields(fields)
-	}
+	// --fields projects CLI output, not SDK inventory fields.
 
 	if queryParam.Values == nil {
 		queryParam.Values = url.Values{}

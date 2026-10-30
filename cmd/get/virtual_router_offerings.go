@@ -16,8 +16,8 @@ package get
 
 import (
 	"fmt"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 
-	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
@@ -48,30 +48,18 @@ var virtualRouterOfferingsCmd = &cobra.Command{
 	Short: "List virtual router offerings",
 	Long:  `List all virtual router offerings in the ZStack cloud platform.`,
 	Args:  cobra.MaximumNArgs(1),
-	Run: func(cobraCmd *cobra.Command, args []string) {
-
-		zsClient := client.GetClient()
-		if zsClient == nil {
-			fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-			return
-		}
+	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
 		if err != nil {
-			fmt.Printf("Error building query parameters: %s\n", err)
-			return
+			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
-		offerings, err := zsClient.QueryVirtualRouterOffering(*queryParam)
+		result, err := common.Fetch[view.VirtualRouterOfferingInventoryView](cobraCmd, queryParam, "v1/instance-offerings/virtual-routers")
+		offerings := result.Items
 		if err != nil {
-			fmt.Printf("Error querying virtual router offerings: %s\n", err)
-			return
+			return fmt.Errorf("Error querying virtual router offerings: %w", err)
 		}
-
-		outputFormat, _ := cobraCmd.Flags().GetString("output")
-		format := utils.ParseFormat(outputFormat)
-
-		fields, _ := cobraCmd.Flags().GetStringSlice("fields")
 
 		var formattedResults []FormattedVirtualRouterOffering
 		for _, offering := range offerings {
@@ -92,16 +80,16 @@ var virtualRouterOfferingsCmd = &cobra.Command{
 				ZoneUuid:              offering.ZoneUuid,
 				ImageUuid:             offering.ImageUuid,
 				IsDefault:             offering.IsDefault,
-				ReservedMemorySize:    offering.ReservedMemorySize,
+				ReservedMemorySize:    utils.FormatMemorySize(offering.ReservedMemorySize),
 			}
 			formattedResults = append(formattedResults, formatted)
 		}
 
-		err = utils.PrintWithFields(formattedResults, format, fields)
+		err = common.PrintQuery(cobraCmd, formattedResults, result.Total)
 		if err != nil {
-			fmt.Printf("Error formatting output: %s\n", err)
-			return
+			return fmt.Errorf("Error formatting output: %w", err)
 		}
+		return nil
 	},
 }
 

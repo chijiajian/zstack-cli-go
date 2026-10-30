@@ -18,11 +18,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
-	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/view"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
 
 type FormattedVmNic struct {
@@ -45,42 +43,18 @@ var nicsCmd = &cobra.Command{
 	Short:   "List VM network interfaces",
 	Long:    `List all VM network interfaces (NICs) in the ZStack cloud platform.`,
 	Args:    cobra.MaximumNArgs(0),
-	Run: func(cobraCmd *cobra.Command, args []string) {
-
-		zsClient := client.GetClient()
-		if zsClient == nil {
-			fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-			return
-		}
+	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "")
 		if err != nil {
-			fmt.Printf("Error building query parameters: %s\n", err)
-			return
+			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
-		usePagination, _ := cobraCmd.Flags().GetBool("pagination")
-		var nics []view.VmNicInventoryView
-		var total int
-
-		if usePagination {
-			nics, total, err = zsClient.PageVmNic(*queryParam)
-			if err != nil {
-				fmt.Printf("Error querying VM NICs: %s\n", err)
-				return
-			}
-			fmt.Printf("Total: %d\n", total)
-		} else {
-			nics, err = zsClient.QueryVmNic(*queryParam)
-			if err != nil {
-				fmt.Printf("Error querying VM NICs: %s\n", err)
-				return
-			}
+		result, err := common.Fetch[view.VmNicInventoryView](cobraCmd, queryParam, "v1/vm-instances/nics")
+		nics := result.Items
+		if err != nil {
+			return err
 		}
-
-		outputFormat, _ := cobraCmd.Flags().GetString("output")
-		format := utils.ParseFormat(outputFormat)
-		fields, _ := cobraCmd.Flags().GetStringSlice("fields")
 
 		var formattedResults []FormattedVmNic
 		for _, nic := range nics {
@@ -91,30 +65,30 @@ var nicsCmd = &cobra.Command{
 			}
 			ipStr := strings.Join(ips, ", ")
 			if ipStr == "" {
-				ipStr = nic.IP
+				ipStr = nic.Ip
 			}
 
 			formatted := FormattedVmNic{
 				UUID:           nic.UUID,
-				VMInstanceUUID: nic.VMInstanceUUID,
-				L3NetworkUUID:  nic.L3NetworkUUID,
+				VMInstanceUUID: nic.VmInstanceUuid,
+				L3NetworkUUID:  nic.L3NetworkUuid,
 				IP:             ipStr,
 				Mac:            nic.Mac,
 				Netmask:        nic.Netmask,
 				Gateway:        nic.Gateway,
 				IPVersion:      nic.IpVersion,
-				DeviceID:       nic.DeviceID,
+				DeviceID:       nic.DeviceId,
 				Type:           nic.Type,
 				DriverType:     nic.DriverType,
 			}
 			formattedResults = append(formattedResults, formatted)
 		}
 
-		err = utils.PrintWithFields(formattedResults, format, fields)
+		err = common.PrintQuery(cobraCmd, formattedResults, result.Total)
 		if err != nil {
-			fmt.Printf("Error formatting output: %s\n", err)
-			return
+			return fmt.Errorf("Error formatting output: %w", err)
 		}
+		return nil
 	},
 }
 

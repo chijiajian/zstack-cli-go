@@ -18,10 +18,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/view"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 
 	"github.com/spf13/cobra"
 )
@@ -58,59 +57,31 @@ var vmInstancesCmd = &cobra.Command{
 	Short: "List VM instances",
 	Long:  `List all VM instances in the ZStack cloud platform.`,
 	Args:  cobra.MaximumNArgs(1),
-	Run: func(cobraCmd *cobra.Command, args []string) {
-
-		zsClient := client.GetClient()
-		if zsClient == nil {
-			fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-			return
-		}
+	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
 		if err != nil {
-			fmt.Printf("Error building query parameters: %s\n", err)
-			return
+			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
 		err = common.ProcessBasicContextFlags(cobraCmd, queryParam)
 		if err != nil {
-			fmt.Printf("Error processing context filters: %s\n", err)
-			return
+			return fmt.Errorf("Error processing context filters: %w", err)
 		}
 
-		usePagination, _ := cobraCmd.Flags().GetBool("pagination")
-		var vmInstances []view.VmInstanceInventoryView
-		var total int
-
-		if usePagination {
-
-			vmInstances, total, err = zsClient.PageVmInstance(*queryParam)
-			if err != nil {
-				fmt.Printf("Error querying VM instances: %s\n", err)
-				return
-			}
-			fmt.Printf("Total: %d\n", total)
-		} else {
-
-			vmInstances, err = zsClient.QueryVmInstance(*queryParam)
-			if err != nil {
-				fmt.Printf("Error querying VM instances: %s\n", err)
-				return
-			}
+		result, err := common.Fetch[view.VmInstanceInventoryView](cobraCmd, queryParam, "v1/vm-instances")
+		vmInstances := result.Items
+		if err != nil {
+			return err
 		}
-
-		outputFormat, _ := cobraCmd.Flags().GetString("output")
-		format := utils.ParseFormat(outputFormat)
-
-		fields, _ := cobraCmd.Flags().GetStringSlice("fields")
 
 		var formattedResults []FormattedVmInstance
 		for _, vm := range vmInstances {
 
 			var ips []string
-			for _, nic := range vm.VMNics {
-				if nic.IP != "" {
-					ips = append(ips, nic.IP)
+			for _, nic := range vm.VmNics {
+				if nic.Ip != "" {
+					ips = append(ips, nic.Ip)
 				}
 			}
 
@@ -124,22 +95,22 @@ var vmInstancesCmd = &cobra.Command{
 				UUID:        vm.UUID,
 				Description: vm.Description,
 
-				ZoneUUID:             vm.ZoneUUID,
-				ClusterUUID:          vm.ClusterUUID,
-				ImageUUID:            vm.ImageUUID,
-				HostUUID:             vm.HostUUID,
-				LastHostUUID:         vm.LastHostUUID,
-				InstanceOfferingUUID: vm.InstanceOfferingUUID,
-				RootVolumeUUID:       vm.RootVolumeUUID,
+				ZoneUUID:             vm.ZoneUuid,
+				ClusterUUID:          vm.ClusterUuid,
+				ImageUUID:            vm.ImageUuid,
+				HostUUID:             vm.HostUuid,
+				LastHostUUID:         vm.LastHostUuid,
+				InstanceOfferingUUID: vm.InstanceOfferingUuid,
+				RootVolumeUUID:       vm.RootVolumeUuid,
 				Platform:             vm.Platform,
 				Architecture:         vm.Architecture,
 				GuestOsType:          vm.GuestOsType,
-				DefaultL3NetworkUUID: vm.DefaultL3NetworkUUID,
+				DefaultL3NetworkUUID: vm.DefaultL3NetworkUuid,
 				Type:                 vm.Type,
 				HypervisorType:       vm.HypervisorType,
 				MemorySize:           utils.FormatMemorySize(vm.MemorySize),
-				CPUNum:               vm.CPUNum,
-				CPUSpeed:             vm.CPUSpeed,
+				CPUNum:               vm.CpuNum,
+				CPUSpeed:             vm.CpuSpeed,
 				AllocatorStrategy:    vm.AllocatorStrategy,
 				State:                vm.State,
 				IPs:                  strings.Join(ips, ", "),
@@ -148,11 +119,11 @@ var vmInstancesCmd = &cobra.Command{
 			formattedResults = append(formattedResults, formatted)
 		}
 
-		err = utils.PrintWithFields(formattedResults, format, fields)
+		err = common.PrintQuery(cobraCmd, formattedResults, result.Total)
 		if err != nil {
-			fmt.Printf("Error formatting output: %s\n", err)
-			return
+			return fmt.Errorf("Error formatting output: %w", err)
 		}
+		return nil
 	},
 }
 

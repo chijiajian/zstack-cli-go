@@ -6,11 +6,9 @@ package get
 import (
 	"fmt"
 
-	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
-	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/view"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
 
 type FormattedBackupStorage struct {
@@ -76,39 +74,19 @@ Examples:
   zstack-cli get image-storages --output json
   zstack-cli get image-storages --output yaml
   zstack-cli get image-storages --output text`,
-	Run: func(cobraCmd *cobra.Command, args []string) {
-
-		zsClient := client.GetClient()
-		if zsClient == nil {
-			fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-			return
-		}
+	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
 		if err != nil {
-			fmt.Printf("Error building query parameters: %s\n", err)
-			return
+			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
-		var backupStorages []view.BackupStorageInventoryView
-		backupStorages, err = zsClient.QueryBackupStorage(*queryParam)
+		result, err := common.Fetch[view.BackupStorageInventoryView](cobraCmd, queryParam, "v1/backup-storage")
+		backupStorages := result.Items
 
 		if err != nil {
-			fmt.Printf("Query failed: %s\n", err)
-			fmt.Println("\nDebug: Error details:")
-			fmt.Printf("Debug: Error type: %T\n", err)
-			fmt.Printf("Debug: Query parameters: %+v\n", queryParam)
-			return
+			return fmt.Errorf("query failed: %w", err)
 		}
-
-		if len(backupStorages) == 0 {
-			fmt.Println("No image storages found.")
-			return
-		}
-
-		outputFormat, _ := cobraCmd.Flags().GetString("output")
-		format := utils.ParseFormat(outputFormat)
-		fields, _ := cobraCmd.Flags().GetStringSlice("fields")
 
 		var formattedResults []FormattedBackupStorage
 		for _, storage := range backupStorages {
@@ -125,11 +103,11 @@ Examples:
 			formattedResults = append(formattedResults, formatted)
 		}
 
-		err = utils.PrintWithFields(formattedResults, format, fields)
+		err = common.PrintQuery(cobraCmd, formattedResults, result.Total)
 		if err != nil {
-			fmt.Printf("Error formatting output: %s\n", err)
-			return
+			return fmt.Errorf("Error formatting output: %w", err)
 		}
+		return nil
 	},
 }
 

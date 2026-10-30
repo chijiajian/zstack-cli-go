@@ -24,7 +24,7 @@ import (
 	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 	"gopkg.in/yaml.v2"
 )
 
@@ -46,53 +46,63 @@ type ImageSpec struct {
 }
 
 var imageCmd = &cobra.Command{
-	Use:   "image NAME",
+	Use:   "image [NAME]",
 	Short: "Create a new image",
 	Long: `Create a new image in ZStack cloud platform.
-	
+
 Examples:
   # Create a basic image from URL
-  zstack-cli create image my-image --url http://example.com/image.qcow2 --backup-storage bs-uuid1
+  zstack-cli create image my-image --url http://example.com/image.qcow2 --image-storage bs-uuid1
 
   # Create a Windows image with more options
-  zstack-cli create image windows-image --url http://example.com/windows.qcow2 --backup-storage bs-uuid1 \
+  zstack-cli create image windows-image --url http://example.com/windows.qcow2 --image-storage bs-uuid1 \
     --media-type RootVolumeTemplate --format qcow2 --platform Windows --guest-os-type "Windows 10" \
     --architecture x86_64
-    
+
   # Create an image from a YAML or JSON file
-  zstack-cli create image my-image -f image-spec.yaml
-  
+  zstack-cli create image -f image-spec.yaml
+
   # Create an image from a YAML or JSON file with a different name
   zstack-cli create image override-name -f image-spec.yaml`,
-	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		name := args[0]
+	Args: exactOneArgUnlessFile,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		var name string
+		if len(args) > 0 {
+			name = args[0]
+		}
 
 		filePath, _ := cmd.Flags().GetString("file")
 		if filePath != "" {
-			createImageFromFile(cmd, name, filePath)
-			return
+			return createImageFromFile(cmd, name, filePath)
 		}
 
-		createImageFromFlags(cmd, name)
+		url, _ := cmd.Flags().GetString("url")
+		if url == "" {
+			cmd.Help()
+			return fmt.Errorf("required flag --url not set")
+		}
+
+		imageStorage, _ := cmd.Flags().GetString("image-storage")
+		if imageStorage == "" {
+			cmd.Help()
+			return fmt.Errorf("required flag --image-storage not set")
+		}
+
+		return createImageFromFlags(cmd, name)
 	},
 }
 
-func createImageFromFlags(cmd *cobra.Command, name string) {
+func createImageFromFlags(cmd *cobra.Command, name string) error {
 
 	url, _ := cmd.Flags().GetString("url")
 	backupStorageStr, _ := cmd.Flags().GetString("image-storage")
 
 	if url == "" {
-		fmt.Println("Error: required flag --url not set")
-		cmd.Help()
-		return
+		return fmt.Errorf("Error: required flag --url not set")
 	}
 
 	if backupStorageStr == "" {
-		fmt.Println("Error: required flag --image-storage not set")
-		cmd.Help()
-		return
+		return fmt.Errorf("Error: required flag --image-storage not set")
 	}
 
 	backupStorageNames := strings.Split(backupStorageStr, ",")
@@ -100,15 +110,13 @@ func createImageFromFlags(cmd *cobra.Command, name string) {
 
 	cli := client.GetClient()
 	if cli == nil {
-		fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-		return
+		return fmt.Errorf("Error: Not logged in. Please run 'zstack-cli login' first.")
 	}
 
 	for _, nameOrUUID := range backupStorageNames {
 		uuid, err := client.GetBackupStorageUUIDByName(cli, nameOrUUID)
 		if err != nil {
-			fmt.Printf("Error: %s\n", err)
-			return
+			return fmt.Errorf("Error: %w", err)
 		}
 		backupStorageUuids = append(backupStorageUuids, uuid)
 	}
@@ -127,45 +135,46 @@ func createImageFromFlags(cmd *cobra.Command, name string) {
 	userTags, _ := cmd.Flags().GetStringSlice("user-tag")
 
 	imageParam := param.AddImageParam{
-		Params: param.AddImageDetailParam{
+		BaseParam: param.BaseParam{
+			SystemTags: systemTags,
+			UserTags:   userTags,
+		},
+		Params: param.AddImageParamDetail{
 			Name:               name,
-			Description:        description,
+			Description:        stringPtrIfNotEmpty(description),
 			Url:                url,
-			MediaType:          param.MediaType(mediaType),
-			GuestOsType:        guestOsType,
+			MediaType:          stringPtrIfNotEmpty(mediaType),
+			GuestOsType:        stringPtrIfNotEmpty(guestOsType),
 			System:             system,
-			Format:             param.ImageFormat(format),
-			Platform:           platform,
+			Format:             stringPtrIfNotEmpty(format),
+			Platform:           stringPtrIfNotEmpty(platform),
 			BackupStorageUuids: backupStorageUuids,
-			ResourceUuid:       resourceUuid,
-			Architecture:       param.Architecture(architecture),
-			Virtio:             virtio,
+			ResourceUuid:       stringPtrIfNotEmpty(resourceUuid),
+			Architecture:       stringPtrIfNotEmpty(architecture),
+			Virtio:             boolPtr(virtio),
 			TagUuids:           tagUuids,
-			SystemTags:         systemTags,
-			UserTags:           userTags,
 		},
 	}
 
 	if dryRunFlag {
-		utils.PrintDryRun(imageParam, outputFlag)
-		return
+		return utils.PrintDryRun(imageParam, outputFlag)
 	}
 
-	fmt.Printf("Creating image '%s'...\n", name)
+	if err := printCreateProgress(cmd, "Creating image '%s'...\n", name); err != nil {
+		return err
+	}
 	result, err := cli.AddImage(imageParam)
 	if err != nil {
-		fmt.Printf("Error creating image: %s\n", err)
-		return
+		return fmt.Errorf("Error creating image: %w", err)
 	}
 
-	utils.PrintOperationResult("Image", result, outputFlag)
+	return utils.PrintOperationResult("Image", result, outputFlag)
 }
 
-func createImageFromFile(cmd *cobra.Command, name string, filePath string) {
+func createImageFromFile(cmd *cobra.Command, name string, filePath string) error {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		fmt.Printf("Error reading file %s: %v\n", filePath, err)
-		return
+		return fmt.Errorf("Error reading file %s: %w", filePath, err)
 	}
 
 	var imageSpec ImageSpec
@@ -178,12 +187,10 @@ func createImageFromFile(cmd *cobra.Command, name string, filePath string) {
 
 			specData, err := json.Marshal(resourceSpec.Spec)
 			if err != nil {
-				fmt.Printf("Error converting resource spec: %v\n", err)
-				return
+				return fmt.Errorf("Error converting resource spec: %w", err)
 			}
 			if err := json.Unmarshal(specData, &imageSpec); err != nil {
-				fmt.Printf("Error parsing image spec from generic format: %v\n", err)
-				return
+				return fmt.Errorf("Error parsing image spec from generic format: %w", err)
 			}
 			if name == "" {
 				name = resourceSpec.Metadata.Name
@@ -194,76 +201,76 @@ func createImageFromFile(cmd *cobra.Command, name string, filePath string) {
 	if !isGenericFormat {
 		if strings.HasSuffix(filePath, ".json") {
 			if err := json.Unmarshal(data, &imageSpec); err != nil {
-				fmt.Printf("Error parsing JSON file: %v\n", err)
-				return
+				return fmt.Errorf("Error parsing JSON file: %w", err)
 			}
 		} else {
 			if err := yaml.Unmarshal(data, &imageSpec); err != nil {
-				fmt.Printf("Error parsing YAML file: %v\n", err)
-				return
+				return fmt.Errorf("Error parsing YAML file: %w", err)
 			}
+		}
+
+		if name == "" {
+			return fmt.Errorf("Error: image name is required")
 		}
 	}
 
 	if imageSpec.URL == "" {
-		fmt.Println("Error: URL is required in image specification")
-		return
+		return fmt.Errorf("Error: URL is required in image specification")
 	}
 
 	if len(imageSpec.BackupStorageNames) == 0 {
-		fmt.Println("Error: backupStorageUuids is required in image specification")
-		return
+		return fmt.Errorf("Error: backupStorageUuids is required in image specification")
 	}
 
 	cli := client.GetClient()
 	if cli == nil {
-		fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-		return
+		return fmt.Errorf("Error: Not logged in. Please run 'zstack-cli login' first.")
 	}
 
 	backupStorageUuids := make([]string, 0, len(imageSpec.BackupStorageNames))
 	for _, nameOrUUID := range imageSpec.BackupStorageNames {
 		uuid, err := client.GetBackupStorageUUIDByName(cli, nameOrUUID)
 		if err != nil {
-			fmt.Printf("Error: %s\n", err)
-			return
+			return fmt.Errorf("Error: %w", err)
 		}
 		backupStorageUuids = append(backupStorageUuids, uuid)
 	}
 
 	imageParam := param.AddImageParam{
-		Params: param.AddImageDetailParam{
+		BaseParam: param.BaseParam{
+			SystemTags: imageSpec.SystemTags,
+			UserTags:   imageSpec.UserTags,
+		},
+		Params: param.AddImageParamDetail{
 			Name:               name,
-			Description:        imageSpec.Description,
+			Description:        stringPtrIfNotEmpty(imageSpec.Description),
 			Url:                imageSpec.URL,
-			MediaType:          param.MediaType(imageSpec.MediaType),
-			GuestOsType:        imageSpec.GuestOsType,
+			MediaType:          stringPtrIfNotEmpty(imageSpec.MediaType),
+			GuestOsType:        stringPtrIfNotEmpty(imageSpec.GuestOsType),
 			System:             imageSpec.System,
-			Format:             param.ImageFormat(imageSpec.Format),
-			Platform:           imageSpec.Platform,
+			Format:             stringPtrIfNotEmpty(imageSpec.Format),
+			Platform:           stringPtrIfNotEmpty(imageSpec.Platform),
 			BackupStorageUuids: backupStorageUuids,
-			ResourceUuid:       imageSpec.ResourceUUID,
-			Architecture:       param.Architecture(imageSpec.Architecture),
-			Virtio:             imageSpec.Virtio,
+			ResourceUuid:       stringPtrIfNotEmpty(imageSpec.ResourceUUID),
+			Architecture:       stringPtrIfNotEmpty(imageSpec.Architecture),
+			Virtio:             boolPtr(imageSpec.Virtio),
 			TagUuids:           imageSpec.TagUUIDs,
-			SystemTags:         imageSpec.SystemTags,
-			UserTags:           imageSpec.UserTags,
 		},
 	}
 
 	if dryRunFlag {
-		utils.PrintDryRun(imageParam, outputFlag)
-		return
+		return utils.PrintDryRun(imageParam, outputFlag)
 	}
 
-	fmt.Printf("Creating image '%s' from file...\n", name)
+	if err := printCreateProgress(cmd, "Creating image '%s' from file...\n", name); err != nil {
+		return err
+	}
 	result, err := cli.AddImage(imageParam)
 	if err != nil {
-		fmt.Printf("Error creating image: %s\n", err)
-		return
+		return fmt.Errorf("Error creating image: %w", err)
 	}
 
-	utils.PrintOperationResult("Image", result, outputFlag)
+	return utils.PrintOperationResult("Image", result, outputFlag)
 }
 
 func init() {

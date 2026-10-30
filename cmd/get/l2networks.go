@@ -16,10 +16,9 @@ package get
 
 import (
 	"fmt"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 
-	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
-	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -36,29 +35,18 @@ var l2NetworksCmd = &cobra.Command{
 	Use:   "l2-networks [name]",
 	Short: "List L2 networks",
 	Long:  `List all Layer 2 networks in the ZStack cloud platform.`,
-	Run: func(cobraCmd *cobra.Command, args []string) {
-
-		zsClient := client.GetClient()
-		if zsClient == nil {
-			fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-			return
-		}
+	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
 		if err != nil {
-			fmt.Printf("Error building query parameters: %s\n", err)
-			return
+			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
-		l2Networks, err := zsClient.QueryL2Network(*queryParam)
+		result, err := common.Fetch[view.L2NetworkInventoryView](cobraCmd, queryParam, "v1/l2-networks")
+		l2Networks := result.Items
 		if err != nil {
-			fmt.Printf("Error querying L2 networks: %s\n", err)
-			return
+			return fmt.Errorf("Error querying L2 networks: %w", err)
 		}
-
-		outputFormat, _ := cobraCmd.Flags().GetString("output")
-		format := utils.ParseFormat(outputFormat)
-		fields, _ := cobraCmd.Flags().GetStringSlice("fields")
 
 		var formattedResults []FormattedL2Network
 		for _, network := range l2Networks {
@@ -66,18 +54,18 @@ var l2NetworksCmd = &cobra.Command{
 				Name:              network.Name,
 				UUID:              network.UUID,
 				Type:              network.Type,
-				Vlan:              network.Vlan,
+				Vlan:              network.VirtualNetworkId,
 				PhysicalInterface: network.PhysicalInterface,
 				ZoneUuid:          network.ZoneUuid,
 			}
 			formattedResults = append(formattedResults, formatted)
 		}
 
-		err = utils.PrintWithFields(formattedResults, format, fields)
+		err = common.PrintQuery(cobraCmd, formattedResults, result.Total)
 		if err != nil {
-			fmt.Printf("Error formatting output: %s\n", err)
-			return
+			return fmt.Errorf("Error formatting output: %w", err)
 		}
+		return nil
 	},
 }
 

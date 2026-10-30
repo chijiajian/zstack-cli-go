@@ -17,22 +17,20 @@ package get
 import (
 	"fmt"
 
-	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
-	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/view"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
 
 type FormattedCdRom struct {
-	UUID           string  `json:"uuid" yaml:"uuid" header:"UUID"`
-	VMInstanceUUID string  `json:"vmInstanceUuid" yaml:"vmInstanceUuid" header:"VM UUID"`
-	DeviceID       float64 `json:"deviceId" yaml:"deviceId" header:"DEVICE"`
-	IsoUUID        string  `json:"isoUuid" yaml:"isoUuid" header:"ISO UUID"`
-	IsoInstallPath string  `json:"isoInstallPath" yaml:"isoInstallPath" header:"ISO PATH"`
-	Name           string  `json:"name" yaml:"name" header:"NAME"`
-	Description    string  `json:"description" yaml:"description" header:"DESCRIPTION"`
-	CreateDate     string  `json:"createDate" yaml:"createDate" header:"CREATED"`
+	UUID           string `json:"uuid" yaml:"uuid" header:"UUID"`
+	VMInstanceUUID string `json:"vmInstanceUuid" yaml:"vmInstanceUuid" header:"VM UUID"`
+	DeviceID       int    `json:"deviceId" yaml:"deviceId" header:"DEVICE"`
+	IsoUUID        string `json:"isoUuid" yaml:"isoUuid" header:"ISO UUID"`
+	IsoInstallPath string `json:"isoInstallPath" yaml:"isoInstallPath" header:"ISO PATH"`
+	Name           string `json:"name" yaml:"name" header:"NAME"`
+	Description    string `json:"description" yaml:"description" header:"DESCRIPTION"`
+	CreateDate     string `json:"createDate" yaml:"createDate" header:"CREATED"`
 }
 
 var cdromsCmd = &cobra.Command{
@@ -41,42 +39,18 @@ var cdromsCmd = &cobra.Command{
 	Short:   "List VM CD-ROM devices",
 	Long:    `List all VM CD-ROM devices in the ZStack cloud platform.`,
 	Args:    cobra.MaximumNArgs(0),
-	Run: func(cobraCmd *cobra.Command, args []string) {
-
-		zsClient := client.GetClient()
-		if zsClient == nil {
-			fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-			return
-		}
+	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "")
 		if err != nil {
-			fmt.Printf("Error building query parameters: %s\n", err)
-			return
+			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
-		usePagination, _ := cobraCmd.Flags().GetBool("pagination")
-		var cdroms []view.VMCDRomView
-		var total int
-
-		if usePagination {
-			cdroms, total, err = zsClient.PageVmCdRom(*queryParam)
-			if err != nil {
-				fmt.Printf("Error querying CD-ROMs: %s\n", err)
-				return
-			}
-			fmt.Printf("Total: %d\n", total)
-		} else {
-			cdroms, err = zsClient.QueryVmCdRom(*queryParam)
-			if err != nil {
-				fmt.Printf("Error querying CD-ROMs: %s\n", err)
-				return
-			}
+		result, err := common.Fetch[view.VmCdRomInventoryView](cobraCmd, queryParam, "v1/vm-instances/cdroms")
+		cdroms := result.Items
+		if err != nil {
+			return err
 		}
-
-		outputFormat, _ := cobraCmd.Flags().GetString("output")
-		format := utils.ParseFormat(outputFormat)
-		fields, _ := cobraCmd.Flags().GetStringSlice("fields")
 
 		var formattedResults []FormattedCdRom
 		for _, cdrom := range cdroms {
@@ -93,11 +67,11 @@ var cdromsCmd = &cobra.Command{
 			formattedResults = append(formattedResults, formatted)
 		}
 
-		err = utils.PrintWithFields(formattedResults, format, fields)
+		err = common.PrintQuery(cobraCmd, formattedResults, result.Total)
 		if err != nil {
-			fmt.Printf("Error formatting output: %s\n", err)
-			return
+			return fmt.Errorf("Error formatting output: %w", err)
 		}
+		return nil
 	},
 }
 

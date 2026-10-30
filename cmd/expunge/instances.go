@@ -15,16 +15,19 @@
 package expunge
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/chijiajian/zstack-cli-go/pkg/client"
+	"github.com/chijiajian/zstack-cli-go/pkg/common"
 
 	"github.com/spf13/cobra"
 )
 
 var ExpungeInstancesCmd = &cobra.Command{
-	Use:   "instance [name-or-uuid]",
-	Short: "Expunge one or many VM instances",
+	Use:     "instance [name-or-uuid]",
+	Aliases: []string{"instances"},
+	Short:   "Expunge one or many VM instances",
 	Long: `Expunge one or many ZStack VM instances.
 
 Examples:
@@ -34,7 +37,7 @@ Examples:
   # Delete multiple VM instances by name
   zstack-cli expunge instance my-vm 
 
-Note: This is a dangerous operation. You must confirm by typing 'yes'.`,
+Note: This is a dangerous operation. Confirm interactively or use --yes.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		nameOrUUID := args[0]
@@ -62,28 +65,36 @@ func deleteVmInstance(cmd *cobra.Command, nameOrUUID string) error {
 		fmt.Printf("  - %s (%s)\n", vm.Name, vm.UUID)
 	}
 
-	var input string
-	fmt.Print("Are you sure you want to Expunge the above VM instances? Type 'yes' to confirm: ")
-	fmt.Scanln(&input)
-	if input != "yes" {
-		fmt.Println("Aborted by user.")
+	if dryRunFlag {
+		fmt.Println("Dry-run: no resources were changed.")
 		return nil
 	}
 
+	confirmed, err := common.Confirm(cmd, "Are you sure you want to Expunge the above VM instances? Type 'yes' to confirm: ")
+	if err != nil {
+		return err
+	}
+	if !confirmed {
+		_, err := fmt.Fprintln(cmd.OutOrStdout(), "Aborted by user.")
+		return err
+	}
+
+	var failures []error
 	for _, vm := range vms {
 		err := cli.ExpungeVmInstance(vm.UUID)
 		if err != nil {
-			fmt.Printf("Failed to Expunge VM instance %s (%s): %s\n", vm.Name, vm.UUID, err)
+			failures = append(failures, fmt.Errorf("Failed to Expunge VM instance %s (%s): %w", vm.Name, vm.UUID, err))
 			continue
 		}
 		fmt.Printf("Expunged VM instance: %s (%s)\n", vm.Name, vm.UUID)
 
 	}
 
-	return nil
+	return errors.Join(failures...)
 }
 
 func init() {
+	ExpungeInstancesCmd.Flags().BoolP("yes", "y", false, "Automatic yes to confirmation prompts")
 	ExpungeCmd.AddCommand(ExpungeInstancesCmd)
 
 }

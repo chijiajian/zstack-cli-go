@@ -16,14 +16,15 @@ package get
 
 import (
 	"fmt"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 
-	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
-	"github.com/chijiajian/zstack-cli-go/pkg/utils"
+	"github.com/chijiajian/zstack-cli-go/pkg/query"
 	"github.com/spf13/cobra"
 )
 
 type FormattedGlobalConfig struct {
+	ID           int64  `json:"id" yaml:"id" header:"ID"`
 	Category     string `json:"category" yaml:"category" header:"CATEGORY"`
 	Name         string `json:"name" yaml:"name" header:"NAME"`
 	Description  string `json:"description" yaml:"description" header:"DESCRIPTION"`
@@ -37,18 +38,11 @@ var globalConfigsCmd = &cobra.Command{
 	Short:   "List global configurations",
 	Long:    `List all global configurations in the ZStack cloud platform.`,
 	Args:    cobra.MaximumNArgs(1),
-	Run: func(cobraCmd *cobra.Command, args []string) {
-
-		zsClient := client.GetClient()
-		if zsClient == nil {
-			fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-			return
-		}
+	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
 		if err != nil {
-			fmt.Printf("Error building query parameters: %s\n", err)
-			return
+			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
 		// Filter by category if specified
@@ -57,19 +51,16 @@ var globalConfigsCmd = &cobra.Command{
 			queryParam.AddQ(fmt.Sprintf("category=%s", category))
 		}
 
-		configs, err := zsClient.QueryGlobalConfig(*queryParam)
+		result, err := common.Fetch[view.GlobalConfigInventoryView](cobraCmd, queryParam, "v1/global-configurations", query.WithDefaultSort("+id"))
+		configs := result.Items
 		if err != nil {
-			fmt.Printf("Error querying global configs: %s\n", err)
-			return
+			return fmt.Errorf("Error querying global configs: %w", err)
 		}
-
-		outputFormat, _ := cobraCmd.Flags().GetString("output")
-		format := utils.ParseFormat(outputFormat)
-		fields, _ := cobraCmd.Flags().GetStringSlice("fields")
 
 		var formattedResults []FormattedGlobalConfig
 		for _, config := range configs {
 			formatted := FormattedGlobalConfig{
+				ID:           config.Id,
 				Category:     config.Category,
 				Name:         config.Name,
 				Description:  config.Description,
@@ -79,11 +70,11 @@ var globalConfigsCmd = &cobra.Command{
 			formattedResults = append(formattedResults, formatted)
 		}
 
-		err = utils.PrintWithFields(formattedResults, format, fields)
+		err = common.PrintQuery(cobraCmd, formattedResults, result.Total)
 		if err != nil {
-			fmt.Printf("Error formatting output: %s\n", err)
-			return
+			return fmt.Errorf("Error formatting output: %w", err)
 		}
+		return nil
 	},
 }
 

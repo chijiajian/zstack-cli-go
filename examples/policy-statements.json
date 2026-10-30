@@ -1,0 +1,7 @@
+[
+  {
+    "name": "query-account",
+    "effect": "Allow",
+    "actions": ["org.zstack.header.identity.APIQueryAccountMsg"]
+  }
+]

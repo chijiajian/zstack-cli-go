@@ -16,10 +16,9 @@ package get
 
 import (
 	"fmt"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 
-	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
-	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -37,29 +36,18 @@ var tagsCmd = &cobra.Command{
 	Short:   "List resource tags",
 	Long:    `List all resource tags in the ZStack cloud platform.`,
 	Args:    cobra.MaximumNArgs(1),
-	Run: func(cobraCmd *cobra.Command, args []string) {
-
-		zsClient := client.GetClient()
-		if zsClient == nil {
-			fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-			return
-		}
+	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
 		if err != nil {
-			fmt.Printf("Error building query parameters: %s\n", err)
-			return
+			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
-		tags, err := zsClient.QueryTag(*queryParam)
+		result, err := common.Fetch[view.TagPatternInventoryView](cobraCmd, queryParam, "v1/tags")
+		tags := result.Items
 		if err != nil {
-			fmt.Printf("Error querying tags: %s\n", err)
-			return
+			return fmt.Errorf("Error querying tags: %w", err)
 		}
-
-		outputFormat, _ := cobraCmd.Flags().GetString("output")
-		format := utils.ParseFormat(outputFormat)
-		fields, _ := cobraCmd.Flags().GetStringSlice("fields")
 
 		var formattedResults []FormattedTag
 		for _, tag := range tags {
@@ -73,11 +61,11 @@ var tagsCmd = &cobra.Command{
 			formattedResults = append(formattedResults, formatted)
 		}
 
-		err = utils.PrintWithFields(formattedResults, format, fields)
+		err = common.PrintQuery(cobraCmd, formattedResults, result.Total)
 		if err != nil {
-			fmt.Printf("Error formatting output: %s\n", err)
-			return
+			return fmt.Errorf("Error formatting output: %w", err)
 		}
+		return nil
 	},
 }
 

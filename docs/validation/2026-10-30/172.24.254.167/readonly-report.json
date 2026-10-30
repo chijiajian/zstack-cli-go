@@ -1,0 +1,775 @@
+{
+  "summary": {
+    "passed": 169,
+    "failed": 0,
+    "skipped": 18
+  },
+  "checks": [
+    {
+      "check": "zones: sample",
+      "status": "passed"
+    },
+    {
+      "check": "zones: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "zones: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "zones: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "zones: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "zones: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "clusters: sample",
+      "status": "passed"
+    },
+    {
+      "check": "clusters: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "clusters: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "clusters: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "clusters: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "clusters: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "hosts: sample",
+      "status": "passed"
+    },
+    {
+      "check": "hosts: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "hosts: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "hosts: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "hosts: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "hosts: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "instances: sample",
+      "status": "passed"
+    },
+    {
+      "check": "instances: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "instances: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "instances: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "instances: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "instances: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "instances: detail identity",
+      "status": "passed"
+    },
+    {
+      "check": "volumes: sample",
+      "status": "passed"
+    },
+    {
+      "check": "volumes: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "volumes: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "volumes: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "volumes: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "volumes: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "volumes: detail identity",
+      "status": "passed"
+    },
+    {
+      "check": "volumes: related resources",
+      "status": "skipped",
+      "reason": "optional relations unavailable; main identity checked separately"
+    },
+    {
+      "check": "images: sample",
+      "status": "passed"
+    },
+    {
+      "check": "images: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "images: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "images: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "images: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "images: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "primary-storages: sample",
+      "status": "passed"
+    },
+    {
+      "check": "primary-storages: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "primary-storages: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "primary-storages: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "primary-storages: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "primary-storages: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "long-jobs: sample",
+      "status": "passed"
+    },
+    {
+      "check": "long-jobs: dependent checks",
+      "status": "skipped",
+      "reason": "no sample records"
+    },
+    {
+      "check": "cdroms: sample",
+      "status": "passed"
+    },
+    {
+      "check": "cdroms: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "cdroms: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "cdroms: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "cdroms: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "cdroms: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "disk-offerings: sample",
+      "status": "passed"
+    },
+    {
+      "check": "disk-offerings: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "disk-offerings: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "disk-offerings: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "disk-offerings: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "disk-offerings: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "instance-offerings: sample",
+      "status": "passed"
+    },
+    {
+      "check": "instance-offerings: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "instance-offerings: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "instance-offerings: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "instance-offerings: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "instance-offerings: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "image-storages: sample",
+      "status": "passed"
+    },
+    {
+      "check": "image-storages: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "image-storages: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "image-storages: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "image-storages: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "image-storages: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "image-groups: sample",
+      "status": "passed"
+    },
+    {
+      "check": "image-groups: dependent checks",
+      "status": "skipped",
+      "reason": "no sample records"
+    },
+    {
+      "check": "l2-networks: sample",
+      "status": "passed"
+    },
+    {
+      "check": "l2-networks: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "l2-networks: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "l2-networks: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "l2-networks: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "l2-networks: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "l3-networks: sample",
+      "status": "passed"
+    },
+    {
+      "check": "l3-networks: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "l3-networks: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "l3-networks: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "l3-networks: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "l3-networks: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "ip-ranges: sample",
+      "status": "passed"
+    },
+    {
+      "check": "ip-ranges: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "ip-ranges: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "ip-ranges: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "ip-ranges: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "ip-ranges: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "management-nodes: sample",
+      "status": "passed"
+    },
+    {
+      "check": "management-nodes: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "management-nodes: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "management-nodes: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "management-nodes: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "management-nodes: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "nics: sample",
+      "status": "passed"
+    },
+    {
+      "check": "nics: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "nics: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "nics: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "nics: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "nics: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "snapshots: sample",
+      "status": "passed"
+    },
+    {
+      "check": "snapshots: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "snapshots: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "snapshots: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "snapshots: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "snapshots: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "tags: sample",
+      "status": "passed"
+    },
+    {
+      "check": "tags: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "tags: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "tags: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "tags: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "tags: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "vips: sample",
+      "status": "passed"
+    },
+    {
+      "check": "vips: dependent checks",
+      "status": "skipped",
+      "reason": "no sample records"
+    },
+    {
+      "check": "eips: sample",
+      "status": "passed"
+    },
+    {
+      "check": "eips: dependent checks",
+      "status": "skipped",
+      "reason": "no sample records"
+    },
+    {
+      "check": "virtual-router-offerings: sample",
+      "status": "passed"
+    },
+    {
+      "check": "virtual-router-offerings: dependent checks",
+      "status": "skipped",
+      "reason": "no sample records"
+    },
+    {
+      "check": "virtual-routers: sample",
+      "status": "passed"
+    },
+    {
+      "check": "virtual-routers: dependent checks",
+      "status": "skipped",
+      "reason": "no sample records"
+    },
+    {
+      "check": "vm-scripts: sample",
+      "status": "passed"
+    },
+    {
+      "check": "vm-scripts: dependent checks",
+      "status": "skipped",
+      "reason": "no sample records"
+    },
+    {
+      "check": "vm-script-records: sample",
+      "status": "passed"
+    },
+    {
+      "check": "vm-script-records: dependent checks",
+      "status": "skipped",
+      "reason": "no sample records"
+    },
+    {
+      "check": "accounts: sample",
+      "status": "passed"
+    },
+    {
+      "check": "accounts: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "accounts: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "accounts: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "accounts: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "accounts: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "users: sample",
+      "status": "passed"
+    },
+    {
+      "check": "users: dependent checks",
+      "status": "skipped",
+      "reason": "no sample records"
+    },
+    {
+      "check": "roles: sample",
+      "status": "passed"
+    },
+    {
+      "check": "roles: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "roles: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "roles: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "roles: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "roles: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "policies: sample",
+      "status": "passed"
+    },
+    {
+      "check": "policies: dependent checks",
+      "status": "skipped",
+      "reason": "no sample records"
+    },
+    {
+      "check": "projects: sample",
+      "status": "passed"
+    },
+    {
+      "check": "projects: dependent checks",
+      "status": "skipped",
+      "reason": "no sample records"
+    },
+    {
+      "check": "organizations: sample",
+      "status": "passed"
+    },
+    {
+      "check": "organizations: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "organizations: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "organizations: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "organizations: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "organizations: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "alarms: sample",
+      "status": "passed"
+    },
+    {
+      "check": "alarms: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "alarms: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "alarms: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "alarms: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "alarms: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "security-groups: sample",
+      "status": "passed"
+    },
+    {
+      "check": "security-groups: dependent checks",
+      "status": "skipped",
+      "reason": "no sample records"
+    },
+    {
+      "check": "security-group-rules: sample",
+      "status": "passed"
+    },
+    {
+      "check": "security-group-rules: dependent checks",
+      "status": "skipped",
+      "reason": "no sample records"
+    },
+    {
+      "check": "port-forwarding-rules: sample",
+      "status": "passed"
+    },
+    {
+      "check": "port-forwarding-rules: dependent checks",
+      "status": "skipped",
+      "reason": "no sample records"
+    },
+    {
+      "check": "load-balancers: sample",
+      "status": "passed"
+    },
+    {
+      "check": "load-balancers: dependent checks",
+      "status": "skipped",
+      "reason": "no sample records"
+    },
+    {
+      "check": "load-balancer-listeners: sample",
+      "status": "passed"
+    },
+    {
+      "check": "load-balancer-listeners: dependent checks",
+      "status": "skipped",
+      "reason": "no sample records"
+    },
+    {
+      "check": "load-balancer-server-groups: sample",
+      "status": "passed"
+    },
+    {
+      "check": "load-balancer-server-groups: dependent checks",
+      "status": "skipped",
+      "reason": "no sample records"
+    },
+    {
+      "check": "events: sample",
+      "status": "passed"
+    },
+    {
+      "check": "events: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "events: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "events: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "events: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "events: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "audits: sample",
+      "status": "passed"
+    },
+    {
+      "check": "audits: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "audits: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "audits: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "audits: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "audits: pagination",
+      "status": "passed"
+    },
+    {
+      "check": "global-configs: sample",
+      "status": "passed"
+    },
+    {
+      "check": "global-configs: fields/json",
+      "status": "passed"
+    },
+    {
+      "check": "global-configs: fields/yaml",
+      "status": "passed"
+    },
+    {
+      "check": "global-configs: fields/text",
+      "status": "passed"
+    },
+    {
+      "check": "global-configs: fields/table",
+      "status": "passed"
+    },
+    {
+      "check": "global-configs: pagination",
+      "status": "passed"
+    }
+  ]
+}

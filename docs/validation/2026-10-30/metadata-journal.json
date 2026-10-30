@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "run": "71fd87c37b0b4894860b248de8bbedcf",
+  "endpoint": "172.34.1.10:8080",
+  "resources": [
+    {
+      "kind": "volume",
+      "uuid": "ab02cf45043e4be794b010e9bf5778ec",
+      "name": "codex-e2e-71fd87c37b0b-volume-ab02cf45",
+      "state": "cleaned"
+    },
+    {
+      "kind": "account",
+      "uuid": "6310ca4b743a4a25a251faf06362b3ed",
+      "name": "codex-e2e-71fd87c37b0b-account-6310ca4b",
+      "state": "cleaned"
+    },
+    {
+      "kind": "user",
+      "uuid": "1758c44ac7f94e23ac10e4bd01647943",
+      "name": "codex-e2e-71fd87c37b0b-user-1758c44a",
+      "state": "cleaned"
+    },
+    {
+      "kind": "policy",
+      "uuid": "e982a56037e0480dadcee9c4f4a4c91f",
+      "name": "codex-e2e-71fd87c37b0b-policy-e982a560",
+      "state": "cleaned"
+    },
+    {
+      "kind": "role",
+      "uuid": "4ee73565004644bb88339aad0d7e16f2",
+      "name": "codex-e2e-71fd87c37b0b-role-4ee73565",
+      "state": "cleaned"
+    },
+    {
+      "kind": "organization",
+      "uuid": "2a61d697450246e59b2a88bf6ad26b6d",
+      "name": "codex-e2e-71fd87c37b0b-organization-2a61d697",
+      "state": "cleaned"
+    },
+    {
+      "kind": "project",
+      "uuid": "f6ebdd17a32d454d8ac38a90c151bb1a",
+      "name": "codex-e2e-71fd87c37b0b-project-f6ebdd17",
+      "state": "cleaned"
+    }
+  ]
+}

@@ -16,79 +16,86 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"github.com/chijiajian/zstack-cli-go/pkg/config"
-	zsclient "github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	zsclient "github.com/zstackio/zstack-sdk-go-v2/pkg/client"
 )
 
 var clientMutex sync.Mutex
 var globalClient *zsclient.ZSClient
+var lastClientError error
 
+// GetClient preserves the legacy command API. New callers should propagate the error.
 func GetClient() *zsclient.ZSClient {
-	clientMutex.Lock()
-	defer clientMutex.Unlock()
-
-	// If client exists, validate the session before returning
-	if globalClient != nil {
-		if validateSession(globalClient) {
-			return globalClient
-		}
-		// Session expired, reset and re-authenticate
-		globalClient = nil
-	}
-
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		fmt.Printf("Error: failed to load config: %s\n", err)
-		return nil
-	}
-
-	ctx, ok := cfg.Contexts[cfg.CurrentContext]
-	if !ok {
-		fmt.Println("Error: current context not found. Please run 'zstack-cli login' first.")
-		return nil
-	}
-
-	if ctx.Endpoint == "" || ctx.Username == "" || ctx.Password == "" {
-		fmt.Println("Error: endpoint, username or password missing in current context. Please run 'zstack-cli login' first.")
-		return nil
-	}
-
-	zsCfg := zsclient.DefaultZSConfig(ctx.Endpoint).
-		LoginAccount(ctx.Username, ctx.Password).
-		ReadOnly(false)
-
-	client := zsclient.NewZSClient(zsCfg)
-	session, err := client.Login()
-	if err != nil {
-		fmt.Printf("Error: login failed: %s\n", err)
-		return nil
-	}
-
-	ctx.SessionUUID = session.UUID
-	cfg.Contexts[cfg.CurrentContext] = ctx
-	_ = config.SaveConfig(cfg)
-
-	globalClient = client
-	return client
-
+	cli, _ := GetClientContext(context.Background())
+	return cli
 }
 
-// validateSession checks if the current session is still valid
-// by making a lightweight API call
-func validateSession(client *zsclient.ZSClient) bool {
-	if client == nil {
-		return false
+var clientContext config.Context
+
+// GetClientContext includes session validation and login in the caller's deadline.
+func GetClientContext(requestCtx context.Context) (*zsclient.ZSClient, error) {
+	clientMutex.Lock()
+	defer clientMutex.Unlock()
+	cli, err := loadClient(requestCtx)
+	lastClientError = err
+	return cli, err
+}
+
+func loadClient(requestCtx context.Context) (*zsclient.ZSClient, error) {
+	if err := requestCtx.Err(); err != nil {
+		return nil, err
 	}
-	// Try to query zones as a lightweight validation call
-	// If session is invalid, this will return an error
-	queryParam := param.NewQueryParam()
-	queryParam.Limit(1)
-	_, err := client.QueryZone(queryParam)
-	return err == nil
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
+	selected, err := config.GetCurrentContext(cfg)
+	if err != nil {
+		return nil, err
+	}
+	ctx := *selected
+	if ctx.Endpoint == "" {
+		return nil, fmt.Errorf("current context or endpoint missing. Please run 'zstack-cli login' first")
+	}
+	if globalClient != nil && clientContext == ctx {
+		return globalClient, nil
+	}
+	globalClient = nil
+	zsCfg, err := NewSDKConfig(ctx.Endpoint)
+	if err != nil {
+		return nil, err
+	}
+	authenticated, err := newAuthenticatedHTTPClient(requestCtx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	ctx = authenticated.credentials
+	var cli *zsclient.ZSClient
+	if ctx.EffectiveAuthType() == config.AuthTypeAccessKey {
+		cli = zsclient.NewZSClient(zsCfg.AccessKey(ctx.AccessKeyID, ctx.AccessKeySecret).ReadOnly(false))
+	} else {
+		cli = zsclient.NewZSClient(zsCfg.LoginAccount(ctx.Username, ctx.Password).ReadOnly(false))
+		cli.LoadSession(ctx.SessionUUID)
+	}
+
+	globalClient, clientContext = cli, ctx
+	return cli, nil
+}
+
+func ClearLastError() {
+	clientMutex.Lock()
+	defer clientMutex.Unlock()
+	lastClientError = nil
+}
+
+func LastError() error {
+	clientMutex.Lock()
+	defer clientMutex.Unlock()
+	return lastClientError
 }
 
 func ResetClient() {
@@ -97,48 +104,32 @@ func ResetClient() {
 	globalClient = nil
 }
 
-func Logout() error {
-	clientMutex.Lock()
-	defer clientMutex.Unlock()
-
-	if globalClient != nil {
-
-		err := globalClient.Logout()
-		if err != nil {
-			return fmt.Errorf("failed to logout: %s", err)
-		}
-		globalClient = nil
-	}
-
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return err
-	}
-
-	ctx, ok := cfg.Contexts[cfg.CurrentContext]
-	if ok {
-		ctx.SessionUUID = ""
-		ctx.Password = ""
-		cfg.Contexts[cfg.CurrentContext] = ctx
-		return config.SaveConfig(cfg)
-	}
-	return nil
-
-}
+// Logout retains the existing library entry point without implicitly logging in.
+func Logout() error { return LogoutContext(context.Background(), false) }
 
 func GetSessionUUID() string {
-
-	cfg, _ := config.LoadConfig()
-	ctx, ok := cfg.Contexts[cfg.CurrentContext]
-	if ok {
-		return ctx.SessionUUID
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return ""
 	}
-	return ""
+	selected, err := config.GetCurrentContext(cfg)
+	if err != nil {
+		return ""
+	}
+	return selected.SessionUUID
 }
 
 func IsLoggedIn() bool {
-	cfg, _ := config.LoadConfig()
-	ctx, ok := cfg.Contexts[cfg.CurrentContext]
-	return ok && ctx.Endpoint != "" && ctx.SessionUUID != ""
-
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return false
+	}
+	selected, err := config.GetCurrentContext(cfg)
+	if err != nil || selected.Endpoint == "" {
+		return false
+	}
+	if selected.EffectiveAuthType() == config.AuthTypeAccessKey {
+		return selected.AccessKeyID != "" && selected.AccessKeySecret != ""
+	}
+	return selected.SessionUUID != ""
 }

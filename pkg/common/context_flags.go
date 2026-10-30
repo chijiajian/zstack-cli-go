@@ -15,11 +15,12 @@
 package common
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/spf13/cobra"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 )
 
 func AddBasicContextFlags(cmd *cobra.Command) {
@@ -29,41 +30,30 @@ func AddBasicContextFlags(cmd *cobra.Command) {
 }
 
 func ProcessBasicContextFlags(cmd *cobra.Command, queryParam *param.QueryParam) error {
-
-	zsClient := client.GetClient()
-	if zsClient == nil {
-		return fmt.Errorf("not logged in, please run 'zstack-cli login' first")
-	}
-
-	zone, _ := cmd.Flags().GetString("zone")
-	if zone != "" {
-
-		zoneUUID, err := client.GetZoneUUIDByName(zsClient, zone)
-		if err != nil {
-			return fmt.Errorf("failed to find zone '%s': %v", zone, err)
+	for _, filter := range []string{"zone", "cluster", "host"} {
+		if err := ResolveFilter(cmd, queryParam, filter, filter, filter+"Uuid"); err != nil {
+			return err
 		}
-		queryParam.AddQ(fmt.Sprintf("zoneUuid=%s", zoneUUID))
 	}
+	return nil
+}
 
-	cluster, _ := cmd.Flags().GetString("cluster")
-	if cluster != "" {
-
-		clusterUUID, err := client.GetClusterUUIDByName(zsClient, cluster)
-		if err != nil {
-			return fmt.Errorf("failed to find cluster '%s': %v", cluster, err)
-		}
-		queryParam.AddQ(fmt.Sprintf("clusterUuid=%s", clusterUUID))
+func ResolveFilter(cmd *cobra.Command, params *param.QueryParam, flag, resource, field string) error {
+	identifier, _ := cmd.Flags().GetString(flag)
+	if identifier == "" {
+		return nil
 	}
-
-	host, _ := cmd.Flags().GetString("host")
-	if host != "" {
-
-		hostUUID, err := client.GetHostUUIDByName(zsClient, host)
-		if err != nil {
-			return fmt.Errorf("failed to find host '%s': %v", host, err)
-		}
-		queryParam.AddQ(fmt.Sprintf("hostUuid=%s", hostUUID))
+	timeout, _ := cmd.Flags().GetDuration("request-timeout")
+	ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
+	defer cancel()
+	reader, err := client.NewReadClient(ctx)
+	if err != nil {
+		return err
 	}
-
+	resolved, err := reader.Resolve(ctx, resource, identifier, client.ResolveAuto)
+	if err != nil {
+		return fmt.Errorf("resolve --%s: %w", flag, err)
+	}
+	params.AddQ(field + "=" + resolved.UUID)
 	return nil
 }

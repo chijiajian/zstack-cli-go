@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "run": "77a1829f1780411288628a7964365791",
+  "endpoint": "172.34.1.10:8080",
+  "resources": [
+    {
+      "kind": "instance",
+      "uuid": "f20408c81ba7470aad8a66c7a3af7cf8",
+      "name": "codex-e2e-77a1829f1780-instance-f20408c8",
+      "state": "cleaned",
+      "root_volume": "09ab95fbc9bd496bb4b4ac5612927deb"
+    },
+    {
+      "kind": "volume",
+      "uuid": "48099165331748c3b227b2bdecff27f5",
+      "name": "codex-e2e-77a1829f1780-volume-48099165",
+      "state": "cleaned"
+    },
+    {
+      "kind": "snapshot",
+      "uuid": "3790004ad25e4eff8ba2716bc60aad8d",
+      "name": "codex-e2e-77a1829f1780-snapshot-3790004a",
+      "state": "cleaned"
+    }
+  ],
+  "compute_checks": [
+    "instance-create-stopped",
+    "metadata-update",
+    "volume-attach",
+    "snapshot-create-revert-delete",
+    "volume-resize",
+    "volume-detach",
+    "volume-recover",
+    "instance-recover"
+  ]
+}

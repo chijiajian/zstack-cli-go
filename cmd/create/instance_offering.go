@@ -18,13 +18,13 @@ package create
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/param"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/param"
 	"gopkg.in/yaml.v3"
 )
 
@@ -43,7 +43,7 @@ type InstanceOfferingSpec struct {
 }
 
 var instanceOfferingCmd = &cobra.Command{
-	Use:   "instance-offering NAME",
+	Use:   "instance-offering [NAME]",
 	Short: "Create a new instance offering",
 	Long: `Create a new instance offering in ZStack cloud platform.
 	
@@ -56,25 +56,38 @@ Examples:
   
   # Create an instance offering from a YAML or JSON file
   zstack-cli create instance-offering my-offering -f offering-spec.yaml`,
-	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		name := args[0]
+	Args: exactOneArgUnlessFile,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		var name string
+		if len(args) > 0 {
+			name = args[0]
+		}
 
 		filePath, _ := cmd.Flags().GetString("file")
 		if filePath != "" {
-			createInstanceOfferingFromFile(cmd, name, filePath)
-			return
+			return createInstanceOfferingFromFile(cmd, name, filePath)
 		}
 
-		createInstanceOfferingFromFlags(cmd, name)
+		cpuNum, _ := cmd.Flags().GetInt("cpu")
+		if cpuNum <= 0 {
+			cmd.Help()
+			return fmt.Errorf("--cpu must be greater than 0")
+		}
+
+		memory, _ := cmd.Flags().GetString("memory")
+		if memory == "" {
+			cmd.Help()
+			return fmt.Errorf("required flag --memory not set")
+		}
+
+		return createInstanceOfferingFromFlags(cmd, name)
 	},
 }
 
-func createInstanceOfferingFromFile(cmd *cobra.Command, name string, filePath string) {
-	data, err := ioutil.ReadFile(filePath)
+func createInstanceOfferingFromFile(cmd *cobra.Command, name string, filePath string) error {
+	data, err := os.ReadFile(filePath)
 	if err != nil {
-		fmt.Printf("Error reading file %s: %v\n", filePath, err)
-		return
+		return fmt.Errorf("Error reading file %s: %w", filePath, err)
 	}
 
 	var instanceOfferingSpec InstanceOfferingSpec
@@ -87,12 +100,10 @@ func createInstanceOfferingFromFile(cmd *cobra.Command, name string, filePath st
 
 			specData, err := json.Marshal(resourceSpec.Spec)
 			if err != nil {
-				fmt.Printf("Error converting resource spec: %v\n", err)
-				return
+				return fmt.Errorf("Error converting resource spec: %w", err)
 			}
 			if err := json.Unmarshal(specData, &instanceOfferingSpec); err != nil {
-				fmt.Printf("Error parsing instance offering spec from generic format: %v\n", err)
-				return
+				return fmt.Errorf("Error parsing instance offering spec from generic format: %w", err)
 			}
 
 			if name == "" && resourceSpec.Metadata.Name != "" {
@@ -104,13 +115,11 @@ func createInstanceOfferingFromFile(cmd *cobra.Command, name string, filePath st
 	if !isGenericFormat {
 		if strings.HasSuffix(filePath, ".json") {
 			if err := json.Unmarshal(data, &instanceOfferingSpec); err != nil {
-				fmt.Printf("Error parsing JSON file: %v\n", err)
-				return
+				return fmt.Errorf("Error parsing JSON file: %w", err)
 			}
 		} else {
 			if err := yaml.Unmarshal(data, &instanceOfferingSpec); err != nil {
-				fmt.Printf("Error parsing YAML file: %v\n", err)
-				return
+				return fmt.Errorf("Error parsing YAML file: %w", err)
 			}
 		}
 
@@ -124,25 +133,21 @@ func createInstanceOfferingFromFile(cmd *cobra.Command, name string, filePath st
 	}
 
 	if instanceOfferingSpec.Name == "" {
-		fmt.Println("Error: name is required in instance offering specification")
-		return
+		return fmt.Errorf("Error: name is required in instance offering specification")
 	}
 
 	if instanceOfferingSpec.CpuNum <= 0 {
-		fmt.Println("Error: cpuNum must be greater than 0")
-		return
+		return fmt.Errorf("Error: cpuNum must be greater than 0")
 	}
 
 	memoryBytes, err := utils.ParseMemorySize(instanceOfferingSpec.MemorySize)
 	if err != nil {
-		fmt.Printf("Error parsing memory size: %v\n", err)
-		return
+		return fmt.Errorf("Error parsing memory size: %w", err)
 	}
 
 	cli := client.GetClient()
 	if cli == nil {
-		fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-		return
+		return fmt.Errorf("Error: Not logged in. Please run 'zstack-cli login' first.")
 	}
 
 	var description *string
@@ -165,19 +170,18 @@ func createInstanceOfferingFromFile(cmd *cobra.Command, name string, filePath st
 		resourceUuid = &instanceOfferingSpec.ResourceUUID
 	}
 
-	var sortKey *int
-	if instanceOfferingSpec.SortKey != 0 {
-		sortKey = &instanceOfferingSpec.SortKey
-	}
-
 	offeringParam := param.CreateInstanceOfferingParam{
-		Params: param.CreateInstanceOfferingDetailParam{
+		BaseParam: param.BaseParam{
+			SystemTags: instanceOfferingSpec.SystemTags,
+			UserTags:   instanceOfferingSpec.UserTags,
+		},
+		Params: param.CreateInstanceOfferingParamDetail{
 			Name:              instanceOfferingSpec.Name,
 			Description:       description,
 			CpuNum:            instanceOfferingSpec.CpuNum,
 			MemorySize:        memoryBytes,
 			AllocatorStrategy: allocatorStrategy,
-			SortKey:           sortKey,
+			SortKey:           instanceOfferingSpec.SortKey,
 			Type:              offeringType,
 			ResourceUuid:      resourceUuid,
 			TagUuids:          instanceOfferingSpec.TagUUIDs,
@@ -185,47 +189,41 @@ func createInstanceOfferingFromFile(cmd *cobra.Command, name string, filePath st
 	}
 
 	if dryRunFlag {
-		utils.PrintDryRun(offeringParam, outputFlag)
-		return
+		return utils.PrintDryRun(offeringParam, outputFlag)
 	}
 
-	fmt.Printf("Creating instance offering '%s' from file...\n", instanceOfferingSpec.Name)
-	result, err := cli.CreateInstanceOffering(&offeringParam)
+	if err := printCreateProgress(cmd, "Creating instance offering '%s' from file...\n", instanceOfferingSpec.Name); err != nil {
+		return err
+	}
+	result, err := cli.CreateInstanceOffering(offeringParam)
 	if err != nil {
-		fmt.Printf("Error creating instance offering: %s\n", err)
-		return
+		return fmt.Errorf("Error creating instance offering: %w", err)
 	}
 
-	utils.PrintOperationResult("InstanceOffering", result, outputFlag)
+	return utils.PrintOperationResult("InstanceOffering", result, outputFlag)
 }
 
-func createInstanceOfferingFromFlags(cmd *cobra.Command, name string) {
+func createInstanceOfferingFromFlags(cmd *cobra.Command, name string) error {
 
 	cpuNum, _ := cmd.Flags().GetInt("cpu")
 	memoryStr, _ := cmd.Flags().GetString("memory")
 
 	if cpuNum <= 0 {
-		fmt.Println("Error: --cpu must be greater than 0")
-		cmd.Help()
-		return
+		return fmt.Errorf("Error: --cpu must be greater than 0")
 	}
 
 	if memoryStr == "" {
-		fmt.Println("Error: required flag --memory not set")
-		cmd.Help()
-		return
+		return fmt.Errorf("Error: required flag --memory not set")
 	}
 
 	memoryBytes, err := utils.ParseMemorySize(memoryStr)
 	if err != nil {
-		fmt.Printf("Error parsing memory size: %v\n", err)
-		return
+		return fmt.Errorf("Error parsing memory size: %w", err)
 	}
 
 	cli := client.GetClient()
 	if cli == nil {
-		fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-		return
+		return fmt.Errorf("Error: Not logged in. Please run 'zstack-cli login' first.")
 	}
 
 	description, _ := cmd.Flags().GetString("description")
@@ -255,19 +253,14 @@ func createInstanceOfferingFromFlags(cmd *cobra.Command, name string) {
 		resourceUuidPtr = &resourceUuid
 	}
 
-	var sortKeyPtr *int
-	if cmd.Flags().Changed("sort-key") {
-		sortKeyPtr = &sortKey
-	}
-
 	offeringParam := param.CreateInstanceOfferingParam{
-		Params: param.CreateInstanceOfferingDetailParam{
+		Params: param.CreateInstanceOfferingParamDetail{
 			Name:              name,
 			Description:       descPtr,
 			CpuNum:            cpuNum,
 			MemorySize:        memoryBytes,
 			AllocatorStrategy: allocatorPtr,
-			SortKey:           sortKeyPtr,
+			SortKey:           sortKey,
 			Type:              typePtr,
 			ResourceUuid:      resourceUuidPtr,
 			TagUuids:          tagUuids,
@@ -275,18 +268,18 @@ func createInstanceOfferingFromFlags(cmd *cobra.Command, name string) {
 	}
 
 	if dryRunFlag {
-		utils.PrintDryRun(offeringParam, outputFlag)
-		return
+		return utils.PrintDryRun(offeringParam, outputFlag)
 	}
 
-	fmt.Printf("Creating instance offering '%s'...\n", name)
-	result, err := cli.CreateInstanceOffering(&offeringParam)
+	if err := printCreateProgress(cmd, "Creating instance offering '%s'...\n", name); err != nil {
+		return err
+	}
+	result, err := cli.CreateInstanceOffering(offeringParam)
 	if err != nil {
-		fmt.Printf("Error creating instance offering: %s\n", err)
-		return
+		return fmt.Errorf("Error creating instance offering: %w", err)
 	}
 
-	utils.PrintOperationResult("InstanceOffering", result, outputFlag)
+	return utils.PrintOperationResult("InstanceOffering", result, outputFlag)
 }
 
 func init() {

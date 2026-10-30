@@ -16,11 +16,10 @@ package get
 
 import (
 	"fmt"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 	"strings"
 
-	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
-	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -33,7 +32,7 @@ type FormattedVip struct {
 	State              string `json:"state" yaml:"state" header:"STATE"`
 	Gateway            string `json:"gateway" yaml:"gateway" header:"GATEWAY"`
 	Netmask            string `json:"netmask" yaml:"netmask" header:"NETMASK"`
-	PrefixLen          string `json:"prefixLen" yaml:"prefixLen" header:"PREFIX LENGTH"`
+	PrefixLen          int    `json:"prefixLen" yaml:"prefixLen" header:"PREFIX LENGTH"`
 	ServiceProvider    string `json:"serviceProvider" yaml:"serviceProvider" header:"SERVICE PROVIDER"`
 	PeerL3NetworkUuids string `json:"peerL3NetworkUuids" yaml:"peerL3NetworkUuids" header:"PEER L3 NETWORK UUIDS"`
 	UseFor             string `json:"useFor" yaml:"useFor" header:"USE FOR"`
@@ -46,30 +45,18 @@ var vipsCmd = &cobra.Command{
 	Short: "List virtual IPs",
 	Long:  `List all virtual IPs in the ZStack cloud platform.`,
 	Args:  cobra.MaximumNArgs(1),
-	Run: func(cobraCmd *cobra.Command, args []string) {
-
-		zsClient := client.GetClient()
-		if zsClient == nil {
-			fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-			return
-		}
+	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
 		if err != nil {
-			fmt.Printf("Error building query parameters: %s\n", err)
-			return
+			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
-		vips, err := zsClient.QueryVip(*queryParam)
+		result, err := common.Fetch[view.VipInventoryView](cobraCmd, queryParam, "v1/vips")
+		vips := result.Items
 		if err != nil {
-			fmt.Printf("Error querying virtual IPs: %s\n", err)
-			return
+			return fmt.Errorf("Error querying virtual IPs: %w", err)
 		}
-
-		outputFormat, _ := cobraCmd.Flags().GetString("output")
-		format := utils.ParseFormat(outputFormat)
-
-		fields, _ := cobraCmd.Flags().GetStringSlice("fields")
 
 		var formattedResults []FormattedVip
 		for _, vip := range vips {
@@ -84,14 +71,14 @@ var vipsCmd = &cobra.Command{
 				UUID:        vip.UUID,
 				Description: vip.Description,
 
-				L3NetworkUUID:      vip.L3NetworkUUID,
+				L3NetworkUUID:      vip.L3NetworkUuid,
 				Ip:                 vip.Ip,
 				State:              vip.State,
 				Gateway:            vip.Gateway,
 				Netmask:            vip.Netmask,
 				PrefixLen:          vip.PrefixLen,
 				ServiceProvider:    vip.ServiceProvider,
-				PeerL3NetworkUuids: vip.PeerL3NetworkUuids,
+				PeerL3NetworkUuids: strings.Join(vip.PeerL3NetworkUuids, ","),
 				UseFor:             vip.UseFor,
 				System:             vip.System,
 				ServicesTypes:      strings.Join(serviceTypes, ","),
@@ -99,11 +86,11 @@ var vipsCmd = &cobra.Command{
 			formattedResults = append(formattedResults, formatted)
 		}
 
-		err = utils.PrintWithFields(formattedResults, format, fields)
+		err = common.PrintQuery(cobraCmd, formattedResults, result.Total)
 		if err != nil {
-			fmt.Printf("Error formatting output: %s\n", err)
-			return
+			return fmt.Errorf("Error formatting output: %w", err)
 		}
+		return nil
 	},
 }
 

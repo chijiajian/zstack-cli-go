@@ -16,9 +16,9 @@ package get
 
 import (
 	"fmt"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 	"strings"
 
-	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
@@ -59,38 +59,26 @@ var virtualRoutersCmd = &cobra.Command{
 	Short: "List virtual routers",
 	Long:  `List all virtual routers in the ZStack cloud platform.`,
 	Args:  cobra.MaximumNArgs(1),
-	Run: func(cobraCmd *cobra.Command, args []string) {
-
-		zsClient := client.GetClient()
-		if zsClient == nil {
-			fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-			return
-		}
+	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
 		if err != nil {
-			fmt.Printf("Error building query parameters: %s\n", err)
-			return
+			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
-		virtualRouters, err := zsClient.QueryVirtualRouterVm(*queryParam)
+		result, err := common.Fetch[view.ApplianceVmInventoryView](cobraCmd, queryParam, "v1/vm-instances/appliances/virtual-routers")
+		virtualRouters := result.Items
 		if err != nil {
-			fmt.Printf("Error querying virtual routers: %s\n", err)
-			return
+			return fmt.Errorf("Error querying virtual routers: %w", err)
 		}
-
-		outputFormat, _ := cobraCmd.Flags().GetString("output")
-		format := utils.ParseFormat(outputFormat)
-
-		fields, _ := cobraCmd.Flags().GetStringSlice("fields")
 
 		var formattedResults []FormattedVirtualRouter
 		for _, vr := range virtualRouters {
 
 			var ips []string
-			for _, nic := range vr.VMNics {
-				if nic.IP != "" {
-					ips = append(ips, nic.IP)
+			for _, nic := range vr.VmNics {
+				if nic.Ip != "" {
+					ips = append(ips, nic.Ip)
 				}
 			}
 
@@ -105,19 +93,19 @@ var virtualRoutersCmd = &cobra.Command{
 				Status:                    vr.Status,
 				AgentPort:                 vr.AgentPort,
 				ZoneUuid:                  vr.ZoneUuid,
-				ClusterUUID:               vr.ClusterUUID,
-				ImageUUID:                 vr.ImageUUID,
+				ClusterUUID:               vr.ClusterUuid,
+				ImageUUID:                 vr.ImageUuid,
 				HostUuid:                  vr.HostUuid,
-				LastHostUUID:              vr.LastHostUUID,
-				InstanceOfferingUUID:      vr.InstanceOfferingUUID,
+				LastHostUUID:              vr.LastHostUuid,
+				InstanceOfferingUUID:      vr.InstanceOfferingUuid,
 				RootVolumeUuid:            vr.RootVolumeUuid,
 				Platform:                  vr.Platform,
 				DefaultL3NetworkUuid:      vr.DefaultL3NetworkUuid,
 				Type:                      vr.Type,
 				HypervisorType:            vr.HypervisorType,
 				MemorySize:                utils.FormatMemorySize(vr.MemorySize),
-				CPUNum:                    vr.CPUNum,
-				CPUSpeed:                  vr.CPUSpeed,
+				CPUNum:                    vr.CpuNum,
+				CPUSpeed:                  vr.CpuSpeed,
 				AllocatorStrategy:         vr.AllocatorStrategy,
 				State:                     vr.State,
 				HaStatus:                  vr.HaStatus,
@@ -127,12 +115,12 @@ var virtualRoutersCmd = &cobra.Command{
 			formattedResults = append(formattedResults, formatted)
 		}
 
-		err = utils.PrintWithFields(formattedResults, format, fields)
+		err = common.PrintQuery(cobraCmd, formattedResults, result.Total)
 		if err != nil {
-			fmt.Printf("Error formatting output: %s\n", err)
-			return
+			return fmt.Errorf("Error formatting output: %w", err)
 		}
 
+		return nil
 	},
 }
 

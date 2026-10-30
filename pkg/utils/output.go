@@ -24,7 +24,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v3"
 )
 
@@ -72,8 +71,8 @@ func (f *JSONFormatter) Format(data interface{}, fields []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(jsonData))
-	return nil
+	_, err = fmt.Println(string(jsonData))
+	return err
 }
 
 type YAMLFormatter struct{}
@@ -91,8 +90,8 @@ func (f *YAMLFormatter) Format(data interface{}, fields []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(yamlData))
-	return nil
+	_, err = fmt.Println(string(yamlData))
+	return err
 }
 
 type TextFormatter struct{}
@@ -106,8 +105,8 @@ func (f *TextFormatter) Format(data interface{}, fields []string) error {
 		data = filteredData
 	}
 
-	fmt.Printf("%v\n", data)
-	return nil
+	_, err := fmt.Printf("%v\n", data)
+	return err
 }
 
 type TableFormatter struct{}
@@ -127,8 +126,8 @@ func (f *TableFormatter) Format(data interface{}, fields []string) error {
 	case reflect.Struct:
 		return formatStruct(data, fields)
 	default:
-		fmt.Printf("%v\n", data)
-		return nil
+		_, err := fmt.Printf("%v\n", data)
+		return err
 	}
 }
 
@@ -136,8 +135,8 @@ func formatSlice(data interface{}, fields []string) error {
 	v := reflect.ValueOf(data)
 
 	if v.Len() == 0 {
-		fmt.Println("No resources found.")
-		return nil
+		_, err := fmt.Println("No resources found.")
+		return err
 	}
 
 	firstElem := v.Index(0)
@@ -148,7 +147,7 @@ func formatSlice(data interface{}, fields []string) error {
 		return formatMapSlice(data, fields)
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
+	table, output := newOutputTable()
 	table.Header([]string{"Value"})
 
 	for i := 0; i < v.Len(); i++ {
@@ -156,8 +155,7 @@ func formatSlice(data interface{}, fields []string) error {
 		table.Append([]string{val})
 	}
 
-	table.Render()
-	return nil
+	return renderOutputTable(table, output)
 }
 
 func formatStructSlice(data interface{}, fields []string) error {
@@ -198,7 +196,7 @@ func formatStructSlice(data interface{}, fields []string) error {
 		fieldIndices = append(fieldIndices, i)
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
+	table, output := newOutputTable()
 	table.Header(headers)
 
 	for i := 0; i < v.Len(); i++ {
@@ -213,8 +211,7 @@ func formatStructSlice(data interface{}, fields []string) error {
 		table.Append(row)
 	}
 
-	table.Render()
-	return nil
+	return renderOutputTable(table, output)
 }
 
 func formatMapSlice(data interface{}, fields []string) error {
@@ -250,7 +247,7 @@ func formatMapSlice(data interface{}, fields []string) error {
 	}
 	sort.Strings(headers)
 
-	table := tablewriter.NewWriter(os.Stdout)
+	table, output := newOutputTable()
 	table.Header(headers)
 
 	for i := 0; i < v.Len(); i++ {
@@ -269,8 +266,7 @@ func formatMapSlice(data interface{}, fields []string) error {
 		table.Append(row)
 	}
 
-	table.Render()
-	return nil
+	return renderOutputTable(table, output)
 }
 
 func formatMap(data interface{}, fields []string) error {
@@ -282,7 +278,7 @@ func formatMap(data interface{}, fields []string) error {
 			return fmt.Errorf("expected map, got %T", data)
 		}
 
-		table := tablewriter.NewWriter(os.Stdout)
+		table, output := newOutputTable()
 		table.Header([]string{"Key", "Value"})
 
 		iter := v.MapRange()
@@ -306,11 +302,10 @@ func formatMap(data interface{}, fields []string) error {
 			table.Append([]string{key, value})
 		}
 
-		table.Render()
-		return nil
+		return renderOutputTable(table, output)
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
+	table, output := newOutputTable()
 	table.Header([]string{"Key", "Value"})
 
 	var keys []string
@@ -337,8 +332,7 @@ func formatMap(data interface{}, fields []string) error {
 		table.Append([]string{k, fmt.Sprintf("%v", v)})
 	}
 
-	table.Render()
-	return nil
+	return renderOutputTable(table, output)
 }
 
 func formatStruct(data interface{}, fields []string) error {
@@ -353,7 +347,7 @@ func formatStruct(data interface{}, fields []string) error {
 
 	t := v.Type()
 
-	table := tablewriter.NewWriter(os.Stdout)
+	table, output := newOutputTable()
 	table.Header([]string{"Field", "Value"})
 
 	for i := 0; i < t.NumField(); i++ {
@@ -384,8 +378,7 @@ func formatStruct(data interface{}, fields []string) error {
 		table.Append([]string{fieldName, fmt.Sprintf("%v", fieldValue.Interface())})
 	}
 
-	table.Render()
-	return nil
+	return renderOutputTable(table, output)
 }
 
 func filterFields(data interface{}, fields []string) (interface{}, error) {
@@ -538,16 +531,15 @@ func ParseFormat(format string) OutputFormat {
 	}
 }
 
-func PrintDryRun(data interface{}, format string) {
+func PrintDryRun(data interface{}, format string) error {
 	switch format {
 	case "json":
-		jsonData, _ := json.MarshalIndent(data, "", "  ")
-		fmt.Println(string(jsonData))
+		return Print(data, JSONFormat)
 	case "yaml":
-		yamlData, _ := yaml.Marshal(data)
-		fmt.Println(string(yamlData))
+		return Print(data, YAMLFormat)
 	default:
-		fmt.Printf("Would create with parameters: %+v\n", data)
+		_, err := fmt.Printf("Would create with parameters: %+v\n", data)
+		return err
 	}
 }
 
@@ -623,37 +615,39 @@ var resourceTypeAliases = map[string]string{
 	"instance-offering": "instanceoffering",
 }
 
-func PrintOperationResult(resourceType string, result interface{}, format string) {
+func PrintOperationResult(resourceType string, result interface{}, format string) error {
 	switch format {
 	case "json":
-		printJSON(result)
+		return Print(result, JSONFormat)
 	case "yaml":
-		printYAML(result)
-	case "wide":
-		printWideFormat(resourceType, result)
+		return Print(result, YAMLFormat)
+	case "wide", "table":
+		return printWideFormat(resourceType, result)
 	case "name":
-		printNameOnly(resourceType, result)
+		return printNameOnly(resourceType, result)
 	default:
-		printSimpleFormat(resourceType, result)
+		return printSimpleFormat(resourceType, result)
 	}
 }
-
-func printSimpleFormat(resourceType string, result interface{}) {
+func printSimpleFormat(resourceType string, result interface{}) error {
 	name := extractName(result)
+	var err error
 	if name != "" {
-		fmt.Printf("%s/%s created\n", strings.ToLower(resourceType), name)
+		_, err = fmt.Printf("%s/%s created\n", strings.ToLower(resourceType), name)
 	} else {
-		fmt.Printf("%s created successfully\n", resourceType)
+		_, err = fmt.Printf("%s created successfully\n", resourceType)
 	}
+	return err
 }
-
-func printNameOnly(resourceType string, result interface{}) {
+func printNameOnly(resourceType string, result interface{}) error {
 	name := extractName(result)
+	var err error
 	if name != "" {
-		fmt.Printf("%s/%s\n", strings.ToLower(resourceType), name)
+		_, err = fmt.Printf("%s/%s\n", strings.ToLower(resourceType), name)
 	} else {
-		fmt.Printf("%s\n", resourceType)
+		_, err = fmt.Printf("%s\n", resourceType)
 	}
+	return err
 }
 
 func extractName(result interface{}) string {
@@ -664,23 +658,18 @@ func extractName(result interface{}) string {
 	return getFieldValueAsString(result, "Name")
 }
 
-func printWideFormat(resourceType string, result interface{}) {
+func printWideFormat(resourceType string, result interface{}) error {
 	if result == nil {
-		fmt.Printf("No result data to display\n")
-		return
+		return fmt.Errorf("no result data to display")
 	}
-
-	normalizedType := normalizeResourceType(resourceType)
-
-	tableDef, found := resourceTableDefinitions[normalizedType]
+	tableDef, found := resourceTableDefinitions[normalizeResourceType(resourceType)]
 	if !found {
-
-		fmt.Printf("No table definition for resource type '%s', using JSON format:\n", resourceType)
-		printJSON(result)
-		return
+		if _, err := fmt.Printf("No table definition for resource type '%s', using JSON format:\n", resourceType); err != nil {
+			return err
+		}
+		return Print(result, JSONFormat)
 	}
-
-	printResourceTable(result, tableDef)
+	return printResourceTable(result, tableDef)
 }
 
 func normalizeResourceType(resourceType string) string {
@@ -691,10 +680,12 @@ func normalizeResourceType(resourceType string) string {
 	return lowerType
 }
 
-func printResourceTable(result interface{}, tableDef ResourceTableDefinition) {
+func printResourceTable(result interface{}, tableDef ResourceTableDefinition) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 3, ' ', 0)
 
-	fmt.Fprintln(w, strings.Join(tableDef.Headers, "\t"))
+	if _, err := fmt.Fprintln(w, strings.Join(tableDef.Headers, "\t")); err != nil {
+		return err
+	}
 
 	var values []string
 	for _, fieldDef := range tableDef.Fields {
@@ -702,9 +693,11 @@ func printResourceTable(result interface{}, tableDef ResourceTableDefinition) {
 		formattedValue := fieldDef.Formatter(value)
 		values = append(values, formattedValue)
 	}
-	fmt.Fprintln(w, strings.Join(values, "\t"))
+	if _, err := fmt.Fprintln(w, strings.Join(values, "\t")); err != nil {
+		return err
+	}
 
-	w.Flush()
+	return w.Flush()
 }
 
 func getFieldValue(obj interface{}, path []string) interface{} {
@@ -835,20 +828,17 @@ func formatTime(t time.Time) string {
 	return t.Format("2006-01-02 15:04:05")
 }
 
-func printJSON(result interface{}) {
-	jsonData, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		fmt.Printf("Error marshalling to JSON: %s\n", err)
-		return
+// PrintQueryEnvelope keeps metadata outside the item projection.
+func PrintQueryEnvelope(data interface{}, total int, format OutputFormat, fields []string) error {
+	if len(fields) > 0 {
+		var err error
+		data, err = filterFields(data, fields)
+		if err != nil {
+			return err
+		}
 	}
-	fmt.Println(string(jsonData))
-}
-
-func printYAML(result interface{}) {
-	yamlData, err := yaml.Marshal(result)
-	if err != nil {
-		fmt.Printf("Error marshalling to YAML: %s\n", err)
-		return
-	}
-	fmt.Println(string(yamlData))
+	return Print(struct {
+		Items interface{} `json:"items" yaml:"items"`
+		Total int         `json:"total" yaml:"total"`
+	}{data, total}, format)
 }

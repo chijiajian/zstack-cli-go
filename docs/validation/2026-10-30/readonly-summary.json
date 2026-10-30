@@ -1,0 +1,29 @@
+{
+  "endpoint": "172.34.1.10:8080",
+  "canonical_query_commands": 42,
+  "summary": {
+    "passed": 240,
+    "failed": 0,
+    "skipped": 4
+  },
+  "skipped": [
+    {
+      "check": "instances: related resources",
+      "reason": "optional relations unavailable; main identity checked separately"
+    },
+    {
+      "check": "users: dependent checks",
+      "reason": "no sample records"
+    },
+    {
+      "check": "projects: dependent checks",
+      "reason": "no sample records"
+    },
+    {
+      "check": "port-forwarding-rules: dependent checks",
+      "reason": "no sample records"
+    }
+  ],
+  "doctor_online": "passed",
+  "doctor_offline": "passed"
+}

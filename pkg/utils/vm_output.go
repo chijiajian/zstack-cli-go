@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	sdkView "github.com/terraform-zstack-modules/zstack-sdk-go/pkg/view"
+	sdkView "github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 )
 
 // VMRow
@@ -23,16 +23,16 @@ func ConvertVMs(vms []sdkView.VmInstanceInventoryView) []VMRow {
 	var rows []VMRow
 	for _, vm := range vms {
 		var ips []string
-		for _, nic := range vm.VMNics {
-			if nic.IP != "" {
-				ips = append(ips, nic.IP)
+		for _, nic := range vm.VmNics {
+			if nic.Ip != "" {
+				ips = append(ips, nic.Ip)
 			}
 		}
 
 		rows = append(rows, VMRow{
 			Name:   vm.Name,
 			UUID:   vm.UUID,
-			CPU:    vm.CPUNum,
+			CPU:    vm.CpuNum,
 			Memory: FormatMemorySize(vm.MemorySize),
 			State:  vm.State,
 			IPs:    strings.Join(ips, ", "),

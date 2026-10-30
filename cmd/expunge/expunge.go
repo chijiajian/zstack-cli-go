@@ -18,7 +18,6 @@ package expunge
 import (
 	"fmt"
 
-	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -33,12 +32,15 @@ var ExpungeCmd = &cobra.Command{
 	Use:   "expunge",
 	Short: "Expunge one or many resources",
 	Long:  `Expunge one or many ZStack resources.`,
-	Run: func(cmd *cobra.Command, args []string) {
-
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if fileFlag != "" {
+			return fmt.Errorf("expunge --file is not supported yet; use a concrete expunge subcommand")
+		}
 		if len(args) == 0 && fileFlag == "" {
 			cmd.Help()
-			return
+			return nil
 		}
+		return nil
 	},
 	PersistentPreRunE: preRunCheckFile,
 }
@@ -53,23 +55,7 @@ func init() {
 
 func preRunCheckFile(cmd *cobra.Command, args []string) error {
 	if fileFlag != "" {
-		if dryRunFlag {
-			fmt.Println("Dry run mode: would process file", fileFlag)
-			return nil
-		}
-
-		if verboseFlag {
-			fmt.Printf("Processing file for deletion: %s\n", fileFlag)
-		}
-
-		err := utils.ProcessFilePath(fileFlag)
-		if err != nil {
-			return err
-		}
-
-		cmd.Run = func(cmd *cobra.Command, args []string) {
-
-		}
+		return fmt.Errorf("expunge --file is not supported yet; use a concrete expunge subcommand")
 	}
 	return nil
 }

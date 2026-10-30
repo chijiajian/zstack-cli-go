@@ -17,13 +17,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 
+	cliclient "github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/terraform-zstack-modules/zstack-sdk-go/pkg/client"
 	"golang.org/x/term"
 )
 
@@ -32,23 +33,61 @@ var loginCmd = &cobra.Command{
 	Short: "Login to ZStack API server",
 	Long: `Login to ZStack API server and save the session for future commands.
 Example:
-  zstack-cli login 192.168.1.100 --username admin --password password`,
+  zstack-cli login 192.168.1.100 --username admin --password password
+  zstack-cli login 192.168.1.100 --access-key-id AK --access-key-secret SK`,
 	Args: cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		var endpoint string
 		if len(args) > 0 {
 			endpoint = args[0]
 		} else {
 			endpoint = viper.GetString("endpoint")
 			if endpoint == "" {
-				fmt.Println("Error: No endpoint specified")
-				return
+				return fmt.Errorf("no endpoint specified")
 			}
 		}
 
+		contextName, _ := cmd.Flags().GetString("context-name")
+		if contextName == "" {
+			contextName = endpoint
+		}
+		if err := config.ValidateContextName(contextName); err != nil {
+			return err
+		}
+		if _, err := cliclient.NewSDKConfig(endpoint); err != nil {
+			return err
+		}
+		noSwitch, _ := cmd.Flags().GetBool("no-switch")
 		username, _ := cmd.Flags().GetString("username")
 		password, _ := cmd.Flags().GetString("password")
 		savePassword, _ := cmd.Flags().GetBool("save-password")
+		accessKeyID, _ := cmd.Flags().GetString("access-key-id")
+		accessKeySecret, _ := cmd.Flags().GetString("access-key-secret")
+		accessKeyIDAlias, _ := cmd.Flags().GetString("ak")
+		accessKeySecretAlias, _ := cmd.Flags().GetString("sk")
+		accessKeySpecified := accessKeyID != "" || accessKeySecret != "" || accessKeyIDAlias != "" || accessKeySecretAlias != ""
+		if accessKeyID == "" {
+			accessKeyID = accessKeyIDAlias
+		}
+		if accessKeySecret == "" {
+			accessKeySecret = accessKeySecretAlias
+		}
+		if !accessKeySpecified && username == "" && password == "" && accessKeyID == "" {
+			accessKeyID = os.Getenv("ZSTACK_ACCESS_KEY_ID")
+		}
+		if !accessKeySpecified && username == "" && password == "" && accessKeySecret == "" {
+			accessKeySecret = os.Getenv("ZSTACK_ACCESS_KEY_SECRET")
+		}
+
+		if accessKeyID != "" || accessKeySecret != "" {
+			if accessKeyID == "" || accessKeySecret == "" {
+				return fmt.Errorf("both --access-key-id and --access-key-secret are required for access key authentication")
+			}
+			if username != "" || password != "" {
+				return fmt.Errorf("use either username/password or access key credentials, not both")
+			}
+			return saveAccessKeyContext(cmd.Context(), endpoint, accessKeyID, accessKeySecret, contextName, !noSwitch)
+		}
 
 		if username == "" {
 			username = viper.GetString("username")
@@ -65,71 +104,81 @@ Example:
 				bytePassword, err := term.ReadPassword(int(os.Stdin.Fd()))
 				fmt.Println() // 换行
 				if err != nil {
-					fmt.Printf("Error reading password: %s\n", err)
-					return
+					return fmt.Errorf("reading password: %w", err)
 				}
 				password = string(bytePassword)
 			}
 		}
 
 		if username == "" || password == "" {
-			fmt.Println("Error: Username and password are required")
-			return
+			return fmt.Errorf("username and password are required")
 		}
 
 		fmt.Printf("Logging in to ZStack API server: %s\n", endpoint)
-		zsConfig := client.DefaultZSConfig(endpoint).
-			LoginAccount(username, password).
-			Debug(viper.GetBool("debug")).
-			ReadOnly(false)
-
-		zsClient := client.NewZSClient(zsConfig)
-
-		sessionInfo, err := zsClient.Login()
+		sessionInfo, err := cliclient.LoginAccountContext(cmd.Context(), endpoint, username, password)
 		if err != nil {
-			fmt.Printf("Login failed: %s\n", err)
-			return
+			return fmt.Errorf("login failed: %w", err)
 		}
 
-		cfg, loadErr := config.LoadConfig()
-		if loadErr != nil {
-			fmt.Printf("Failed to load config: %s\n", loadErr)
-			return
-		}
-
-		ctxName := endpoint
+		ctxName := contextName
 
 		ctx := config.Context{
 			Endpoint:    endpoint,
+			AuthType:    config.AuthTypeAccount,
 			Username:    username,
 			Password:    "",
-			SessionUUID: sessionInfo.UUID,
+			SessionUUID: sessionInfo.Uuid,
 		}
 
 		if savePassword {
 			ctx.Password = password
 		}
 
-		cfg.Contexts[ctxName] = ctx
-		cfg.CurrentContext = ctxName
-
-		if err := config.SaveConfig(cfg); err != nil {
-			fmt.Printf("Failed to save config: %s\n", err)
-			return
+		if err := config.UpdateConfig(cmd.Context(), func(cfg *config.ZStackConfig) error {
+			return config.StoreContext(cfg, ctxName, ctx, !noSwitch)
+		}); err != nil {
+			return fmt.Errorf("failed to save config: %w", err)
 		}
 
 		fmt.Println("Login successful!")
 		fmt.Printf("Account: %s\n", sessionInfo.AccountUuid)
 		fmt.Printf("User: %s\n", sessionInfo.UserUuid)
-		fmt.Printf("Session UUID: %s\n", sessionInfo.UUID)
+		fmt.Printf("Session UUID: %s\n", sessionInfo.Uuid)
 		fmt.Println("Session saved. You can now use other commands.")
+		return nil
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(loginCmd)
+	loginCmd.Flags().String("context-name", "", "Name for saved context (default: endpoint)")
+	loginCmd.Flags().Bool("no-switch", false, "Save credentials without changing the default context")
 
 	loginCmd.Flags().StringP("username", "u", "", "Username for authentication")
 	loginCmd.Flags().StringP("password", "p", "", "Password for authentication")
+	loginCmd.Flags().String("access-key-id", "", "Access key ID for request signing")
+	loginCmd.Flags().String("access-key-secret", "", "Access key secret for request signing")
+	loginCmd.Flags().String("ak", "", "Alias for --access-key-id")
+	loginCmd.Flags().String("sk", "", "Alias for --access-key-secret")
 	loginCmd.Flags().Bool("save-password", true, "Save password in config file (default: true)")
+}
+
+func saveAccessKeyContext(requestCtx context.Context, endpoint, accessKeyID, accessKeySecret, contextName string, activate bool) error {
+
+	ctx := config.Context{
+		Endpoint:        endpoint,
+		AuthType:        config.AuthTypeAccessKey,
+		AccessKeyID:     accessKeyID,
+		AccessKeySecret: accessKeySecret,
+	}
+
+	if err := config.UpdateConfig(requestCtx, func(cfg *config.ZStackConfig) error {
+		return config.StoreContext(cfg, contextName, ctx, activate)
+	}); err != nil {
+		return fmt.Errorf("failed to save config: %w", err)
+	}
+
+	fmt.Printf("Saved access key authentication for ZStack API server: %s\n", endpoint)
+	fmt.Println("Requests will be signed with the configured access key.")
+	return nil
 }

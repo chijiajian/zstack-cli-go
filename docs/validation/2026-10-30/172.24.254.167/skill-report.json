@@ -1,0 +1,70 @@
+{
+  "endpoint": "172.24.254.167:8080",
+  "scope": "isolated login, read-only CLI/Skill regression, logout",
+  "checks": [
+    {
+      "check": "installed-skill-query-capabilities",
+      "passed": true
+    },
+    {
+      "check": "login",
+      "passed": true,
+      "exitCode": 0
+    },
+    {
+      "check": "isolated-session-only-context",
+      "passed": true
+    },
+    {
+      "check": "doctor-offline",
+      "passed": true,
+      "exitCode": 0
+    },
+    {
+      "check": "doctor-online",
+      "passed": true,
+      "exitCode": 0
+    },
+    {
+      "check": "skill-filtered-query",
+      "passed": true,
+      "sampleCount": 2
+    },
+    {
+      "check": "wait-already-stopped",
+      "passed": true,
+      "exitCode": 0
+    },
+    {
+      "check": "unknown-context-rejected",
+      "passed": true,
+      "exitCode": 4
+    },
+    {
+      "check": "full-readonly-smoke",
+      "passed": true,
+      "exitCode": 0,
+      "summary": {
+        "passed": 169,
+        "failed": 0,
+        "skipped": 18
+      }
+    },
+    {
+      "check": "source-config-unchanged",
+      "passed": true
+    },
+    {
+      "check": "temporary-session-logout",
+      "passed": true,
+      "exitCode": 0
+    }
+  ],
+  "passed": true,
+  "temporaryConfigRemoved": true,
+  "artifacts": {
+    "cliSha256": "3c7921750d57e9322cd4fd693dbfa63d683425695a93b5e6db1c87765ed74254",
+    "skillPackageSha256": "9bd3559094a3eb5b836c85a90d64144e74a2058d8aa03ddb42001e1c5d1f5147"
+  },
+  "canonicalQueryCommands": 42
+}

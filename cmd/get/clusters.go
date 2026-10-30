@@ -5,12 +5,22 @@ package get
 
 import (
 	"fmt"
+	"github.com/zstackio/zstack-sdk-go-v2/pkg/view"
 
-	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
-	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
 )
+
+type FormattedCluster struct {
+	Name           string `json:"name" yaml:"name" header:"NAME"`
+	UUID           string `json:"uuid" yaml:"uuid" header:"UUID"`
+	Description    string `json:"description" yaml:"description" header:"DESCRIPTION"`
+	State          string `json:"state" yaml:"state" header:"STATE"`
+	HypervisorType string `json:"hypervisorType" yaml:"hypervisorType" header:"HYPERVISOR TYPE"`
+	ZoneUuid       string `json:"zoneUuid" yaml:"zoneUuid" header:"ZONE UUID"`
+	Type           string `json:"type" yaml:"type" header:"TYPE"`
+	Architecture   string `json:"architecture" yaml:"architecture" header:"ARCHITECTURE"`
+}
 
 var clustersCmd = &cobra.Command{
 	Use:   "clusters [name]",
@@ -37,52 +47,38 @@ Examples:
   zstack-cli get clusters --output json
   zstack-cli get clusters --output yaml
   zstack-cli get clusters --output text`,
-	Run: func(cobraCmd *cobra.Command, args []string) {
-
-		zsClient := client.GetClient()
-		if zsClient == nil {
-			fmt.Println("Error: Not logged in. Please run 'zstack-cli login' first.")
-			return
-		}
+	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
 		if err != nil {
-			fmt.Printf("Error building query parameters: %s\n", err)
-			return
+			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
-		clusters, err := zsClient.QueryCluster(*queryParam)
+		result, err := common.Fetch[view.ClusterInventoryView](cobraCmd, queryParam, "v1/clusters")
+		clusters := result.Items
 		if err != nil {
-			fmt.Printf("Query failed: %s\n", err)
-			fmt.Println("\nDebug: Error details:")
-			fmt.Printf("Debug: Error type: %T\n", err)
-			fmt.Printf("Debug: Query parameters: %+v\n", queryParam)
-
-			if err.Error() == "not supported" {
-				fmt.Println("\nThe 'QueryCluster' API is not supported. This could be due to:")
-				fmt.Println("1. Your ZStack version is not compatible with this SDK")
-				fmt.Println("2. Your user account doesn't have permission to query clusters")
-				fmt.Println("3. There's an issue with the SDK implementation")
-				fmt.Println("\nPlease check your ZStack version and user permissions.")
-			}
-
-			return
+			return fmt.Errorf("query clusters: %w", err)
 		}
 
-		outputFormat, _ := cobraCmd.Flags().GetString("output")
-		format := utils.ParseFormat(outputFormat)
-		fields, _ := cobraCmd.Flags().GetStringSlice("fields")
-
-		if len(clusters) == 0 {
-			fmt.Println("No clusters found.")
-			return
+		var formattedResults []FormattedCluster
+		for _, cluster := range clusters {
+			formattedResults = append(formattedResults, FormattedCluster{
+				Name:           cluster.Name,
+				UUID:           cluster.UUID,
+				Description:    cluster.Description,
+				State:          cluster.State,
+				HypervisorType: cluster.HypervisorType,
+				ZoneUuid:       cluster.ZoneUuid,
+				Type:           cluster.Type,
+				Architecture:   cluster.Architecture,
+			})
 		}
 
-		err = utils.PrintWithFields(clusters, format, fields)
+		err = common.PrintQuery(cobraCmd, formattedResults, result.Total)
 		if err != nil {
-			fmt.Printf("Error formatting output: %s\n", err)
-			return
+			return fmt.Errorf("Error formatting output: %w", err)
 		}
+		return nil
 	},
 }
 

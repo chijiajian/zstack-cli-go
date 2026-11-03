@@ -43,3 +43,26 @@ jobs:
           go test -c -o "$RUNNER_TEMP/config-windows.test.exe" ./pkg/config
       - name: Check whitespace
         run: git diff --check
+
+  skill-windows:
+    name: Skill installer (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Test native installer
+        run: go test -count=1 ./pkg/skillinstall
+      - name: Build and install Skill without Python
+        shell: pwsh
+        run: |
+          go build -o "$env:RUNNER_TEMP/zstack-cli.exe" .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$env:RUNNER_TEMP/zstack-cli.exe" skill install --agent codex --dest "$env:RUNNER_TEMP/skill test" -o json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (!(Test-Path "$env:RUNNER_TEMP/skill test/zstack-operations/SKILL.md")) { throw "Skill installation missing" }

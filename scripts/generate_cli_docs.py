@@ -27,7 +27,7 @@ def collect(binary):
             top = parts[0] if parts else ""
             category = ("discovery" if not parts or top in {"help", "completion", "version"}
                         else "read" if top in {"get", "describe", "wait", "doctor", "monitor", "zql"}
-                        else "local-config" if top == "config"
+                        else "local-config" if top in {"config", "skill"}
                         else "authentication" if top in {"login", "logout"}
                         else "mutation")
             alias_section = re.search(r"Aliases:\n  ([^\n]+)", help_text)

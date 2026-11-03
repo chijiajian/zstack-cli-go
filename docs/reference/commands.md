@@ -193,6 +193,8 @@ See [中文使用指南](../usage-zh.md), [examples](../../examples/README.md), 
 - [zstack-cli security-group delete-rule](#zstack-cli-security-group-delete-rule)
 - [zstack-cli security-group detach-l3](#zstack-cli-security-group-detach-l3)
 - [zstack-cli security-group remove-nic](#zstack-cli-security-group-remove-nic)
+- [zstack-cli skill](#zstack-cli-skill)
+- [zstack-cli skill install](#zstack-cli-skill-install)
 - [zstack-cli snapshot](#zstack-cli-snapshot)
 - [zstack-cli snapshot create](#zstack-cli-snapshot-create)
 - [zstack-cli snapshot revert](#zstack-cli-snapshot-revert)
@@ -270,6 +272,7 @@ Available Commands:
   primary-storage Manage primary storage
   project         Manage the lifecycle of IAM2 projects
   security-group  Manage security groups
+  skill           Install the bundled ZStack operations Skill
   snapshot        Manage volume snapshots
   update          Update resource metadata
   version         Show zstack-cli version
@@ -5336,6 +5339,53 @@ Global Flags:
       --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
       --fields strings        Custom fields to display in table output
   -o, --output string         Output format: text, table, json, yaml, or name (default "text")
+      --version               Show zstack-cli version
+```
+
+## zstack-cli skill
+
+```text
+Install the bundled ZStack operations Skill
+
+Usage:
+  zstack-cli skill [command]
+
+Available Commands:
+  install     Install for Codex, Claude Code, Cursor or Copilot
+
+Flags:
+  -h, --help   help for skill
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+  -o, --output string         Output format (table|json|yaml|text) (default "table")
+      --version               Show zstack-cli version
+
+Use "zstack-cli skill [command] --help" for more information about a command.
+```
+
+## zstack-cli skill install
+
+```text
+Install for Codex, Claude Code, Cursor or Copilot
+
+Usage:
+  zstack-cli skill install [flags]
+
+Flags:
+      --agent string     Target agent: codex, claude-code, cursor or copilot
+      --dest string      Override the parent Skill directory
+      --dry-run          Preview destination without installing
+  -h, --help             help for install
+      --project string   Existing project directory for project scope
+      --replace          Update existing installation and preserve a backup
+      --scope string     Installation scope: user or project (default "user")
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+  -o, --output string         Output format (table|json|yaml|text) (default "table")
       --version               Show zstack-cli version
 ```
 

@@ -70,6 +70,8 @@ docs-check: build
 skill-check: build
 	$(PYTHON) skills/zstack-operations/scripts/check_cli.py --cli ./$(BIN_NAME) --profile query
 	$(PYTHON) skills/zstack-operations/scripts/check_cli.py --cli ./$(BIN_NAME) --profile lifecycle
+	$(PYTHON) skills/zstack-operations/scripts/check_cli.py --cli ./$(BIN_NAME) --profile monitor
+	$(PYTHON) skills/zstack-operations/scripts/check_cli.py --cli ./$(BIN_NAME) --profile zql
 	$(PYTHON) skills/zstack-operations/scripts/check_cli.py --cli ./$(BIN_NAME) --profile iam
 	$(PYTHON) -m unittest discover -s scripts -p 'test_skill_check.py' -v
 

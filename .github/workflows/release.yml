@@ -44,3 +44,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+
+      - name: Publish standalone Skill
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          make skill-package
+          cd dist
+          sha256sum zstack-operations-skill.tar.gz > zstack-operations-skill.tar.gz.sha256
+          gh release upload "$GITHUB_REF_NAME" zstack-operations-skill.tar.gz zstack-operations-skill.tar.gz.sha256 --clobber

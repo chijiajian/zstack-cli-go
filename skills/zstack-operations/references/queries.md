@@ -20,3 +20,24 @@ get 普通 JSON 返回列表，空为 []；reply-with-count 返回 items/total�
 字段名以目标命令实际输出为准。describe 返回 resource 和可能的关联/warnings；不要把列表行当详情结构。主资源成功但关联缺失不等于关联已验证。`get --help` 发现资源名，`describe --help` 发现可用详情；不要猜测所有资源都有 describe。
 
 查询通常使用 request-timeout；wait 使用 timeout。不要给所有命令机械添加相同参数。
+
+### 查询环境使用率
+
+用户询问 CPU、内存、主存储容量或多个环境的资源使用率时，对每个指定 context 执行：
+
+```sh
+zstack-cli monitor usage --context lab -o json --error-format json
+```
+
+仅查容量用 `--section capacity`，仅查主机负载用 `--section load`。容量百分比是（总量减可用量）除以总量，JSON 中内存及存储单位为 bytes。load 是最近 15 分钟、60 秒粒度内最新共同采样时刻的主机算术平均；报告 sampleTime、sampledHosts / connectedHosts。null 表示无可计算值。若帮助中缺少 monitor usage，报告当前二进制缺少该能力。
+
+### 指定云主机与 ZQL
+
+精确名称列表用 `get instances NAME`，按 UUID 查看详情用 `describe instance UUID`。先确认目标 UUID，再查询单机配置或负载。ZQL 入口通过 `zql --help` 发现，完整语句作为一个参数传入，返回 JSON。
+
+```sh
+zstack-cli zql "query vmInstance.uuid where name='web-01' limit 10" --context lab
+zstack-cli zql "query vmInstance.uuid where uuid='VM_UUID' return with (zwatch{resultName='cpu',metricName='CPUAverageUsedUtilization',offsetAheadOfCurrentTime=300,period=60,labels='VMUuid=VM_UUID'})" --context lab
+```
+
+第二条命令的两个 VM_UUID 必须相同。读取 results[0].returnWith.cpu 并核对 labels 和 time；空序列表示缺少采样。环境级负载仍用 monitor usage。用资源名拼接 ZQL 有引号转义风险，优先用已确认的十六进制 UUID。

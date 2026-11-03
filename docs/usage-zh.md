@@ -8,6 +8,8 @@
 
 ## 1. 构建与登录
 
+发布包可以解压后直接运行，三平台的实际文件名、PowerShell 命令和 PATH 设置见 [README 安装步骤](../README.zh-CN.md#解压后直接运行)。
+
 在仓库根目录执行 `make build`，生成 `./zstack-cli`。以下示例假设已将该二进制加入 PATH；也可将 `zstack-cli` 替换为 `./zstack-cli`。本地构建需要 Go 1.25 或兼容版本。
 
 ```sh

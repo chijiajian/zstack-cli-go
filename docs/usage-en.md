@@ -8,6 +8,8 @@ See the [command reference](reference/commands.md) for flags and defaults, [exam
 
 ## 1. Build and authenticate
 
+Release binaries run directly after extraction. See the [README installation steps](../README.md#run-directly-after-extraction) for exact platform filenames, PowerShell commands and PATH setup.
+
 Run `make build` in the repository root to create `./zstack-cli`. Examples assume it is on PATH. Building requires Go 1.25 or compatible. On Windows use `go build -o zstack-cli.exe .` and `./zstack-cli.exe` in PowerShell when running from the current directory.
 
 ```sh

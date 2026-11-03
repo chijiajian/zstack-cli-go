@@ -28,29 +28,10 @@ func ExportWorkBuddy(path string) error {
 			return err
 		}
 		if path == "SKILL.md" {
-			parts := bytes.SplitN(data, []byte("\n---\n"), 2)
-			if len(parts) != 2 {
-				return fmt.Errorf("invalid Skill metadata")
-			}
-			var meta map[string]interface{}
-			if err = yaml.Unmarshal(bytes.TrimPrefix(parts[0], []byte("---\n")), &meta); err != nil {
-				return err
-			}
-			version, ok := meta["metadata"].(map[string]interface{})
-			if !ok {
-				return fmt.Errorf("missing Skill content version")
-			}
-			meta["version"] = version["version"]
-			meta["author"] = "ZStack CLI contributors"
-			meta["display_name"] = "ZStack 运维"
-			meta["display_name_en"] = "ZStack Operations"
-			meta["description_zh"] = meta["description"]
-			meta["description_en"] = "Operate ZStack through zstack-cli for queries, monitoring and resource lifecycle tasks."
-			front, err := yaml.Marshal(meta)
+			data, err = workBuddyManifest(data)
 			if err != nil {
 				return err
 			}
-			data = append(append([]byte("---\n"), front...), append([]byte("---\n"), parts[1]...)...)
 		}
 		entry, err := archive.Create(Name + "/" + path)
 		if err != nil {
@@ -79,4 +60,32 @@ func ExportWorkBuddy(path string) error {
 		return closeErr
 	}
 	return nil
+}
+
+func workBuddyManifest(data []byte) ([]byte, error) {
+	// Windows checkouts can embed CRLF Markdown. Parse both line endings.
+	data = bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
+	parts := bytes.SplitN(data, []byte("\n---\n"), 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid Skill metadata")
+	}
+	var meta map[string]interface{}
+	if err := yaml.Unmarshal(bytes.TrimPrefix(parts[0], []byte("---\n")), &meta); err != nil {
+		return nil, err
+	}
+	version, ok := meta["metadata"].(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("missing Skill content version")
+	}
+	meta["version"] = version["version"]
+	meta["author"] = "ZStack CLI contributors"
+	meta["display_name"] = "ZStack 运维"
+	meta["display_name_en"] = "ZStack Operations"
+	meta["description_zh"] = meta["description"]
+	meta["description_en"] = "Operate ZStack through zstack-cli for queries, monitoring and resource lifecycle tasks."
+	front, err := yaml.Marshal(meta)
+	if err != nil {
+		return nil, err
+	}
+	return append(append([]byte("---\n"), front...), append([]byte("---\n"), parts[1]...)...), nil
 }

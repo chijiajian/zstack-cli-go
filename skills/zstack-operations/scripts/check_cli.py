@@ -18,6 +18,8 @@ BASE = {
 }
 PROFILES = {
     "query": {},
+    "zql": {("zql",): ("output",)},
+    "monitor": {("monitor", "usage"): ("section", "output")},
     "lifecycle": {
         ("wait", "long-job"): ("for", "timeout"),
         ("volume", "resize"): ("size", "dry-run"),

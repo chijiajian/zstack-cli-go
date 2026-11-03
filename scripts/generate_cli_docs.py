@@ -26,7 +26,7 @@ def collect(binary):
             children = re.findall(r"^  ([a-z0-9-]+)\s", section.group(1), re.M) if section else []
             top = parts[0] if parts else ""
             category = ("discovery" if not parts or top in {"help", "completion", "version"}
-                        else "read" if top in {"get", "describe", "wait", "doctor"}
+                        else "read" if top in {"get", "describe", "wait", "doctor", "monitor", "zql"}
                         else "local-config" if top == "config"
                         else "authentication" if top in {"login", "logout"}
                         else "mutation")

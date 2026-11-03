@@ -27,6 +27,54 @@
 | macOS Apple 芯片 | `darwin_arm64` |
 | Windows x64 | `windows_amd64.zip` |
 
+### 解压后直接运行
+
+进入解压目录，用下面的实际二进制文件执行。示例版本为 v1.1.3，其他版本或架构请替换对应文件名。常规运行和 Skill 安装只需要发布包内的二进制。
+
+**macOS Apple 芯片**
+
+```sh
+mv zstack-cli-go_v1.1.3_darwin_arm64 zstack-cli
+chmod +x zstack-cli
+./zstack-cli version
+./zstack-cli skill install --agent codex
+./zstack-cli login 10.255.255.21:8080 --username admin --context-name lab --save-password=false
+./zstack-cli monitor usage --context lab
+```
+
+Intel Mac 将第一行源文件名改为 `zstack-cli-go_v1.1.3_darwin_amd64`。
+
+**Windows x64，PowerShell**
+
+```powershell
+Rename-Item ./zstack-cli-go_v1.1.3_windows_amd64.exe zstack-cli.exe
+./zstack-cli.exe version
+./zstack-cli.exe skill install --agent codex
+./zstack-cli.exe login 10.255.255.21:8080 --username admin --context-name lab --save-password=false
+./zstack-cli.exe monitor usage --context lab
+```
+
+可以在资源管理器中解压 ZIP，然后在该文件夹打开终端。路径包含空格时先用 `Set-Location "C:/path with spaces/zstack-cli"` 进入目录。调用当前目录程序需保留 `./` 前缀。
+
+**Linux x64**
+
+```sh
+mv zstack-cli-go_v1.1.3_linux_amd64 zstack-cli
+chmod +x zstack-cli
+./zstack-cli version
+./zstack-cli skill install --agent codex
+```
+
+ARM64 使用文件名 `zstack-cli-go_v1.1.3_linux_arm64`。
+
+### 让终端和 agent 找到 CLI
+
+上面的 `./zstack-cli` 可以在解压目录直接使用。若希望在其他目录或由 agent 直接调用 `zstack-cli`，将它所在的目录加入 PATH，或向 agent 提供二进制绝对路径。
+
+macOS/Linux 可执行 `sudo install -m 0755 ./zstack-cli /usr/local/bin/zstack-cli`，然后运行 `zstack-cli version` 核对。Windows 可将 `zstack-cli.exe` 放到固定目录，将该目录添加到用户环境变量 Path，重新打开终端和 agent，再运行 `zstack-cli version`。Skill 安装器会复制 Skill 文件；CLI 的 PATH 配置按上述步骤完成。
+
+### 从源码构建
+
 从源码构建时，需要 Go 1.25 或兼容版本，在仓库根目录运行以下命令。
 
 ```sh

@@ -8,15 +8,30 @@
 
 先安装可信的 zstack-cli 二进制。Skill 默认通过 PATH 查找，也可使用明确的绝对路径。可选兼容检查脚本需要 Python 3 标准库，正常操作只需要 agent 有终端执行能力。
 
-从仓库根目录安装到支持 `.agents/skills` 的 agent 用户目录（POSIX shell）：
+使用 CLI 内置安装器，Windows、macOS 和 Linux 共用这些命令。先把发布包里的二进制加入 PATH，Windows 也可使用 `./zstack-cli.exe` 的实际文件名。
 
 ```sh
-mkdir -p "$HOME/.agents/skills"
-test ! -e "$HOME/.agents/skills/zstack-operations" && \
-  cp -R skills/zstack-operations "$HOME/.agents/skills/zstack-operations"
+zstack-cli skill install --agent codex
+zstack-cli skill install --agent claude-code
+zstack-cli skill install --agent cursor --scope project --project /path/to/project
+zstack-cli skill install --agent copilot --dry-run -o json
+zstack-cli skill install --agent codex --replace
 ```
 
-已有同名目录时不会覆盖；更新前检查并备份本地修改，再替换整个目录。项目级安装时，将整个目录放到目标项目的 `.agents/skills/zstack-operations`。其他客户端按其 Skill 目录约定安装同一份内容；不要只复制 SKILL.md。Windows 可通过文件管理器复制整个目录到客户端支持的 Skill 路径。
+PowerShell 中显式调用当前目录的程序时使用 `./` 或 `.\` 前缀。项目路径含空格时加引号，Windows 项目路径可以写成 `"C:/work/my project"`。
+
+| Agent | 用户级目录（相对用户主目录） | 项目级目录 |
+| --- | --- | --- |
+| Codex | `.agents/skills` | `.agents/skills` |
+| Claude Code | `.claude/skills` | `.claude/skills` |
+| Cursor | `.cursor/skills` | `.cursor/skills` |
+| GitHub Copilot | `.copilot/skills` | `.github/skills` |
+
+默认 scope 为 user。project scope 必须给出已有项目目录。`--dest` 可指定其他 agent 的 Skill 父目录，安装器会在其下创建 `zstack-operations`。agent 的发现路径取决于客户端版本，可按实际配置覆盖。
+
+Skill 嵌入 CLI 二进制，安装时自动复制完整目录。安装过程使用本地文件系统。Python 仅用于可选的 `check_cli.py`，安装和正常使用不需要 Python。已有目录需要显式 `--replace`，更新时将原目录整体保留到同级 backup 目录，返回结果中包含备份位置。用 `--dry-run` 可先检查目标路径。
+
+手动安装也可复制整个 `skills/zstack-operations` 到上表目录，或从 Release 下载独立 Skill 压缩包后解压复制。Windows 可以使用资源管理器完成复制。替换前先保留自己的定制内容。
 
 本仓库不同时提交 `.agents/skills/` 副本，避免维护两份来源，也不自动写入用户目录。安装后由客户端刷新或新建会话发现 Skill，可显式请求：
 

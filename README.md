@@ -27,6 +27,54 @@ Download an archive matching your OS and architecture from [GitHub Releases](htt
 | macOS Apple silicon | `darwin_arm64` |
 | Windows x64 | `windows_amd64.zip` |
 
+### Run directly after extraction
+
+Open a terminal in the extracted directory and invoke the binary. Examples use v1.1.3 filenames. Substitute your version or architecture when needed. Normal execution and Skill installation require only the release binary.
+
+**macOS Apple silicon**
+
+```sh
+mv zstack-cli-go_v1.1.3_darwin_arm64 zstack-cli
+chmod +x zstack-cli
+./zstack-cli version
+./zstack-cli skill install --agent codex
+./zstack-cli login 192.0.2.10:8080 --username admin --context-name lab --save-password=false
+./zstack-cli monitor usage --context lab
+```
+
+On Intel Macs, change the source filename in the first line to `zstack-cli-go_v1.1.3_darwin_amd64`.
+
+**Windows x64, PowerShell**
+
+```powershell
+Rename-Item ./zstack-cli-go_v1.1.3_windows_amd64.exe zstack-cli.exe
+./zstack-cli.exe version
+./zstack-cli.exe skill install --agent codex
+./zstack-cli.exe login 192.0.2.10:8080 --username admin --context-name lab --save-password=false
+./zstack-cli.exe monitor usage --context lab
+```
+
+Extract the ZIP in File Explorer and open a terminal in that folder. For paths containing spaces, use `Set-Location "C:/path with spaces/zstack-cli"` first. Keep the `./` prefix when invoking an executable in the current directory.
+
+**Linux x64**
+
+```sh
+mv zstack-cli-go_v1.1.3_linux_amd64 zstack-cli
+chmod +x zstack-cli
+./zstack-cli version
+./zstack-cli skill install --agent codex
+```
+
+For ARM64, use the filename `zstack-cli-go_v1.1.3_linux_arm64`.
+
+### Make the CLI discoverable by terminals and agents
+
+The `./zstack-cli` commands run directly in the extracted directory. To invoke `zstack-cli` from other directories or from an agent, add its directory to PATH or give the agent an absolute executable path.
+
+On macOS/Linux, use `sudo install -m 0755 ./zstack-cli /usr/local/bin/zstack-cli`, then verify with `zstack-cli version`. On Windows, place zstack-cli.exe in a stable directory, add that directory to the user Path environment variable, reopen the terminal and agent, then run `zstack-cli version`. The Skill installer copies Skill files. Configure CLI discovery using the steps above.
+
+### Build from source
+
 To build from source, install Go 1.25 or compatible and run the following from the repository root.
 
 ```sh

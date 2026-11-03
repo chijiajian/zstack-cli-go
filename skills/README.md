@@ -29,7 +29,7 @@ python3 "$HOME/.agents/skills/zstack-operations/scripts/check_cli.py" \
   --cli /absolute/path/zstack-cli --profile query
 ```
 
-还可使用 lifecycle、iam profile。脚本只执行 version/help，过滤 ZSTACK 环境变量，使用临时空配置；成功不代表云端认证、许可或操作状态有效。Skill 1.0.0 对应当前源码能力，没有虚构最低 CLI release tag；详见包内 references/compatibility.md。
+还可使用 zql、monitor、lifecycle、iam profile。脚本只执行 version/help，过滤 ZSTACK 环境变量，使用临时空配置；成功不代表云端认证、许可或操作状态有效。Skill 1.2.0 对应当前源码能力，没有虚构最低 CLI release tag；详见包内 references/compatibility.md。
 
 ## 打包与维护
 
@@ -38,6 +38,6 @@ make skill-check
 make skill-package
 ```
 
-`skill-check` 构建 CLI，运行三个本地能力 profile 与辅助脚本回归；不连接云端。`skill-package` 生成 `dist/zstack-operations-skill.tar.gz`，顶层为 zstack-operations 目录，不包含凭据、源码仓库文档或 Python 缓存。解压到临时目录检查后，再复制到目标 Skill 目录。
+`skill-check` 构建 CLI，运行五个本地能力 profile 与辅助脚本回归；不连接云端。`skill-package` 生成 `dist/zstack-operations-skill.tar.gz`，顶层为 zstack-operations 目录，不包含凭据、源码仓库文档或 Python 缓存。解压到临时目录检查后，再复制到目标 Skill 目录。
 
 新增 CLI 行为时同步修改本 Skill 参考和必要的兼容检查。Skill 与 CLI 在同一 Git tag 下发布，但 Skill 的 metadata.version 独立表达其内容版本。不要因帮助检查通过宣称真实操作已测试。

@@ -212,3 +212,19 @@ cleanup-only 从 journal 读取资源，不需要重新传 image/network。必�
 报告的 `passed`、`failure`、`cleanup_errors` 与进程退出码一起判断本次是否通过；主测试失败但清理成功仍算失败。源会话不会被脚本注销，结束后由调用方 logout。SIGKILL 或掉电无法执行退出清理，需要保留 journal 恢复处理。
 
 本地开发检查用 `make verify`（vet、Go race、Python 回归和构建），无需云凭据，也不会执行真实环境脚本。历史实测范围和跳过项见[交付清单](next-stage-checklist.md)。
+
+## 运维监控
+
+运行 `zstack-cli monitor usage --context lab` 查看环境容量和主机负载。使用 `--section capacity` 或 `--section load` 可单独查询一部分；自动化用 `-o json --error-format json`。
+
+容量包括 vCPU、内存、主存储逻辑容量及物理容量，占用率按（总量 − 可用量）/ 总量计算，JSON 中内存与存储单位为字节。负载取最近 15 分钟、60 秒粒度内最新的 CPU 和内存共同采样时刻，仅对同时有两项采样的已连接主机计算算术平均。结果包含采样时间及采样/连接主机数。无共同采样或容量总量为零时，对应百分比显示 N/A，JSON 为 null。
+
+## 指定云主机与 ZQL
+
+按精确名称列出云主机使用 `get instances web-01`，按 UUID 过滤使用 `get instances -q 'uuid=VM_UUID'`。单台详情使用 `describe instance VM_UUID`。需要投影、计数、关联查询或按 VM 读取 ZWatch 指标时，使用顶层 `zql` 命令，并将完整语句作为一个带引号的参数传入。
+
+```sh
+zstack-cli zql "query vmInstance.name where uuid='VM_UUID' limit 1" --context lab
+```
+
+ZQL 由所选环境解析，支持的语法和可见资源取决于服务器版本与账户权限。命令输出 JSON，保留服务端的 results、聚合字段与 returnWith。单台 VM 的 CPU 时序示例见[查询示例](../examples/queries.md)。

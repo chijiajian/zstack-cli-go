@@ -7,7 +7,7 @@
 - Keep command naming, output and confirmation behavior consistent with adjacent commands. Use shared client, resolver, configuration and output abstractions; avoid duplicating transport or locking logic.
 - For code changes, add regression coverage for changed behavior and run `make verify` (vet, uncached race tests, Python runner tests, build). These checks require no cloud credentials.
 - For command/flag changes, run `make build`, then `python3 scripts/generate_cli_docs.py --cli ./zstack-cli`; review updates to `docs/reference/commands.md` and `commands.json`. Update the usage guide and relevant examples.
-- Documentation-only changes need link, command-help and generation checks, not a real cloud run.
+- Documentation-only changes need link, command-help and generation checks, not a real cloud run. Maintain the paired English/Chinese user guides and language navigation in the same change; use docs/README.md as the documentation index.
 - Never read or use `.env` as implicit authorization to access a cloud. Never put credentials, session files or raw sensitive server responses in docs, examples or test fixtures.
 - Real environment scripts are opt-in and separate from CI. `make verify` passing does not prove a real environment was tested; report exactly what ran and what was skipped.
 

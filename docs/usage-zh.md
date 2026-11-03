@@ -1,5 +1,7 @@
 # ZStack CLI 使用指南
 
+[English](usage-en.md) | [简体中文](usage-zh.md) | [文档目录](README.zh-CN.md)
+
 本指南对应当前源码，SDK 版本为 v0.0.10。已发布二进制可能尚未包含全部功能；先用 `zstack-cli version` 和子命令 `--help` 确认。示例中的名称、UUID、地址和文件路径均需替换，未包含真实环境凭据。
 
 完整参数与默认值见[命令参考](reference/commands.md)，可参考输入和组合流程见 [examples](../examples/README.md)，AI 自动执行约定见[agent 指南](agents.md)。
@@ -213,13 +215,13 @@ cleanup-only 从 journal 读取资源，不需要重新传 image/network。必�
 
 本地开发检查用 `make verify`（vet、Go race、Python 回归和构建），无需云凭据，也不会执行真实环境脚本。历史实测范围和跳过项见[交付清单](next-stage-checklist.md)。
 
-## 运维监控
+## 9. 运维监控
 
 运行 `zstack-cli monitor usage --context lab` 查看环境容量和主机负载。使用 `--section capacity` 或 `--section load` 可单独查询一部分；自动化用 `-o json --error-format json`。
 
 容量包括 vCPU、内存、主存储逻辑容量及物理容量，占用率按（总量 − 可用量）/ 总量计算，JSON 中内存与存储单位为字节。负载取最近 15 分钟、60 秒粒度内最新的 CPU 和内存共同采样时刻，仅对同时有两项采样的已连接主机计算算术平均。结果包含采样时间及采样/连接主机数。无共同采样或容量总量为零时，对应百分比显示 N/A，JSON 为 null。
 
-## 指定云主机与 ZQL
+## 10. 指定云主机与 ZQL
 
 按精确名称列出云主机使用 `get instances web-01`，按 UUID 过滤使用 `get instances -q 'uuid=VM_UUID'`。单台详情使用 `describe instance VM_UUID`。需要投影、计数、关联查询或按 VM 读取 ZWatch 指标时，使用顶层 `zql` 命令，并将完整语句作为一个带引号的参数传入。
 
@@ -228,3 +230,7 @@ zstack-cli zql "query vmInstance.name where uuid='VM_UUID' limit 1" --context la
 ```
 
 ZQL 由所选环境解析，支持的语法和可见资源取决于服务器版本与账户权限。命令输出 JSON，保留服务端的 results、聚合字段与 returnWith。单台 VM 的 CPU 时序示例见[查询示例](../examples/queries.md)。
+
+## 11. 安装运维 Skill
+
+CLI 内置完整 Skill。用户级安装运行 `zstack-cli skill install --agent codex`，也可选择 claude-code、cursor 或 copilot。项目级使用 `--scope project --project PATH`。`--dest` 覆盖父目录，`--dry-run` 预览位置，`--replace` 备份后更新。Windows、macOS 和 Linux 都使用原生二进制安装。目录映射和 PowerShell 示例见 [Skill 安装指南](../skills/README.md)。

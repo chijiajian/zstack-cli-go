@@ -1,5 +1,7 @@
 # IAM
 
+[English](iam.en.md) | [简体中文](iam.md) | [示例目录](README.md)
+
 准备权限 0600 的 `account-password` 文件（只含密码，不纳入版本控制）。下列策略文件仅允许一项账户查询，创建角色不会自动将角色分配给用户。
 
 ```sh

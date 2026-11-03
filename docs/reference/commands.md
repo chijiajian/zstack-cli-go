@@ -194,6 +194,7 @@ See the [English manual](../usage-en.md), [中文使用指南](../usage-zh.md), 
 - [zstack-cli security-group detach-l3](#zstack-cli-security-group-detach-l3)
 - [zstack-cli security-group remove-nic](#zstack-cli-security-group-remove-nic)
 - [zstack-cli skill](#zstack-cli-skill)
+- [zstack-cli skill export](#zstack-cli-skill-export)
 - [zstack-cli skill install](#zstack-cli-skill-install)
 - [zstack-cli snapshot](#zstack-cli-snapshot)
 - [zstack-cli snapshot create](#zstack-cli-snapshot-create)
@@ -5351,7 +5352,8 @@ Usage:
   zstack-cli skill [command]
 
 Available Commands:
-  install     Install for Codex, Claude Code, Cursor or Copilot
+  export      Export a WorkBuddy-compatible Skill ZIP for local import
+  install     Install the bundled Skill for a supported local agent
 
 Flags:
   -h, --help   help for skill
@@ -5365,16 +5367,36 @@ Global Flags:
 Use "zstack-cli skill [command] --help" for more information about a command.
 ```
 
+## zstack-cli skill export
+
+```text
+Export a WorkBuddy-compatible Skill ZIP for local import
+
+Usage:
+  zstack-cli skill export [flags]
+
+Flags:
+      --agent string   Import target: workbuddy (default "workbuddy")
+      --file string    New ZIP file to create (required)
+  -h, --help           help for export
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+  -o, --output string         Output format (table|json|yaml|text) (default "table")
+      --version               Show zstack-cli version
+```
+
 ## zstack-cli skill install
 
 ```text
-Install for Codex, Claude Code, Cursor or Copilot
+Install the bundled Skill for a supported local agent
 
 Usage:
   zstack-cli skill install [flags]
 
 Flags:
-      --agent string     Target agent: codex, claude-code, cursor or copilot
+      --agent string     Target agent: codex, claude-code, cursor, copilot, deepcode or custom
       --dest string      Override the parent Skill directory
       --dry-run          Preview destination without installing
   -h, --help             help for install

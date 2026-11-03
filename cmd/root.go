@@ -231,7 +231,7 @@ func init() {
 	iam.Register(create.CreateCmd, update.UpdateCmd, del.DeleteCmd)
 	iam.RegisterExpunge(expunge.ExpungeCmd)
 	rootCmd.AddCommand(iam.ProjectCmd, jobs.Cmd)
-	rootCmd.ValidArgs = append(rootCmd.ValidArgs, "project", "job")
+	rootCmd.ValidArgs = append(rootCmd.ValidArgs, "project", "job", "monitor", "zql", "skill")
 
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "version",

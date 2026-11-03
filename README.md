@@ -65,6 +65,23 @@ zstack-cli completion powershell > zstack-cli.ps1
 . .\zstack-cli.ps1
 ```
 
+## Install the AI agent Skill
+
+Install the CLI binary for your OS first, then run its bundled installer. These commands work on Windows, macOS and Linux.
+
+```sh
+zstack-cli skill install --agent codex
+zstack-cli skill install --agent claude-code
+zstack-cli skill install --agent cursor --scope project --project "/path/to/project"
+zstack-cli skill install --agent copilot --dry-run -o json
+```
+
+In PowerShell, use `./<executable-name>.exe` when invoking a binary in the current directory. Installation uses the CLI binary and local files. Python is only needed for the optional capability-check script.
+
+To update an existing Skill, add `--replace`; the installer preserves the previous directory as a backup. Use `--dest` to override the agent's Skill directory. After installation, refresh the agent or start a new session and ask it to use `zstack-operations`.
+
+See [OS, agent and scope installation details](skills/README.md). The standalone Skill archive and installer-free manual-copy route are also available.
+
 ## Usage
 ### Authenticate with username/password
 ```bash

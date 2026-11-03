@@ -174,6 +174,8 @@ See [中文使用指南](../usage-zh.md), [examples](../../examples/README.md), 
 - [zstack-cli load-balancer remove-nic](#zstack-cli-load-balancer-remove-nic)
 - [zstack-cli login](#zstack-cli-login)
 - [zstack-cli logout](#zstack-cli-logout)
+- [zstack-cli monitor](#zstack-cli-monitor)
+- [zstack-cli monitor usage](#zstack-cli-monitor-usage)
 - [zstack-cli port-forwarding](#zstack-cli-port-forwarding)
 - [zstack-cli port-forwarding attach](#zstack-cli-port-forwarding-attach)
 - [zstack-cli port-forwarding detach](#zstack-cli-port-forwarding-detach)
@@ -191,6 +193,8 @@ See [中文使用指南](../usage-zh.md), [examples](../../examples/README.md), 
 - [zstack-cli security-group delete-rule](#zstack-cli-security-group-delete-rule)
 - [zstack-cli security-group detach-l3](#zstack-cli-security-group-detach-l3)
 - [zstack-cli security-group remove-nic](#zstack-cli-security-group-remove-nic)
+- [zstack-cli skill](#zstack-cli-skill)
+- [zstack-cli skill install](#zstack-cli-skill-install)
 - [zstack-cli snapshot](#zstack-cli-snapshot)
 - [zstack-cli snapshot create](#zstack-cli-snapshot-create)
 - [zstack-cli snapshot revert](#zstack-cli-snapshot-revert)
@@ -229,6 +233,7 @@ See [中文使用指南](../usage-zh.md), [examples](../../examples/README.md), 
 - [zstack-cli wait instance](#zstack-cli-wait-instance)
 - [zstack-cli wait long-job](#zstack-cli-wait-long-job)
 - [zstack-cli wait volume](#zstack-cli-wait-volume)
+- [zstack-cli zql](#zstack-cli-zql)
 
 ## zstack-cli
 
@@ -262,16 +267,19 @@ Available Commands:
   load-balancer   Manage load balancer listeners
   login           Login to ZStack API server
   logout          Revoke the saved session and clear credentials for the selected context
+  monitor         Monitor cloud capacity and host load
   port-forwarding Manage port forwarding rules
   primary-storage Manage primary storage
   project         Manage the lifecycle of IAM2 projects
   security-group  Manage security groups
+  skill           Install the bundled ZStack operations Skill
   snapshot        Manage volume snapshots
   update          Update resource metadata
   version         Show zstack-cli version
   vm-script       Manage VM scripts
   volume          Manage volumes
   wait            Wait for a resource to reach a state
+  zql             Execute a ZStack Query Language statement and print the JSON response
 
 Flags:
       --context string        Use a saved context for this command without changing the default
@@ -4880,6 +4888,48 @@ Global Flags:
       --version               Show zstack-cli version
 ```
 
+## zstack-cli monitor
+
+```text
+Monitor cloud capacity and host load
+
+Usage:
+  zstack-cli monitor [command]
+
+Available Commands:
+  usage       Show cloud capacity and sampled host CPU and memory utilization
+
+Flags:
+  -h, --help   help for monitor
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+  -o, --output string         Output format (table|json|yaml|text) (default "table")
+      --version               Show zstack-cli version
+
+Use "zstack-cli monitor [command] --help" for more information about a command.
+```
+
+## zstack-cli monitor usage
+
+```text
+Show cloud capacity and sampled host CPU and memory utilization
+
+Usage:
+  zstack-cli monitor usage [flags]
+
+Flags:
+  -h, --help             help for usage
+      --section string   Report section: all, capacity or load (default "all")
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+  -o, --output string         Output format (table|json|yaml|text) (default "table")
+      --version               Show zstack-cli version
+```
+
 ## zstack-cli port-forwarding
 
 ```text
@@ -5289,6 +5339,53 @@ Global Flags:
       --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
       --fields strings        Custom fields to display in table output
   -o, --output string         Output format: text, table, json, yaml, or name (default "text")
+      --version               Show zstack-cli version
+```
+
+## zstack-cli skill
+
+```text
+Install the bundled ZStack operations Skill
+
+Usage:
+  zstack-cli skill [command]
+
+Available Commands:
+  install     Install for Codex, Claude Code, Cursor or Copilot
+
+Flags:
+  -h, --help   help for skill
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+  -o, --output string         Output format (table|json|yaml|text) (default "table")
+      --version               Show zstack-cli version
+
+Use "zstack-cli skill [command] --help" for more information about a command.
+```
+
+## zstack-cli skill install
+
+```text
+Install for Codex, Claude Code, Cursor or Copilot
+
+Usage:
+  zstack-cli skill install [flags]
+
+Flags:
+      --agent string     Target agent: codex, claude-code, cursor or copilot
+      --dest string      Override the parent Skill directory
+      --dry-run          Preview destination without installing
+  -h, --help             help for install
+      --project string   Existing project directory for project scope
+      --replace          Update existing installation and preserve a backup
+      --scope string     Installation scope: user or project (default "user")
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+  -o, --output string         Output format (table|json|yaml|text) (default "table")
       --version               Show zstack-cli version
 ```
 
@@ -6210,6 +6307,27 @@ Flags:
   -o, --output string       Output format: text, table, json, or yaml (default "text")
       --progress            Print state changes to stderr
       --timeout duration    Maximum time to wait (default 10m0s)
+
+Global Flags:
+      --context string        Use a saved context for this command without changing the default
+      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default "text")
+      --version               Show zstack-cli version
+```
+
+## zstack-cli zql
+
+```text
+Execute a ZStack Query Language statement and print the JSON response
+
+Usage:
+  zstack-cli zql <statement> [flags]
+
+Examples:
+  zstack-cli zql "query vmInstance.uuid where name='web-01' limit 10" --context lab
+
+Flags:
+  -h, --help            help for zql
+  -o, --output string   Output format: json (preserves the server's results and returnWith data) (default "json")
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default

@@ -23,3 +23,30 @@ fi
 ```
 
 正常输出为空列表仍是成功；分页不是快照。详情中的 warnings 要单独处理。get 可能续期保存密码的账户；严格只读任务请使用 session-only 配置或 AK/SK。
+
+## 比较环境使用率
+
+分别查询指定 context，比较时同时核对 load.sampleTime、sampledHosts 和 connectedHosts。
+
+```sh
+zstack-cli monitor usage --context lab
+zstack-cli monitor usage --context staging --section load -o json --error-format json
+zstack-cli monitor usage --context lab --section capacity -o yaml
+```
+
+## 指定云主机和 ZQL
+
+```sh
+zstack-cli get instances web-01 --context lab
+zstack-cli describe instance VM_UUID --context lab -o json
+zstack-cli zql "query vmInstance.uuid where name='web-01' limit 10" --context lab
+zstack-cli zql "count vmInstance where state='Running'" --context lab
+```
+
+查某台 VM 最近五分钟的 CPU，先将下列两个 VM_UUID 替换为同一个已确认的 UUID：
+
+```sh
+zstack-cli zql "query vmInstance.uuid where uuid='VM_UUID' return with (zwatch{resultName='cpu',metricName='CPUAverageUsedUtilization',offsetAheadOfCurrentTime=300,period=60,labels='VMUuid=VM_UUID'})" --context lab
+```
+
+读取 `results[0].returnWith.cpu` 中的 time、value 和 labels。零值和没有采样的含义不同。

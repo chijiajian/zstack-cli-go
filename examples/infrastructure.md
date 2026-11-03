@@ -1,5 +1,7 @@
 # 网络与基础设施
 
+[English](infrastructure.en.md) | [简体中文](infrastructure.md) | [示例目录](README.md)
+
 先发现实际资源及命令参数；不要从名称猜测 zone/cluster/network 的关联。下面的查询不修改资源，但账户会话可能续期：
 
 ```sh

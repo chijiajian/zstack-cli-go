@@ -1,5 +1,7 @@
 # 资源生命周期
 
+[English](lifecycle.en.md) | [简体中文](lifecycle.md) | [示例目录](README.md)
+
 以下是独立操作示例，不是连续执行脚本；UUID 必须指向已授权的测试资源。状态不满足时先调查，不强行推进。
 
 ```sh

@@ -26,6 +26,7 @@ In PowerShell, use `./` or `.\` to run an executable in the current directory. U
 | Claude Code | `.claude/skills` | `.claude/skills` |
 | Cursor | `.cursor/skills` | `.cursor/skills` |
 | GitHub Copilot | `.copilot/skills` | `.github/skills` |
+| Deep Code | `.agents/skills` | `.deepcode/skills` |
 
 Default scope is user. Project scope requires an existing `--project` directory. `--dest` selects a custom parent directory and the installer creates zstack-operations beneath it. Agent discovery conventions depend on client version, so override the destination to match your actual configuration when needed.
 
@@ -43,6 +44,35 @@ python3 "$HOME/.agents/skills/zstack-operations/scripts/check_cli.py" \
 ```
 
 Other profiles are zql, monitor, lifecycle and iam. The helper executes only version/help, removes ZSTACK variables and selects an empty temporary configuration. Passing establishes help capabilities. Cloud authentication, licenses and resource state need their own checks. Skill content version 1.2.0 corresponds to current source capabilities, with release compatibility explained in references/compatibility.md inside the package.
+
+## WorkBuddy, DeepSeek and other clients
+
+The deepcode/custom targets and WorkBuddy ZIP export are available starting with CLI v1.1.2. Check skill install/export help before using these commands with a released binary.
+
+WorkBuddy imports local Skill packages. Export a ZIP containing the required WorkBuddy display metadata, then choose Add Skill → Upload Skill in WorkBuddy. Complete the client's import checks and enable the Skill.
+
+```sh
+zstack-cli skill export --agent workbuddy --file zstack-operations-workbuddy.zip
+```
+
+The export includes SKILL.md, references and optional check scripts. Use a new ZIP filename. For cloud operations, WorkBuddy needs terminal access to zstack-cli and network access to the selected ZStack endpoint in the same execution environment. Authenticate through the CLI.
+
+DeepSeek models can run inside different agent clients. Skill discovery follows the client's conventions. Deep Code, listed in DeepSeek's official integration guide, can use these commands.
+
+```sh
+zstack-cli skill install --agent deepcode
+zstack-cli skill install --agent deepcode --scope project --project "/path/to/project"
+```
+
+Deep Code uses `.agents/skills` for user scope and `.deepcode/skills` for project scope. When using a DeepSeek model with Codex or Claude Code, select codex or claude-code accordingly. Other clients supporting local Skills and terminal execution can use an explicit parent directory.
+
+```sh
+zstack-cli skill install --agent custom --dest "/path/to/agent/skills"
+```
+
+A DeepSeek web chat alone does not establish access to local Skills or CLI execution. The hosting client must provide those capabilities. WorkBuddy exports and Deep Code targets follow official documentation. Validation currently covers ZIP structure, metadata and local installation; actual client import and end-to-end operation remain unverified.
+
+Sources are the [WorkBuddy Skill guide](https://www.workbuddy.ai/docs/workbuddy/From-Beginner-to-Expert-Guide/Function-Description/Skills), [WorkBuddy package structure](https://open.workbuddy.cn/docs/skill) and [DeepSeek Deep Code integration guide](https://github.com/deepseek-ai/awesome-deepseek-agent/blob/main/docs/deepcode.md).
 
 ## Package and maintain
 

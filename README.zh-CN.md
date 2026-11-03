@@ -54,6 +54,8 @@ CLI 二进制内置完整 Skill，通过本地文件操作安装，支持 Window
 ```sh
 zstack-cli skill install --agent codex
 zstack-cli skill install --agent claude-code
+zstack-cli skill install --agent deepcode
+zstack-cli skill export --agent workbuddy --file zstack-operations-workbuddy.zip
 zstack-cli skill install --agent cursor --scope project --project "/path/to/project"
 zstack-cli skill install --agent copilot --dry-run -o json
 ```

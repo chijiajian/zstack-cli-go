@@ -1,5 +1,7 @@
 # ZStack CLI Skills
 
+[English](README.en.md) | [简体中文](README.md)
+
 这里是随 CLI 源码一起维护的 Skill 分发源。[zstack-operations](zstack-operations/SKILL.md) 指导 agent 使用已安装的 CLI 操作 ZStack；根目录 AGENTS.md 指导 agent 开发本仓库。两者用途不同。
 
 执行路径为 Agent + Skill → zstack-cli → ZStack API，不要求 MCP。Skill 目录可独立复制；不复制整个 CLI 源码或配置文件。

@@ -1,5 +1,7 @@
 # AI agent 执行指南
 
+[English](agents.en.md) | [简体中文](agents.md) | [文档目录](README.zh-CN.md)
+
 这份文档面向使用 CLI 的 agent；仓库开发约定见 [AGENTS.md](../AGENTS.md)。它不授予环境访问或写操作权限，执行范围以用户指令为准。
 
 ## 命令发现

@@ -1,5 +1,7 @@
 # 回归运行
 
+[English](regression.en.md) | [简体中文](regression.md) | [示例目录](README.md)
+
 在仓库根目录执行。session.yaml 是专用配置，不纳入版本控制，账户登录须 `--save-password=false`。脚本使用该文件的当前 context，运行前核对 endpoint。
 
 ```sh

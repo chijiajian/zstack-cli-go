@@ -1,5 +1,7 @@
 # 查询与自动化
 
+[English](queries.en.md) | [简体中文](queries.md) | [示例目录](README.md)
+
 ```sh
 zstack-cli config get-contexts
 zstack-cli doctor --context lab --offline -o json

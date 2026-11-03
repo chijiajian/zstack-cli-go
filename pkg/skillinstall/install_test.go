@@ -9,6 +9,9 @@ import (
 func TestTargetsAndInstall(t *testing.T) {
 	root := t.TempDir()
 	for agent, dirs := range Directories {
+		if agent == "custom" {
+			continue
+		}
 		for i, scope := range []string{"user", "project"} {
 			got, err := Target(agent, scope, root, "", root)
 			want := filepath.Join(root, filepath.FromSlash(dirs[i]), Name)

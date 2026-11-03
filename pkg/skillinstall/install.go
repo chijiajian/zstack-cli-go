@@ -12,6 +12,8 @@ import (
 const Name = "zstack-operations"
 
 var Directories = map[string][2]string{
+	"deepcode":    {".agents/skills", ".deepcode/skills"},
+	"custom":      {"", ""},
 	"codex":       {".agents/skills", ".agents/skills"},
 	"claude-code": {".claude/skills", ".claude/skills"},
 	"cursor":      {".cursor/skills", ".cursor/skills"},
@@ -28,6 +30,9 @@ func Target(agent, scope, project, dest, home string) (string, error) {
 	dirs, ok := Directories[agent]
 	if !ok {
 		return "", fmt.Errorf("unknown agent %q", agent)
+	}
+	if agent == "custom" && dest == "" {
+		return "", fmt.Errorf("custom agent requires --dest pointing to its Skill parent directory")
 	}
 	if scope != "user" && scope != "project" {
 		return "", fmt.Errorf("scope must be user or project")

@@ -1426,14 +1426,21 @@
       "command": "zstack-cli skill",
       "category": "local-config",
       "leaf": false,
-      "help": "Install the bundled ZStack operations Skill\n\nUsage:\n  zstack-cli skill [command]\n\nAvailable Commands:\n  install     Install for Codex, Claude Code, Cursor or Copilot\n\nFlags:\n  -h, --help   help for skill\n\nGlobal Flags:\n      --context string        Use a saved context for this command without changing the default\n      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default \"text\")\n  -o, --output string         Output format (table|json|yaml|text) (default \"table\")\n      --version               Show zstack-cli version\n\nUse \"zstack-cli skill [command] --help\" for more information about a command."
+      "help": "Install the bundled ZStack operations Skill\n\nUsage:\n  zstack-cli skill [command]\n\nAvailable Commands:\n  export      Export a WorkBuddy-compatible Skill ZIP for local import\n  install     Install the bundled Skill for a supported local agent\n\nFlags:\n  -h, --help   help for skill\n\nGlobal Flags:\n      --context string        Use a saved context for this command without changing the default\n      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default \"text\")\n  -o, --output string         Output format (table|json|yaml|text) (default \"table\")\n      --version               Show zstack-cli version\n\nUse \"zstack-cli skill [command] --help\" for more information about a command."
+    },
+    {
+      "aliases": [],
+      "command": "zstack-cli skill export",
+      "category": "local-config",
+      "leaf": true,
+      "help": "Export a WorkBuddy-compatible Skill ZIP for local import\n\nUsage:\n  zstack-cli skill export [flags]\n\nFlags:\n      --agent string   Import target: workbuddy (default \"workbuddy\")\n      --file string    New ZIP file to create (required)\n  -h, --help           help for export\n\nGlobal Flags:\n      --context string        Use a saved context for this command without changing the default\n      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default \"text\")\n  -o, --output string         Output format (table|json|yaml|text) (default \"table\")\n      --version               Show zstack-cli version"
     },
     {
       "aliases": [],
       "command": "zstack-cli skill install",
       "category": "local-config",
       "leaf": true,
-      "help": "Install for Codex, Claude Code, Cursor or Copilot\n\nUsage:\n  zstack-cli skill install [flags]\n\nFlags:\n      --agent string     Target agent: codex, claude-code, cursor or copilot\n      --dest string      Override the parent Skill directory\n      --dry-run          Preview destination without installing\n  -h, --help             help for install\n      --project string   Existing project directory for project scope\n      --replace          Update existing installation and preserve a backup\n      --scope string     Installation scope: user or project (default \"user\")\n\nGlobal Flags:\n      --context string        Use a saved context for this command without changing the default\n      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default \"text\")\n  -o, --output string         Output format (table|json|yaml|text) (default \"table\")\n      --version               Show zstack-cli version"
+      "help": "Install the bundled Skill for a supported local agent\n\nUsage:\n  zstack-cli skill install [flags]\n\nFlags:\n      --agent string     Target agent: codex, claude-code, cursor, copilot, deepcode or custom\n      --dest string      Override the parent Skill directory\n      --dry-run          Preview destination without installing\n  -h, --help             help for install\n      --project string   Existing project directory for project scope\n      --replace          Update existing installation and preserve a backup\n      --scope string     Installation scope: user or project (default \"user\")\n\nGlobal Flags:\n      --context string        Use a saved context for this command without changing the default\n      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default \"text\")\n  -o, --output string         Output format (table|json|yaml|text) (default \"table\")\n      --version               Show zstack-cli version"
     },
     {
       "aliases": [],

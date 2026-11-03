@@ -79,3 +79,18 @@ func TestAdditionalAgentTargets(t *testing.T) {
 		t.Fatal("custom agent without destination accepted")
 	}
 }
+
+func TestWorkBuddyManifestLineEndings(t *testing.T) {
+	source := "---\nname: zstack-operations\ndescription: test\nmetadata:\n  version: 1.2.0\n---\n# Instructions\nRun zstack-cli.\n"
+	unix, err := workBuddyManifest([]byte(source))
+	if err != nil {
+		t.Fatal(err)
+	}
+	windows, err := workBuddyManifest(bytes.ReplaceAll([]byte(source), []byte("\n"), []byte("\r\n")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(unix, windows) {
+		t.Fatal("line endings changed exported metadata or instructions")
+	}
+}

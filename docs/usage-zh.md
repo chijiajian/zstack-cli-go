@@ -26,6 +26,10 @@ zstack-cli login 10.255.255.21:8080 --username admin --context-name lab --save-p
 zstack-cli login 10.255.255.21:8080 --ak "$LAB_AK" --sk "$LAB_SK" --context-name lab
 ```
 
+AK/SK 的两条请求路径使用相同的 Date 与签名逻辑，默认采用 CLI 运行机器的本地时区。若服务端存在 GMT/CST 等日期解析兼容问题，可通过 `ZSTACK_API_TIMEZONE` 显式指定该环境要求的 IANA 时区（如 `Asia/Shanghai`、`Asia/Singapore`、`Asia/Kuala_Lumpur`、`Europe/Berlin`、`Asia/Dubai`）；`UTC` 使用标准 GMT 请求头。欧洲等地区的夏令时由时区数据库处理，不写死偏移，也不根据 endpoint 猜测服务端时区。未知时区会在发请求前报错。
+
+例如在 shell 中执行 `ZSTACK_API_TIMEZONE=Europe/Berlin zstack-cli get zones --context lab`；PowerShell 使用 `$env:ZSTACK_API_TIMEZONE='Europe/Berlin'` 后执行命令，用完可 `Remove-Item Env:ZSTACK_API_TIMEZONE`。此变量作用于该进程访问的环境，不保存到 context，切换环境时应核对。仅在确认服务端需要时覆盖默认值；正确解析的服务端应将不同时区表示的同一时刻等价处理。数字时区缩写是否被接受仍取决于服务端版本，不能保证绕过所有日期解析缺陷。此设置不改变系统时间，不新增失败自动重试，机器时钟仍须准确；账户会话认证不受影响。
+
 配置默认在 `~/.zstack-cli/config.yaml`，可通过 `ZSTACK_CONFIG` 指定独立文件。配置包含敏感信息，不要提交到仓库。`config view` 仅展示脱敏内容，不能用其输出替代可登录的配置文件。
 
 ## 2. 多环境与诊断

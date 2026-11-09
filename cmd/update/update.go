@@ -88,7 +88,7 @@ func newInstanceCmd() *cobra.Command {
 					}
 					params.Params.DefaultL3NetworkUuid = &resolvedL3.UUID
 				}
-				return cli.UpdateVmInstance(uuid, params)
+				return zstackclient.UpdateVMInstance(cmd.Context(), cli, uuid, params)
 			})
 		},
 	}
@@ -440,7 +440,7 @@ func runUpdate(cmd *cobra.Command, resourceType string, target string, params in
 	if err != nil {
 		return err
 	}
-	if !cmd.Flags().Changed("name") {
+	if resourceType != "instance" && !cmd.Flags().Changed("name") {
 		preserveCurrentName(params, resolved.Name)
 	}
 

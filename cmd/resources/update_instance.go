@@ -64,7 +64,7 @@ var updateInstanceCmd = &cobra.Command{
 			updateParam.Params.DefaultL3NetworkUuid = &l3.UUID
 		}
 
-		result, err := cli.UpdateVmInstance(vm.UUID, updateParam)
+		result, err := zstackclient.UpdateVMInstance(cmd.Context(), cli, vm.UUID, updateParam)
 		if err != nil {
 			return err
 		}

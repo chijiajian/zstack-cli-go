@@ -5,9 +5,6 @@ package client
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
-	"crypto/sha1"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,9 +20,10 @@ import (
 
 // ReadClient provides cancellable authentication and resource reads.
 type ReadClient struct {
-	endpoint    string
-	credentials config.Context
-	httpClient  *http.Client
+	endpoint        string
+	credentials     config.Context
+	httpClient      *http.Client
+	signingLocation *time.Location
 }
 
 // newHTTPClient builds transport without validating or renewing a session.
@@ -33,11 +31,19 @@ func newHTTPClient(credentials config.Context) (*ReadClient, error) {
 	if _, err := NewSDKConfig(credentials.Endpoint); err != nil {
 		return nil, err
 	}
+	var loc *time.Location
+	if credentials.EffectiveAuthType() == config.AuthTypeAccessKey {
+		var err error
+		loc, err = accessKeyTimezone()
+		if err != nil {
+			return nil, clierr.Wrap(clierr.Usage, err)
+		}
+	}
 	endpoint := credentials.Endpoint
 	if !strings.Contains(endpoint, ":") {
 		endpoint += ":8080"
 	}
-	return &ReadClient{endpoint: "http://" + endpoint + "/zstack/", credentials: credentials,
+	return &ReadClient{endpoint: "http://" + endpoint + "/zstack/", credentials: credentials, signingLocation: loc,
 		httpClient: &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}, nil
 }
 
@@ -142,11 +148,7 @@ func (cli *ReadClient) send(ctx context.Context, method, path string, query url.
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if cli.credentials.EffectiveAuthType() == config.AuthTypeAccessKey {
-		date := time.Now().UTC().Format(http.TimeFormat)
-		mac := hmac.New(sha1.New, []byte(cli.credentials.AccessKeySecret))
-		fmt.Fprintf(mac, "%s\n%s\n/%s", method, date, path)
-		req.Header.Set("Date", date)
-		req.Header.Set("Authorization", "ZStack "+cli.credentials.AccessKeyID+":"+base64.StdEncoding.EncodeToString(mac.Sum(nil)))
+		signAccessKeyRequest(req, cli.credentials.AccessKeyID, cli.credentials.AccessKeySecret, "/"+path, time.Now(), cli.signingLocation)
 	} else if path != "v1/accounts/login" {
 		req.Header.Set("Authorization", "OAuth "+cli.credentials.SessionUUID)
 		req.Header.Set("x-session-id", cli.credentials.SessionUUID)

@@ -18,6 +18,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/chijiajian/zstack-cli-go/pkg/config"
@@ -35,6 +36,7 @@ func GetClient() *zsclient.ZSClient {
 }
 
 var clientContext config.Context
+var clientTimezone string
 
 // GetClientContext includes session validation and login in the caller's deadline.
 func GetClientContext(requestCtx context.Context) (*zsclient.ZSClient, error) {
@@ -61,7 +63,11 @@ func loadClient(requestCtx context.Context) (*zsclient.ZSClient, error) {
 	if ctx.Endpoint == "" {
 		return nil, fmt.Errorf("current context or endpoint missing. Please run 'zstack-cli login' first")
 	}
-	if globalClient != nil && clientContext == ctx {
+	timezone := ""
+	if ctx.EffectiveAuthType() == config.AuthTypeAccessKey {
+		timezone = os.Getenv("ZSTACK_API_TIMEZONE")
+	}
+	if globalClient != nil && clientContext == ctx && clientTimezone == timezone {
 		return globalClient, nil
 	}
 	globalClient = nil
@@ -76,13 +82,13 @@ func loadClient(requestCtx context.Context) (*zsclient.ZSClient, error) {
 	ctx = authenticated.credentials
 	var cli *zsclient.ZSClient
 	if ctx.EffectiveAuthType() == config.AuthTypeAccessKey {
-		cli = zsclient.NewZSClient(zsCfg.AccessKey(ctx.AccessKeyID, ctx.AccessKeySecret).ReadOnly(false))
+		cli = zsclient.NewZSClient(accessKeySDKConfig(zsCfg, ctx.AccessKeyID, ctx.AccessKeySecret, authenticated.signingLocation).ReadOnly(false))
 	} else {
 		cli = zsclient.NewZSClient(zsCfg.LoginAccount(ctx.Username, ctx.Password).ReadOnly(false))
 		cli.LoadSession(ctx.SessionUUID)
 	}
 
-	globalClient, clientContext = cli, ctx
+	globalClient, clientContext, clientTimezone = cli, ctx, timezone
 	return cli, nil
 }
 

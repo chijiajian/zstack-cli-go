@@ -6,9 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/chijiajian/zstack-cli-go/pkg/clierr"
@@ -48,6 +51,10 @@ func (cli *MutationClient) mutate(ctx context.Context, method, path string, quer
 	if !strings.HasPrefix(path, "v1/") || strings.ContainsAny(path, "?#") {
 		return clierr.Wrap(clierr.Usage, fmt.Errorf("invalid API path"))
 	}
+	var peer atomic.Value
+	ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{GotConn: func(info httptrace.GotConnInfo) {
+		peer.Store(info.Conn.RemoteAddr().String())
+	}})
 	pollPath := ""
 	for {
 		if err := ctx.Err(); err != nil {
@@ -93,7 +100,8 @@ func (cli *MutationClient) mutate(ctx context.Context, method, path string, quer
 			return &clierr.HTTPError{Status: errorStatus, Code: api.Code, Message: fmt.Sprintf("API mutation failed (HTTP %d, code %s); inspect resource state before retrying", status, clierr.SafeAPICode(api.Code))}
 		}
 		if envelope.Location != "" {
-			pollPath, err = apiJobPath(cli.reader.endpoint, envelope.Location)
+			connectedPeer, _ := peer.Load().(string)
+			pollPath, err = apiJobPath(cli.reader.endpoint, envelope.Location, connectedPeer)
 			if err != nil {
 				return err
 			}
@@ -125,9 +133,9 @@ func (cli *MutationClient) mutate(ctx context.Context, method, path string, quer
 	}
 }
 
-// Resolve callbacks against the configured endpoint. Foreign origins, queries,
-// and non-job paths never receive credentials or cause requests.
-func apiJobPath(endpoint, location string) (string, error) {
+// A management node may advertise its peer IP when the endpoint was configured
+// with a hostname. Return only the path so polling uses the configured endpoint.
+func apiJobPath(endpoint, location, connectedPeer string) (string, error) {
 	base, _ := url.Parse(endpoint)
 	ref, err := url.Parse(location)
 	if err != nil {
@@ -135,8 +143,15 @@ func apiJobPath(endpoint, location string) (string, error) {
 	}
 	target := base.ResolveReference(ref)
 	prefix := base.Path + "v1/api-jobs/"
-	if target.Scheme != base.Scheme || target.Host != base.Host || target.User != nil || target.RawQuery != "" || target.Fragment != "" || !strings.HasPrefix(target.Path, prefix) {
+	if target.Scheme != base.Scheme || target.User != nil || target.RawQuery != "" || target.Fragment != "" || !strings.HasPrefix(target.Path, prefix) {
 		return "", clierr.Wrap(clierr.Remote, fmt.Errorf("unsafe API job location"))
+	}
+	if target.Host != base.Host {
+		peerIP, peerPort, _ := net.SplitHostPort(connectedPeer)
+		callbackIP := net.ParseIP(target.Hostname())
+		if callbackIP == nil || !callbackIP.Equal(net.ParseIP(peerIP)) || target.Port() != peerPort || target.Port() != base.Port() {
+			return "", clierr.Wrap(clierr.Remote, fmt.Errorf("unsafe API job location"))
+		}
 	}
 	job := strings.TrimPrefix(target.Path, prefix)
 	if job == "" || strings.ContainsAny(job, "/\\") || job == "." || job == ".." {

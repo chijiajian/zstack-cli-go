@@ -15,6 +15,7 @@ The user selected BMad Method on 2026-11-09. The detailed planning artifacts are
 | [Decision log](decision-log.md) | Decisions and rationale |
 | [Open decisions / roadmap](addendum.md) | OEM identity, customer samples and deferred features |
 | [Validation notes](validation-notes.md) | Planning checks and untested boundaries |
+| [Windows contract evidence](windows-contract-evidence-2026-11-10.md) | Native preview packages, exact build identities and synthetic migration metrics |
 
 The module bundles an existing CLI binary. Users install one module package; Import-Module only loads it. The existing Go SDK remains behind the CLI, avoiding a second cloud client implementation. The preview includes PowerShell binding, object projection, error semantics, the bounded compatibility layer and OEM packaging.
 

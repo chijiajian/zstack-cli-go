@@ -19,6 +19,7 @@ metadata:
 | 任务 | 参考 |
 | --- | --- |
 | 指定云主机及 ZQL、资源使用率（monitor usage）、查询、分页、详情、doctor、会话与 context | [queries.md](references/queries.md) |
+| PowerShell 子进程凭据输入与启动输出 | [cli-powershell-auth.md](references/cli-powershell-auth.md) |
 | 实例/盘/快照恢复、扩容、任务操作 | [lifecycle.md](references/lifecycle.md) |
 | 账户、用户、策略、角色、组织和项目 | [iam.md](references/iam.md) |
 | 非零退出、写入结果未知、清理或回归 | [failures.md](references/failures.md) |

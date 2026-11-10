@@ -1,0 +1,4 @@
+{
+  "before": "Get-VM -Name 'web*'",
+  "after": "Get-ZStackVM -Name 'web*'"
+}

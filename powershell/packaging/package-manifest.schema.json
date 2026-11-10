@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schemaVersion", "version", "brand", "cli"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "version": {"type": "string"},
+    "brand": {"type": "object"},
+    "cli": {
+      "type": "object",
+      "required": ["version", "commit", "platform", "sha256", "capabilities"],
+      "properties": {
+        "version": {"type": "string"},
+        "commit": {"type": "string"},
+        "platform": {"const": "windows-amd64"},
+        "sha256": {"type": "string", "pattern": "^[A-Fa-f0-9]{64}$"},
+        "capabilities": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    }
+  }
+}

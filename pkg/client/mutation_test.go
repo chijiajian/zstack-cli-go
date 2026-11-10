@@ -55,10 +55,41 @@ func TestMutationPollsWithoutRepeatingWrite(t *testing.T) {
 	}
 }
 func TestMutationRejectsUnsafeCallbacks(t *testing.T) {
-	for _, location := range []string{"http://elsewhere/zstack/v1/api-jobs/id", "/zstack/v1/accounts", "/zstack/v1/api-jobs/id?token=secret", "/zstack/v1/api-jobs/%2Faccounts", "/zstack/v1/api-jobs/"} {
-		if _, err := apiJobPath("http://server:8080/zstack/", location); err == nil {
+	for _, location := range []string{"http://elsewhere/zstack/v1/api-jobs/id", "http://10.255.255.22:8080/zstack/v1/api-jobs/id", "http://10.255.255.21:8081/zstack/v1/api-jobs/id", "/zstack/v1/accounts", "/zstack/v1/api-jobs/id?token=secret", "/zstack/v1/api-jobs/%2Faccounts", "/zstack/v1/api-jobs/"} {
+		if _, err := apiJobPath("http://server:8080/zstack/", location, "10.255.255.21:8080"); err == nil {
 			t.Errorf("accepted %s", location)
 		}
+	}
+}
+
+func TestMutationPollsPeerIPCallbackThroughConfiguredHostname(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		if !strings.HasPrefix(r.Host, "localhost:") || r.Header.Get("Authorization") != "OAuth test-session" {
+			t.Error("request did not use the authenticated configured hostname")
+		}
+		switch {
+		case r.Method == http.MethodPut && r.URL.Path == "/zstack/v1/vm-instances/test/actions":
+			w.WriteHeader(http.StatusAccepted)
+			fmt.Fprintf(w, `{"location":"http://%s/zstack/v1/api-jobs/job"}`, r.Context().Value(http.LocalAddrContextKey))
+		case r.Method == http.MethodGet && r.URL.Path == "/zstack/v1/api-jobs/job":
+			fmt.Fprint(w, `{"inventory":{"uuid":"test"}}`)
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL)
+		}
+	}))
+	defer server.Close()
+	endpoint := strings.Replace(strings.TrimPrefix(server.URL, "http://"), "127.0.0.1", "localhost", 1)
+	reader, err := newHTTPClient(config.Context{Endpoint: endpoint, SessionUUID: "test-session"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cli := &MutationClient{reader: reader, pollInterval: time.Millisecond}
+	var result struct{ UUID string }
+	if err := cli.Mutate(context.Background(), http.MethodPut, "v1/vm-instances/test/actions", nil, &result); err != nil ||
+		result.UUID != "test" || requests.Load() != 2 {
+		t.Fatalf("peer IP callback failed: %v, UUID %q, requests %d", err, result.UUID, requests.Load())
 	}
 }
 func TestMutationCancellationAndRedaction(t *testing.T) {

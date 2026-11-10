@@ -1,0 +1,4 @@
+{
+  "before": "Get-VM | Where-Object PowerState -eq PoweredOn | Select-Object Name,NumCpu,MemoryGB | ConvertTo-Csv -NoTypeInformation",
+  "after": "Get-ZStackVM | Where-Object PowerState -eq PoweredOn | Select-Object Name,NumCpu,MemoryGB | ConvertTo-Csv -NoTypeInformation"
+}

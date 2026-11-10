@@ -1,0 +1,4 @@
+{
+  "before": "Import-Module VCF.PowerCLI; Get-VM",
+  "after": "Import-Module $compatibilityManifest; Get-VM"
+}

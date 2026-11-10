@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "displayName", "moduleName", "commandPrefix", "configNamespace", "publisher", "helpUri", "moduleGuid"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,39}$"},
+    "displayName": {"type": "string", "minLength": 1, "maxLength": 100},
+    "moduleName": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)+$", "maxLength": 100},
+    "commandPrefix": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]{0,29}$"},
+    "configNamespace": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,39}$"},
+    "publisher": {"type": "string", "minLength": 1, "maxLength": 100},
+    "helpUri": {"type": "string", "pattern": "^https://[^\\s]+$"},
+    "moduleGuid": {"type": "string", "pattern": "^[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}$"}
+  }
+}

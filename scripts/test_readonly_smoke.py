@@ -256,14 +256,27 @@ class SmokeTests(unittest.TestCase):
             marker = root / "started"
             child = root / "cli"
             config_view = {"selected-context": "test", "contexts": {"test": {"auth_type": "account", "password": "", "session_uuid": "*****"}}}
-            child.write_text(f"#!{sys.executable}\nimport sys,os,time,json\nif sys.argv[1]=='config':\n print({json.dumps(config_view)!r})\nelse:\n open({str(marker)!r},'w').write(json.dumps([os.environ['ZSTACK_CONFIG'],os.getpid()]))\n time.sleep(30)\n")
+            child.write_text(f"""#!{sys.executable}
+import json, os, sys, time
+from pathlib import Path
+
+if sys.argv[1] == 'config':
+    print({json.dumps(config_view)!r})
+else:
+    marker = Path({str(marker)!r})
+    pending = marker.with_suffix('.tmp')
+    pending.write_text(json.dumps([os.environ['ZSTACK_CONFIG'], os.getpid()]))
+    pending.replace(marker)
+    time.sleep(30)
+""")
             child.chmod(0o700)
             process = subprocess.Popen([sys.executable, str(Path(smoke.__file__)), "--cli", str(child), "--config", str(source)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             try:
-                deadline = time.monotonic() + 5
+                # Allow both Python processes to start on a busy runner.
+                deadline = time.monotonic() + 15
                 while not marker.exists() and time.monotonic() < deadline and process.poll() is None:
                     time.sleep(0.01)
-                self.assertTrue(marker.exists())
+                self.assertTrue(marker.exists(), 'CLI fixture did not publish its startup marker')
                 config_path, child_pid = json.loads(marker.read_text())
                 process.send_signal(signal.SIGTERM)
                 output, errors = process.communicate(timeout=5)

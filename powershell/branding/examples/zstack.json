@@ -1,0 +1,10 @@
+{
+  "id": "zstack",
+  "displayName": "ZStack PowerCLI",
+  "moduleName": "ZStack.PowerCLI",
+  "commandPrefix": "ZStack",
+  "configNamespace": "zstack-powershell",
+  "publisher": "ZStack",
+  "helpUri": "https://example.invalid/zstack/powershell",
+  "moduleGuid": "ed2f8695-e49b-4504-a056-039a37cd571f"
+}

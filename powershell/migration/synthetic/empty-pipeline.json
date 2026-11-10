@@ -1,0 +1,18 @@
+{
+  "before": "Get-VM -Name 'missing*' | ForEach-Object Name",
+  "after": "Get-ZStackVM -Name 'missing*' | ForEach-Object Name",
+  "supportedBehavior": "Pass no rows to downstream stages for an empty result.",
+  "unsupported": [],
+  "changes": [
+    {
+      "location": "Lookup",
+      "reason": "Review scripts that expect a missing match to raise an error."
+    }
+  ],
+  "replacements": [
+    {
+      "from": "Get-VM",
+      "to": "Get-ZStackVM"
+    }
+  ]
+}

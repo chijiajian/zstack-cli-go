@@ -1,0 +1,22 @@
+{
+  "before": "Get-VM -Name $name | Start-VM -WhatIf",
+  "after": "Get-ZStackVM -Name $name | Start-ZStackVM -WhatIf",
+  "supportedBehavior": "Preview the start without sending a mutation.",
+  "unsupported": [],
+  "changes": [
+    {
+      "location": "Pipeline lookup and start",
+      "reason": "Keep -WhatIf on the native start command."
+    }
+  ],
+  "replacements": [
+    {
+      "from": "Get-VM",
+      "to": "Get-ZStackVM"
+    },
+    {
+      "from": "Start-VM",
+      "to": "Start-ZStackVM"
+    }
+  ]
+}

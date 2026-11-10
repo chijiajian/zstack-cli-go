@@ -1,0 +1,66 @@
+name: PowerShell module contracts
+
+on:
+  push:
+    paths: ['powershell/**', 'cmd/**', 'pkg/**', 'go.*', '.github/workflows/powershell.yml']
+  pull_request:
+    paths: ['powershell/**', 'cmd/**', 'pkg/**', 'go.*', '.github/workflows/powershell.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-contracts:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        pwsh: ['7.4.20', '7.6.6']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Prepare pinned PowerShell and Pester
+        shell: pwsh
+        env:
+          PWSH_VERSION: ${{ matrix.pwsh }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = $env:PWSH_VERSION
+          $archive = Join-Path $env:RUNNER_TEMP 'powershell.zip'
+          Invoke-WebRequest -Uri "https://github.com/PowerShell/PowerShell/releases/download/v$version/powershell-$version-win-x64.zip" -OutFile $archive
+          Expand-Archive -LiteralPath $archive -DestinationPath "$env:RUNNER_TEMP/contract-pwsh"
+          $archive = Join-Path $env:RUNNER_TEMP 'pester.zip'
+          Invoke-WebRequest -Uri 'https://www.powershellgallery.com/api/v2/package/Pester/5.7.1' -OutFile $archive
+          Expand-Archive -LiteralPath $archive -DestinationPath "$env:RUNNER_TEMP/contract-pester"
+      - name: Build Windows CLI and run Pester against loopback fixtures
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          go build -trimpath -ldflags "-X github.com/chijiajian/zstack-cli-go/cmd.commit=$env:GITHUB_SHA" -o "$env:RUNNER_TEMP/zstack-cli.exe" .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$env:RUNNER_TEMP/contract-pwsh/pwsh.exe" -NoLogo -NoProfile -NonInteractive -File powershell/tests/Invoke-ContractPester.ps1 -PesterManifest "$env:RUNNER_TEMP/contract-pester/Pester.psd1" -WindowsCliPath "$env:RUNNER_TEMP/zstack-cli.exe" -ReportPath "$env:RUNNER_TEMP/contract-report.json" -Benchmark
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $reportPath = Join-Path $env:RUNNER_TEMP 'contract-report.json'
+          $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json -AsHashtable
+          if ($report.cli.commit -cne $env:GITHUB_SHA) { throw 'Contract report CLI revision does not match the checkout.' }
+          $report.pesterVersion = '5.7.1'
+          $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $reportPath -Encoding utf8
+          Get-Content -LiteralPath $reportPath
+          & "$env:RUNNER_TEMP/contract-pwsh/pwsh.exe" -NoLogo -NoProfile -NonInteractive -Command '& ./powershell/migration/Assess-Migration.ps1 -ContractReport (Join-Path $env:RUNNER_TEMP "contract-report.json") | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP "migration-report.json") -Encoding utf8'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: powershell-contracts-${{ matrix.pwsh }}
+          path: |
+            ${{ runner.temp }}/contract-report.json
+            ${{ runner.temp }}/migration-report.json
+          if-no-files-found: error

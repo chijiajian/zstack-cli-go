@@ -171,6 +171,9 @@ func formatStructSlice(data interface{}, fields []string) error {
 
 	for i := 0; i < elemType.NumField(); i++ {
 		field := elemType.Field(i)
+		if len(fields) == 0 && field.Tag.Get("table") == "opt-in" {
+			continue
+		}
 		tagName := field.Tag.Get("json")
 		fieldName := field.Name
 		if tagName != "" && tagName != "-" {
@@ -205,6 +208,14 @@ func formatStructSlice(data interface{}, fields []string) error {
 
 		for _, idx := range fieldIndices {
 			fieldValue := item.Field(idx)
+			tableMode := elemType.Field(idx).Tag.Get("table")
+			if fieldValue.Kind() == reflect.Ptr && (tableMode == "opt-in" || tableMode == "deref") {
+				if fieldValue.IsNil() {
+					row = append(row, "")
+					continue
+				}
+				fieldValue = fieldValue.Elem()
+			}
 			row = append(row, fmt.Sprintf("%v", fieldValue.Interface()))
 		}
 

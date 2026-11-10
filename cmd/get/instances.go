@@ -44,7 +44,8 @@ type FormattedVmInstance struct {
 	Type                 string `json:"type" yaml:"type" header:"TYPE"`
 	HypervisorType       string `json:"hypervisorType" yaml:"hypervisorType" header:"HYPERVISOR TYPE"`
 	MemorySize           string `json:"memorySize" yaml:"memorySize" header:"MEMORY SIZE"`
-	CPUNum               int    `json:"cpuNum" yaml:"cpuNum" header:"CPU NUM"`
+	MemorySizeBytes      *int64 `json:"memorySizeBytes" yaml:"memorySizeBytes" table:"opt-in"`
+	CPUNum               *int   `json:"cpuNum" yaml:"cpuNum" header:"CPU NUM" table:"deref"`
 	CPUSpeed             int64  `json:"cpuSpeed" yaml:"cpuSpeed" header:"CPU SPEED"`
 	AllocatorStrategy    string `json:"allocatorStrategy" yaml:"allocatorStrategy" header:"ALLOCATOR STRATEGY"`
 	State                string `json:"state" yaml:"state" header:"STATE"`
@@ -55,8 +56,9 @@ type FormattedVmInstance struct {
 var vmInstancesCmd = &cobra.Command{
 	Use:   "instances [name]",
 	Short: "List VM instances",
-	Long:  `List all VM instances in the ZStack cloud platform.`,
-	Args:  cobra.MaximumNArgs(1),
+	Long: `List all VM instances in the ZStack cloud platform.
+Structured output includes memorySizeBytes, the reported capacity in bytes or null if omitted.`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
@@ -69,7 +71,13 @@ var vmInstancesCmd = &cobra.Command{
 			return fmt.Errorf("Error processing context filters: %w", err)
 		}
 
-		result, err := common.Fetch[view.VmInstanceInventoryView](cobraCmd, queryParam, "v1/vm-instances")
+		// Preserve the distinction between an omitted capacity and a reported zero.
+		type vmQueryInventory struct {
+			view.VmInstanceInventoryView
+			MemorySizeBytes *int64 `json:"memorySize"`
+			ReportedCPU     *int   `json:"cpuNum"`
+		}
+		result, err := common.Fetch[vmQueryInventory](cobraCmd, queryParam, "v1/vm-instances")
 		vmInstances := result.Items
 		if err != nil {
 			return err
@@ -90,6 +98,10 @@ var vmInstancesCmd = &cobra.Command{
 				volumes = append(volumes, vol.Name)
 			}
 
+			var memorySize int64
+			if vm.MemorySizeBytes != nil {
+				memorySize = *vm.MemorySizeBytes
+			}
 			formatted := FormattedVmInstance{
 				Name:        vm.Name,
 				UUID:        vm.UUID,
@@ -108,8 +120,9 @@ var vmInstancesCmd = &cobra.Command{
 				DefaultL3NetworkUUID: vm.DefaultL3NetworkUuid,
 				Type:                 vm.Type,
 				HypervisorType:       vm.HypervisorType,
-				MemorySize:           utils.FormatMemorySize(vm.MemorySize),
-				CPUNum:               vm.CpuNum,
+				MemorySize:           utils.FormatMemorySize(memorySize),
+				MemorySizeBytes:      vm.MemorySizeBytes,
+				CPUNum:               vm.ReportedCPU,
 				CPUSpeed:             vm.CpuSpeed,
 				AllocatorStrategy:    vm.AllocatorStrategy,
 				State:                vm.State,

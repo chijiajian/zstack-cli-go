@@ -200,11 +200,15 @@ func (cli *ReadClient) query(ctx context.Context, path string, params *param.Que
 }
 
 func (cli *ReadClient) Resolve(ctx context.Context, resourceType, identifier string, strategy ResolveStrategy) (ResolvedResource, error) {
-	matches, err := resolveResource(ctx, cli.query, resourceType, identifier, ResolveOptions{Strategy: strategy})
+	matches, err := cli.ResolveMatches(ctx, resourceType, identifier, ResolveOptions{Strategy: strategy})
 	if err != nil {
 		return ResolvedResource{}, err
 	}
 	return matches[0], nil
+}
+
+func (cli *ReadClient) ResolveMatches(ctx context.Context, resourceType, identifier string, options ResolveOptions) ([]ResolvedResource, error) {
+	return resolveResource(ctx, cli.query, resourceType, identifier, options)
 }
 
 func (cli *ReadClient) Read(ctx context.Context, path string, values url.Values, result any) error {

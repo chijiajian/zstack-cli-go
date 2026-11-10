@@ -20,11 +20,15 @@ zstack-cli login 10.255.255.21:8080 --username admin --context-name lab --save-p
 
 登录命令在终端提示输入密码，不需要把密码写进命令历史。endpoint 使用 `host` 或 `host:port`，默认端口为 8080；不要传控制台 URL、`http://` 或尾部 `/`。`--save-password=false` 只保存会话，过期后需要重新登录；省略此参数默认保存密码，后续命令可以自动续期。
 
+非交互登录可由可信密钥提供方将密码以 UTF-8 字节写入 `login --password-stdin --username USER` 的标准输入，写完即关闭，不添加换行。此模式保留原有空白，最多接受 64 KiB，只保存会话。加 `--no-switch` 可保持当前默认环境。不能与 `--password` 或 AK/SK 参数混用。
+
 使用已有 AK/SK：
 
 ```sh
 zstack-cli login 10.255.255.21:8080 --ak "$LAB_AK" --sk "$LAB_SK" --context-name lab
 ```
+
+非交互调用可以将 SK 通过标准输入交给 `login --access-key-id KEY_ID --access-key-secret-stdin`。写入 UTF-8 字节后关闭 stdin，不添加换行。该模式将 AK/SK 保存到所选配置，可用 `--no-switch` 保持默认环境。
 
 AK/SK 的两条请求路径使用相同的 Date 与签名逻辑，默认采用 CLI 运行机器的本地时区。若服务端存在 GMT/CST 等日期解析兼容问题，可通过 `ZSTACK_API_TIMEZONE` 显式指定该环境要求的 IANA 时区（如 `Asia/Shanghai`、`Asia/Singapore`、`Asia/Kuala_Lumpur`、`Europe/Berlin`、`Asia/Dubai`）；`UTC` 使用标准 GMT 请求头。欧洲等地区的夏令时由时区数据库处理，不写死偏移，也不根据 endpoint 猜测服务端时区。未知时区会在发请求前报错。
 
@@ -69,6 +73,7 @@ zstack-cli describe volume data-01 --request-timeout 15s -o yaml
 
 - 普通 JSON/YAML 查询返回列表，空结果为 `[]`。`--reply-with-count` 返回 `items` 和 `total`；`--count` 只输出总数。
 - `--limit` 是单页大小，`--start` 是偏移；`--all-pages` 自动拉取后续页。分页不是快照，资源并发变化可能影响结果。
+- `get instances` 的结构化输出包含 `memorySizeBytes`，为服务端报告的精确字节数。服务端未提供时为 `null`。原有 `memorySize` 为展示字符串。服务端未提供 `cpuNum` 时也返回 `null`。
 - `--fields` 限制输出字段，未知字段会报错。字段名以该命令实际 JSON 输出为准，详情结构与列表结构不同。
 - 查询通常支持 table、text、json、yaml；具体格式以子命令帮助为准，不能假定所有命令都输出相同结构。
 - 资源选择使用 UUID 或精确名称；单资源操作遇到重名会拒绝。已有实例/镜像批量操作可能选择多个同名资源，执行前检查目标列表。
@@ -86,6 +91,8 @@ zstack-cli volume recover VOLUME_UUID -o json
 zstack-cli volume resize VOLUME_UUID --size 40G --dry-run
 zstack-cli volume resize VOLUME_UUID --size 40G -o json
 ```
+
+确认已获授权的目标后，脚本可用 `zstack-cli instance start VM_UUID --uuid-only --yes -o json --error-format json`。`--uuid-only` 禁止回退到名称匹配。结果为 `{operation, items}`，每项状态是 `succeeded`、`failed` 或 `skipped`。启动 JSON 结构固定，不能使用 `--fields`。部分失败仍输出各项结果，并返回非零退出码。dry-run 可查询目标，但不会启动，目标记为 `skipped`。
 
 wait 只查询，不启动实例或恢复任务。job 默认等待 Succeeded；等待成功时遇到 Failed/Canceled 会失败，显式 `--for Failed` 则表示等待该条件。`--progress` 写 stderr，最终结果写 stdout。
 

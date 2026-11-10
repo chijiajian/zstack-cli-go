@@ -1,0 +1,18 @@
+{
+  "before": "Get-VM -Server $vi",
+  "after": "Get-ZStackVM -Server $connection",
+  "supportedBehavior": "Bind inventory to one explicit connection.",
+  "unsupported": [],
+  "changes": [
+    {
+      "location": "Lookup and -Server",
+      "reason": "Pass the returned ZStack connection object."
+    }
+  ],
+  "replacements": [
+    {
+      "from": "Get-VM",
+      "to": "Get-ZStackVM"
+    }
+  ]
+}

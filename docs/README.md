@@ -21,3 +21,11 @@ The migration plans and completion checklists in this directory record implement
 ## Maintaining translations
 
 Update both language versions in the same change. Keep executable commands, default values and safety conditions consistent. Each maintained guide has a link to its counterpart. Run local link checks and compare examples against CLI help after changing documents. Preserve existing Chinese guide paths so current links remain valid.
+
+## PowerShell module
+
+[PowerShell module preview](powershell.md)
+
+## Feature planning
+
+[PowerShell / OEM / PowerCLI migration planning and story status](../bmad-output/README.md)

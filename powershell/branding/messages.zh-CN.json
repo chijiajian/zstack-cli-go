@@ -1,0 +1,6 @@
+{
+  "prefix": "{0}：{1}",
+  "OutcomeUnknown": "写操作结果未知。重试前请核对目标状态。",
+  "AuthenticationFailed": "身份验证或权限检查失败。",
+  "Protocol": "CLI 返回了无效或过大的结果。"
+}

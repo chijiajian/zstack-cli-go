@@ -1,0 +1,18 @@
+{
+  "before": "Get-VM |\n    Where-Object PowerState -eq PoweredOn |\n    Select-Object Name,NumCpu,MemoryGB |\n    ConvertTo-Csv -NoTypeInformation",
+  "after": "Get-ZStackVM |\n    Where-Object PowerState -eq PoweredOn |\n    Select-Object Name,NumCpu,MemoryGB |\n    ConvertTo-Csv -NoTypeInformation",
+  "supportedBehavior": "Preserve the filter, projection and CSV output.",
+  "unsupported": [],
+  "changes": [
+    {
+      "location": "Pipeline input",
+      "reason": "Only the inventory command changes."
+    }
+  ],
+  "replacements": [
+    {
+      "from": "Get-VM",
+      "to": "Get-ZStackVM"
+    }
+  ]
+}

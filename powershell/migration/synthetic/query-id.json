@@ -1,0 +1,18 @@
+{
+  "before": "Get-VM -Id $vSphereId",
+  "after": "Get-ZStackVM -Id $zstackUuid",
+  "supportedBehavior": "Select one VM by UUID with a server-side filter.",
+  "unsupported": [],
+  "changes": [
+    {
+      "location": "Lookup and ID",
+      "reason": "Replace the VMware identifier with a ZStack UUID."
+    }
+  ],
+  "replacements": [
+    {
+      "from": "Get-VM",
+      "to": "Get-ZStackVM"
+    }
+  ]
+}

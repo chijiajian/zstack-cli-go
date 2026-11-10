@@ -18,6 +18,10 @@ BASE = {
 }
 PROFILES = {
     "query": {},
+    "powershell": {
+        ("login",): ("username", "password-stdin", "access-key-secret-stdin", "no-switch", "save-password"),
+        ("instance", "start"): ("uuid-only", "yes", "output", "request-timeout"),
+    },
     "zql": {("zql",): ("output",)},
     "monitor": {("monitor", "usage"): ("section", "output")},
     "lifecycle": {

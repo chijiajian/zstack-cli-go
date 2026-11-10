@@ -1,4 +1,18 @@
 {
   "before": "Start-VM -VM $savedVm -ErrorAction Stop",
-  "after": "Get-ZStackVM -Id $zstackUuid -Server $connection | Start-ZStackVM -ErrorAction Stop"
+  "after": "Get-ZStackVM -Id $zstackUuid -Server $connection | Start-ZStackVM -ErrorAction Stop",
+  "supportedBehavior": "Resolve a fresh object before starting the VM.",
+  "unsupported": [],
+  "changes": [
+    {
+      "location": "Target selection and start",
+      "reason": "Requery by UUID and connection because a saved object cannot authorize a write."
+    }
+  ],
+  "replacements": [
+    {
+      "from": "Start-VM",
+      "to": "Start-ZStackVM"
+    }
+  ]
 }

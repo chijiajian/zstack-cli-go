@@ -37,3 +37,5 @@ Starting with 0.1.2, run `Connect-ZStackServer -Server HOST -AccessKeyId KEY_ID 
 For the limited legacy command names, import the `Compatibility/ZStack.PowerCLI.Compatibility.psd1` manifest from the same package in a separate PowerShell session. Loaded VMware, Hyper-V or user commands with those names cause import to fail. Unsupported VMware parameters and objects need script changes. Stop, guest shutdown, snapshots, `-RunAsync`, `Get-View` and `.ExtensionData` are outside the preview.
 
 For an OEM package, use the module name and command prefix supplied by the provider. Object properties and script pipeline behavior are shared across brands.
+
+Use `Get-Help Get-ZStackVM -Full` or the corresponding OEM command to see the brand, module version, CLI build, connection namespace and provider help link. The [paired migration examples](../examples/powershell/README.md#before-and-after) cover reporting, explicit connections, startup, WhatIf, ErrorAction and OEM compatibility.

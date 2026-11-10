@@ -32,26 +32,14 @@ function Get-CloudCliPath {
         if ($hash -ne $script:Package.cli.sha256) {
             throw 'CloudAutomation.CliIntegrity: The packaged CLI hash does not match.'
         }
-        $result = Invoke-CliProcess -Path $path -ArgumentList @('--version') -TimeoutSeconds 5
-        $expected = 'zstack-cli version: {0}, commit: {1}' -f $script:Package.cli.version, $script:Package.cli.commit
-        if ($result.ExitCode -ne 0 -or $result.Stdout.Trim() -cne $expected) {
+        $identity = Get-CloudCliIdentity $path
+        if ($identity.version -cne $script:Package.cli.version -or $identity.commit -cne $script:Package.cli.commit) {
             throw 'CloudAutomation.CliVersionMismatch: Reinstall the complete module package.'
         }
         $script:VerifiedCli = $path
     }
     if (-not $script:VerifiedCapabilities.ContainsKey($Capability)) {
-        $command, $flags = switch -CaseSensitive ($Capability) {
-            'passwordStdin' { ,@('login'); 'password-stdin' }
-            'accessKeySecretStdin' { ,@('login'); 'access-key-secret-stdin' }
-            'startResultV1' { ,@('instance', 'start'); ,@('uuid-only', 'request-timeout') }
-            'vmMemoryBytes' { ,@('get', 'instances'); 'all-pages' }
-            default { throw 'CloudAutomation.UnsupportedCapability: Unknown package capability.' }
-        }
-        $help = Invoke-CliProcess -Path $script:VerifiedCli -ArgumentList ($command + '--help') -TimeoutSeconds 5
-        $missing = @($flags | Where-Object { $help.Stdout -cnotmatch ('(?m)^\s+(?:-\w,\s+)?--' + $_ + '(?:\s|$)') })
-        if ($help.ExitCode -ne 0 -or $missing.Count -gt 0) {
-            throw "CloudAutomation.CliCapabilityMismatch: $Capability is missing from the packaged CLI."
-        }
+        Assert-CloudCliCapability $script:VerifiedCli $Capability
         $script:VerifiedCapabilities[$Capability] = $true
     }
     return $script:VerifiedCli

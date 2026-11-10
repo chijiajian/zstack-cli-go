@@ -37,3 +37,5 @@ Import-Module $manifest
 需沿用有限的旧命令名时，在独立 PowerShell 会话中从同一包导入 `Compatibility/ZStack.PowerCLI.Compatibility.psd1`。如果已加载的 VMware、Hyper-V 或用户命令占用同名入口，导入会拒绝。未支持的 VMware 参数和对象需要改写。停止、客户机正常关机、快照、`-RunAsync`、`Get-View` 与 `.ExtensionData` 不在预览范围内。
 
 OEM 包使用提供方给定的模块名和命令前缀。不同品牌共用对象属性与脚本管道行为。
+
+运行 `Get-Help Get-ZStackVM -Full` 或相应的 OEM 命令，可以查看品牌、模块版本、CLI 构建、连接配置命名空间和提供方帮助地址。[迁移前后对照](../examples/powershell/README.zh-CN.md#迁移前后对照)覆盖报表、显式连接、启动、WhatIf、ErrorAction 和 OEM 兼容入口。

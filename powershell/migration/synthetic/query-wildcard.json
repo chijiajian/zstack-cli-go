@@ -1,4 +1,18 @@
 {
   "before": "Get-VM -Name 'web*'",
-  "after": "Get-ZStackVM -Name 'web*'"
+  "after": "Get-ZStackVM -Name 'web*'",
+  "supportedBehavior": "Apply a PowerShell wildcard to VM names.",
+  "unsupported": [],
+  "changes": [
+    {
+      "location": "Lookup",
+      "reason": "Keep the wildcard and replace the command."
+    }
+  ],
+  "replacements": [
+    {
+      "from": "Get-VM",
+      "to": "Get-ZStackVM"
+    }
+  ]
 }

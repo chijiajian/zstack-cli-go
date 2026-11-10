@@ -4,8 +4,8 @@ param(
     [Parameter(Mandatory)] [string[]] $BrandConfig,
     [Parameter(Mandatory)] [string] $CliPath,
     [Parameter(Mandatory)] [version] $ModuleVersion,
-    [ValidatePattern('\A[A-Za-z0-9._+-]+\z')] [string] $CliVersion = 'dev',
-    [ValidatePattern('\A[A-Za-z0-9._+-]+\z')] [string] $CliCommit = 'none',
+    [ValidatePattern('\A[A-Za-z0-9._+-]+\z')] [string] $CliVersion,
+    [ValidatePattern('\A[A-Za-z0-9._+-]+\z')] [string] $CliCommit,
     [Parameter(Mandatory)] [string] $OutputDirectory
 )
 
@@ -13,6 +13,8 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $source = Split-Path -Parent $PSScriptRoot
 . (Join-Path $source 'branding/Validate-Brand.ps1')
+. (Join-Path $source 'private/process/Invoke-CliProcess.ps1')
+. (Join-Path $source 'private/process/Test-CliContract.ps1')
 $brands = @($BrandConfig | ForEach-Object { Read-CloudBrand $_ })
 Assert-UniqueCloudBrands $brands
 $binary = (Resolve-Path -LiteralPath $CliPath).Path
@@ -27,6 +29,13 @@ try {
 $sha = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash
 $contract = Get-Content -Raw -LiteralPath (Join-Path $source 'contracts/cli-capabilities.json') | ConvertFrom-Json -AsHashtable
 $capabilities = @($contract.capabilities.Keys | Where-Object { $contract.capabilities[$_].sourceStatus -eq 'verified-locally' })
+if (-not $IsWindows) { throw 'Build the distributable package on Windows to verify the bundled CLI.' }
+$identity = Get-CloudCliIdentity $binary
+if (($PSBoundParameters.ContainsKey('CliVersion') -and $identity.version -cne $CliVersion) -or
+    ($PSBoundParameters.ContainsKey('CliCommit') -and $identity.commit -cne $CliCommit)) {
+    throw 'CloudAutomation.CliVersionMismatch: The supplied CLI does not match the requested version or commit.'
+}
+foreach ($capability in $capabilities) { Assert-CloudCliCapability $binary $capability }
 $entries = [ordered]@{
     'Connect-CloudServer' = 'Connect-Server.ps1'
     'Disconnect-CloudServer' = 'Disconnect-Server.ps1'
@@ -35,7 +44,7 @@ $entries = [ordered]@{
     'Wait-CloudVM' = 'Wait-VM.ps1'
 }
 $requirements = @{
-    'Connect-CloudServer' = 'passwordStdin'
+    'Connect-CloudServer' = @('passwordStdin', 'accessKeySecretStdin')
     'Disconnect-CloudServer' = 'passwordStdin'
     'Get-CloudVM' = 'vmMemoryBytes'
     'Start-CloudVM' = @('vmMemoryBytes', 'startResultV1')
@@ -43,10 +52,17 @@ $requirements = @{
 }
 $privateFiles = @(
     'private/process/Invoke-CliProcess.ps1', 'branding/Resolve-Message.ps1',
-    'private/process/Convert-CliResult.ps1', 'private/connections/ConnectionRegistry.ps1',
+    'private/process/Convert-CliResult.ps1', 'private/process/Test-CliContract.ps1', 'private/connections/ConnectionRegistry.ps1',
     'private/objects/Convert-CloudVM.ps1', 'private/objects/Resolve-CloudVMTarget.ps1',
     'private/mutations/Invoke-CloudShouldProcess.ps1', 'private/mutations/Wait-CloudVMState.ps1'
 )
+$helpSummaries = @{
+    'Connect-CloudServer' = 'Connects to the API with an account credential or an access key.'
+    'Disconnect-CloudServer' = 'Closes the connection and removes its local session files.'
+    'Get-CloudVM' = 'Returns virtual machines by name or ID from the selected connection.'
+    'Start-CloudVM' = 'Starts selected virtual machines and waits for them to run.'
+    'Wait-CloudVM' = 'Waits for a virtual machine to reach the requested state.'
+}
 $messages = @('branding/messages.en.json', 'branding/messages.zh-CN.json')
 $root = [System.IO.Path]::GetFullPath($OutputDirectory)
 $null = [System.IO.Directory]::CreateDirectory($root)
@@ -74,7 +90,18 @@ foreach ($brand in $brands) {
             $file = 'public/' + $entry.Value
             $definition = Get-Content -Raw -LiteralPath $original
             if (-not $definition.StartsWith("function $($entry.Key) {", [StringComparison]::Ordinal)) { throw 'Unexpected public function declaration.' }
-            $definition = "function $function" + $definition.Substring(('function ' + $entry.Key).Length)
+            $body = $definition.Substring("function $($entry.Key) {".Length)
+            $help = @(
+                "function $function {"
+                '    # .SYNOPSIS'
+                "    # $($helpSummaries[$entry.Key])"
+                '    # .DESCRIPTION'
+                "    # $($brand.displayName) ($name $version) uses CLI $($identity.version), commit $($identity.commit)."
+                "    # Connection configuration namespace: $($brand.configNamespace)."
+                '    # .LINK'
+                "    # $([uri]::new($brand.helpUri).AbsoluteUri)"
+            ) -join "`n"
+            $definition = $help + $body
             Set-Content -LiteralPath (Join-Path $moduleRoot $file) -Value $definition -NoNewline -Encoding utf8
             $commands += @{ name = $function; file = $file }
         }
@@ -93,13 +120,17 @@ foreach ($brand in $brands) {
         @{ schemaVersion = 1; privateFiles = $privateFiles; commands = $commands } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $moduleRoot 'exports.json') -Encoding utf8
         $manifest = [ordered]@{
             schemaVersion = 1; version = $version; brand = $brand
-            cli = [ordered]@{ version = $CliVersion; commit = $CliCommit; platform = 'windows-amd64'; sha256 = $sha; capabilities = $capabilities }
+            cli = [ordered]@{ version = $identity.version; commit = $identity.commit; platform = 'windows-amd64'; sha256 = $sha; capabilities = $capabilities }
         } | ConvertTo-Json -Depth 8
         if (-not (Test-Json -Json $manifest -SchemaFile (Join-Path $PSScriptRoot 'package-manifest.schema.json'))) { throw 'Invalid package manifest.' }
         Set-Content -LiteralPath (Join-Path $moduleRoot 'package.json') -Value $manifest -Encoding utf8
         $bin = Join-Path $moduleRoot 'bin/windows-amd64'
         $null = [System.IO.Directory]::CreateDirectory($bin)
-        Copy-Item -LiteralPath $binary -Destination (Join-Path $bin 'zstack-cli.exe')
+        $bundledCli = Join-Path $bin 'zstack-cli.exe'
+        Copy-Item -LiteralPath $binary -Destination $bundledCli
+        if ((Get-FileHash -LiteralPath $bundledCli -Algorithm SHA256).Hash -ne $sha) {
+            throw 'The CLI binary changed during packaging.'
+        }
         Copy-Item -LiteralPath (Join-Path (Split-Path -Parent $source) 'LICENSE') -Destination $moduleRoot
         if ($commands.Count -eq $entries.Count) {
             $compatibility = Join-Path $moduleRoot 'Compatibility'

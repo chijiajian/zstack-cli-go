@@ -1,0 +1,4 @@
+{
+  "before": "Get-VM -Id $vSphereId",
+  "after": "Get-ZStackVM -Id $zstackUuid"
+}

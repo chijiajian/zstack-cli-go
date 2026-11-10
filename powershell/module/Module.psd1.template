@@ -1,0 +1,13 @@
+@{
+    RootModule = '__MODULE__.psm1'
+    ModuleVersion = '__VERSION__'
+    GUID = '__GUID__'
+    Author = '__PUBLISHER__'
+    Description = '__DESCRIPTION__'
+    PowerShellVersion = '7.4'
+    CompatiblePSEditions = @('Core')
+    FunctionsToExport = @(__EXPORTS__)
+    CmdletsToExport = @()
+    VariablesToExport = @()
+    AliasesToExport = @()
+}

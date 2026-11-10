@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic",
+  "cases": [
+    {
+      "id": "query-all",
+      "group": "query",
+      "file": "synthetic/query-all.json",
+      "migration": "command-only",
+      "verifiedBy": "inventory, wildcard and Chinese arguments"
+    },
+    {
+      "id": "query-wildcard",
+      "group": "query",
+      "file": "synthetic/query-wildcard.json",
+      "migration": "command-only",
+      "verifiedBy": "inventory, wildcard and Chinese arguments"
+    },
+    {
+      "id": "query-id",
+      "group": "query",
+      "file": "synthetic/query-id.json",
+      "migration": "rewrite",
+      "verifiedBy": "numeric memory and omitted memory"
+    },
+    {
+      "id": "query-server",
+      "group": "query",
+      "file": "synthetic/query-server.json",
+      "migration": "rewrite",
+      "verifiedBy": "multi-connection requires explicit selection"
+    },
+    {
+      "id": "csv-report",
+      "group": "pipeline",
+      "file": "synthetic/csv-report.json",
+      "migration": "command-only",
+      "verifiedBy": "existing CSV report pipeline"
+    },
+    {
+      "id": "empty-pipeline",
+      "group": "pipeline",
+      "file": "synthetic/empty-pipeline.json",
+      "migration": "review",
+      "verifiedBy": "empty query pipeline"
+    },
+    {
+      "id": "start-vm",
+      "group": "lifecycle",
+      "file": "synthetic/start-vm.json",
+      "migration": "command-only",
+      "verifiedBy": "start and wait refresh VM projection"
+    },
+    {
+      "id": "wait-task",
+      "group": "lifecycle",
+      "file": "synthetic/wait-task.json",
+      "migration": "rewrite",
+      "verifiedBy": "start and wait refresh VM projection"
+    },
+    {
+      "id": "whatif",
+      "group": "safety",
+      "file": "synthetic/whatif.json",
+      "migration": "command-only",
+      "verifiedBy": "WhatIf sends no write"
+    },
+    {
+      "id": "old-object",
+      "group": "safety",
+      "file": "synthetic/old-object.json",
+      "migration": "rewrite",
+      "verifiedBy": "copied VM rejected before mutation"
+    },
+    {
+      "id": "oem-native",
+      "group": "oem",
+      "file": "synthetic/oem-native.json",
+      "migration": "rewrite",
+      "verifiedBy": "OEM export scopes"
+    },
+    {
+      "id": "legacy-collision",
+      "group": "oem",
+      "file": "synthetic/legacy-collision.json",
+      "migration": "review",
+      "verifiedBy": "legacy name collision rejected"
+    }
+  ]
+}

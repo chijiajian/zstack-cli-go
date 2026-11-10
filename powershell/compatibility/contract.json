@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "commands": {
+    "Connect-VIServer": ["Server", "Credential"],
+    "Disconnect-VIServer": ["Server"],
+    "Get-VM": ["Name", "Id", "Server"],
+    "Start-VM": ["VM", "Server", "WhatIf", "Confirm"]
+  },
+  "unsupported": ["RunAsync", "Kill", "Get-View", "ExtensionData", "VMware-specific types", "VMware module-qualified calls"]
+}

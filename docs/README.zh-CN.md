@@ -21,3 +21,11 @@
 ## 双语维护规则
 
 同一改动同时更新中英文版本，保持命令、默认值和操作条件一致。每篇维护中的指南都链接到另一语言。文档改动后检查本地链接，并与 CLI 帮助核对示例。现有中文指南路径继续保留，保证旧链接可用。
+
+## PowerShell 模块
+
+[PowerShell 模块预览](powershell.zh-CN.md)
+
+## 功能规划
+
+[PowerShell / OEM / PowerCLI迁移规划与故事状态](../bmad-output/README.zh-CN.md)

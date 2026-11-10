@@ -14,20 +14,8 @@ function Resolve-CloudVMTarget {
     if ($null -eq $VM) {
         $connection = Get-CloudConnection $Server
     } else {
-        $key = $VM.PSObject.Properties['ConnectionId']
-        if ($null -eq $key -or $key.Value -isnot [string] -or -not $script:Connections.ContainsKey($key.Value)) {
-            throw (New-CloudError -Operation ResolveVM -ExitCode 5)
-        }
-        $connection = $script:Connections[$key.Value]
-        $originalId = $null
-        if (-not $connection.Objects.TryGetValue($VM.PSObject, [ref] $originalId) -or
-            $VM.Id -cne $originalId -or $VM.BrandId -cne $connection.BrandId -or $VM.Generation -cne $connection.Generation) {
-            throw (New-CloudError -Operation ResolveVM -ExitCode 5)
-        }
-        if ($null -ne $Server -and (Get-CloudConnection $Server).Id -cne $connection.Id) {
-            throw (New-CloudError -Operation ResolveVM -ExitCode 5 -Target $originalId)
-        }
-        $Id = $originalId
+        $connection = Get-CloudObjectConnection $VM VM $Server ResolveVM
+        $Id = $VM.Id
     }
     $target = Get-CloudTargetVM $connection -Id $Id -Name $Name -TimeoutSeconds $TimeoutSeconds
     return @{ Connection = $connection; VM = $target }

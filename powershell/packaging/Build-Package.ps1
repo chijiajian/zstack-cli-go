@@ -54,6 +54,7 @@ $privateFiles = @(
     'private/process/Invoke-CliProcess.ps1', 'branding/Resolve-Message.ps1',
     'private/process/Convert-CliResult.ps1', 'private/process/Test-CliContract.ps1', 'private/connections/ConnectionRegistry.ps1',
     'private/objects/Convert-CloudVM.ps1', 'private/objects/Resolve-CloudVMTarget.ps1',
+    'private/queries/ResourceInventory.ps1',
     'private/mutations/Invoke-CloudShouldProcess.ps1', 'private/mutations/Wait-CloudVMState.ps1'
 )
 $helpSummaries = @{
@@ -62,6 +63,27 @@ $helpSummaries = @{
     'Get-CloudVM' = 'Returns virtual machines by name or ID from the selected connection.'
     'Start-CloudVM' = 'Starts selected virtual machines and waits for them to run.'
     'Wait-CloudVM' = 'Waits for a virtual machine to reach the requested state.'
+}
+$inventoryHelp = [ordered]@{
+    'Get-CloudHardDisk' = 'Returns disks attached to the supplied live VM objects.'
+    'Get-CloudVolume' = 'Returns independent or attached volumes with exact capacities.'
+    'Get-CloudVMHost' = 'Returns hypervisor hosts with connection state and resource capacities.'
+    'Get-CloudCluster' = 'Returns clusters in the selected cloud or zone.'
+    'Get-CloudZone' = 'Returns ZStack zones.'
+    'Get-CloudNetworkAdapter' = 'Returns network adapters on the supplied live VM objects.'
+    'Get-CloudPrimaryStorage' = 'Returns primary storage with logical and physical capacity.'
+    'Get-CloudImageStorage' = 'Returns image storage with total and available capacity.'
+    'Get-CloudImage' = 'Returns images including their media type and reported size.'
+    'Get-CloudInstanceOffering' = 'Returns VM offerings with CPU and memory.'
+    'Get-CloudDiskOffering' = 'Returns disk offerings and provisioned capacity.'
+    'Get-CloudL2Network' = 'Returns Layer 2 networks in the selected cloud or zone.'
+    'Get-CloudL3Network' = 'Returns Layer 3 networks in the selected cloud or Layer 2 network.'
+    'Get-CloudIPRange' = 'Returns IP ranges in the selected cloud or Layer 3 network.'
+}
+foreach ($command in $inventoryHelp.GetEnumerator()) {
+    $entries[$command.Key] = $command.Key.Replace('Get-Cloud', 'Get-') + '.ps1'
+    $requirements[$command.Key] = 'resourceInventoryV1'
+    $helpSummaries[$command.Key] = $command.Value
 }
 $messages = @('branding/messages.en.json', 'branding/messages.zh-CN.json')
 $root = [System.IO.Path]::GetFullPath($OutputDirectory)

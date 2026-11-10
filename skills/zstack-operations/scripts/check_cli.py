@@ -21,6 +21,8 @@ PROFILES = {
     "powershell": {
         ("login",): ("username", "password-stdin", "access-key-secret-stdin", "no-switch", "save-password"),
         ("instance", "start"): ("uuid-only", "yes", "output", "request-timeout"),
+        ("describe", "instance"): ("uuid-only", "output", "request-timeout"),
+        ("get", "disks"): ("all-pages", "fields", "output", "request-timeout"),
     },
     "zql": {("zql",): ("output",)},
     "monitor": {("monitor", "usage"): ("section", "output")},

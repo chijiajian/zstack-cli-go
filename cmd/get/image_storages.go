@@ -12,14 +12,16 @@ import (
 )
 
 type FormattedBackupStorage struct {
-	Name              string `json:"name" yaml:"name" header:"NAME"`
-	UUID              string `json:"uuid" yaml:"uuid" header:"UUID"`
-	URL               string `json:"url" yaml:"url" header:"URL"`
-	Type              string `json:"type" yaml:"type" header:"TYPE"`
-	State             string `json:"state" yaml:"state" header:"STATE"`
-	Status            string `json:"status" yaml:"status" header:"STATUS"`
-	TotalCapacity     string `json:"totalCapacity" yaml:"totalCapacity" header:"TOTAL CAPACITY"`
-	AvailableCapacity string `json:"availableCapacity" yaml:"availableCapacity" header:"AVAILABLE CAPACITY"`
+	Name                   string `json:"name" yaml:"name" header:"NAME"`
+	UUID                   string `json:"uuid" yaml:"uuid" header:"UUID"`
+	URL                    string `json:"url" yaml:"url" header:"URL"`
+	Type                   string `json:"type" yaml:"type" header:"TYPE"`
+	State                  string `json:"state" yaml:"state" header:"STATE"`
+	Status                 string `json:"status" yaml:"status" header:"STATUS"`
+	TotalCapacity          string `json:"totalCapacity" yaml:"totalCapacity" header:"TOTAL CAPACITY"`
+	TotalCapacityBytes     *int64 `json:"totalCapacityBytes" yaml:"totalCapacityBytes" header:"TOTAL CAPACITY BYTES" table:"opt-in"`
+	AvailableCapacity      string `json:"availableCapacity" yaml:"availableCapacity" header:"AVAILABLE CAPACITY"`
+	AvailableCapacityBytes *int64 `json:"availableCapacityBytes" yaml:"availableCapacityBytes" header:"AVAILABLE CAPACITY BYTES" table:"opt-in"`
 }
 
 func formatCapacity(bytes int64) string {
@@ -48,6 +50,12 @@ func formatCapacity(bytes int64) string {
 	}
 }
 
+type backupStorageQueryInventory struct {
+	view.BackupStorageInventoryView
+	TotalCapacityBytes     *int64 `json:"totalCapacity"`
+	AvailableCapacityBytes *int64 `json:"availableCapacity"`
+}
+
 var imageStoragesCmd = &cobra.Command{
 	Use:     "image-storages [name]",
 	Aliases: []string{"image-storage", "backup-storage", "backup-storages"},
@@ -73,7 +81,8 @@ Examples:
   # Output in different formats
   zstack-cli get image-storages --output json
   zstack-cli get image-storages --output yaml
-  zstack-cli get image-storages --output text`,
+  zstack-cli get image-storages --output text
+Structured output includes totalCapacityBytes, availableCapacityBytes, or null if not reported.`,
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
@@ -81,7 +90,7 @@ Examples:
 			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
-		result, err := common.Fetch[view.BackupStorageInventoryView](cobraCmd, queryParam, "v1/backup-storage")
+		result, err := common.Fetch[backupStorageQueryInventory](cobraCmd, queryParam, "v1/backup-storage")
 		backupStorages := result.Items
 
 		if err != nil {
@@ -91,14 +100,16 @@ Examples:
 		var formattedResults []FormattedBackupStorage
 		for _, storage := range backupStorages {
 			formatted := FormattedBackupStorage{
-				Name:              storage.Name,
-				UUID:              storage.UUID,
-				URL:               storage.Url,
-				Type:              storage.Type,
-				State:             storage.State,
-				Status:            storage.Status,
-				TotalCapacity:     formatCapacity(storage.TotalCapacity),
-				AvailableCapacity: formatCapacity(storage.AvailableCapacity),
+				Name:                   storage.Name,
+				UUID:                   storage.UUID,
+				URL:                    storage.Url,
+				Type:                   storage.Type,
+				State:                  storage.State,
+				Status:                 storage.Status,
+				TotalCapacity:          formatCapacity(inventoryNumber(storage.TotalCapacityBytes)),
+				TotalCapacityBytes:     storage.TotalCapacityBytes,
+				AvailableCapacity:      formatCapacity(inventoryNumber(storage.AvailableCapacityBytes)),
+				AvailableCapacityBytes: storage.AvailableCapacityBytes,
 			}
 			formattedResults = append(formattedResults, formatted)
 		}

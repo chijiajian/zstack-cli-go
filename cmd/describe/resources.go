@@ -15,6 +15,7 @@ import (
 func newResourceDetail(kind string) *cobra.Command {
 	cmd := &cobra.Command{Use: kind + " <name-or-uuid>", Short: "Describe " + kind + " and related resources", Args: cobra.ExactArgs(1)}
 	cmd.Flags().Duration("request-timeout", 30*time.Second, "Deadline for detail and related resource queries")
+	cmd.Flags().Bool("uuid-only", false, "Require an exact UUID without falling back to a name")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		timeout, _ := cmd.Flags().GetDuration("request-timeout")
 		if timeout <= 0 {
@@ -36,9 +37,16 @@ func newResourceDetail(kind string) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		resource, err := reader.Resolve(ctx, kind, args[0], client.ResolveAuto)
+		strategy := client.ResolveAuto
+		if uuidOnly, _ := cmd.Flags().GetBool("uuid-only"); uuidOnly {
+			strategy = client.ResolveUUID
+		}
+		resource, err := reader.Resolve(ctx, kind, args[0], strategy)
 		if err != nil {
 			return err
+		}
+		if strategy == client.ResolveUUID && resource.UUID != args[0] {
+			return fmt.Errorf("resource identity mismatch for %s", kind)
 		}
 		doc, err := (inspect.Service{Reader: reader}).Describe(ctx, kind, resource.UUID)
 		if err != nil {

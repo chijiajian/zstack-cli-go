@@ -19,9 +19,12 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"unicode/utf8"
 
 	cliclient "github.com/chijiajian/zstack-cli-go/pkg/client"
+	"github.com/chijiajian/zstack-cli-go/pkg/clierr"
 	"github.com/chijiajian/zstack-cli-go/pkg/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -66,6 +69,45 @@ Example:
 		accessKeyIDAlias, _ := cmd.Flags().GetString("ak")
 		accessKeySecretAlias, _ := cmd.Flags().GetString("sk")
 		accessKeySpecified := accessKeyID != "" || accessKeySecret != "" || accessKeyIDAlias != "" || accessKeySecretAlias != ""
+		passwordStdin, _ := cmd.Flags().GetBool("password-stdin")
+		accessKeySecretStdin, _ := cmd.Flags().GetBool("access-key-secret-stdin")
+		if accessKeySecretStdin {
+			for _, flag := range []string{"username", "password", "password-stdin", "access-key-secret", "sk"} {
+				if cmd.Flags().Changed(flag) {
+					return clierr.Wrap(clierr.Usage, fmt.Errorf("--access-key-secret-stdin cannot be combined with --%s", flag))
+				}
+			}
+			if accessKeyID == "" {
+				accessKeyID = accessKeyIDAlias
+			}
+			if accessKeyID == "" {
+				return clierr.Wrap(clierr.Usage, fmt.Errorf("--access-key-secret-stdin requires --access-key-id"))
+			}
+			secret, err := readLoginSecret(cmd.InOrStdin(), "access-key-secret-stdin")
+			if err != nil {
+				return err
+			}
+			return saveAccessKeyContext(cmd.Context(), endpoint, accessKeyID, secret, contextName, !noSwitch)
+		}
+		if passwordStdin {
+			for _, flag := range []string{"password", "access-key-id", "access-key-secret", "ak", "sk"} {
+				if cmd.Flags().Changed(flag) {
+					return clierr.Wrap(clierr.Usage, fmt.Errorf("--password-stdin cannot be combined with --%s", flag))
+				}
+			}
+			if username == "" {
+				return clierr.Wrap(clierr.Usage, fmt.Errorf("--password-stdin requires --username"))
+			}
+			if cmd.Flags().Changed("save-password") && savePassword {
+				return clierr.Wrap(clierr.Usage, fmt.Errorf("--password-stdin cannot save the password"))
+			}
+			savePassword = false
+			var err error
+			password, err = readLoginSecret(cmd.InOrStdin(), "password-stdin")
+			if err != nil {
+				return err
+			}
+		}
 		if accessKeyID == "" {
 			accessKeyID = accessKeyIDAlias
 		}
@@ -143,7 +185,9 @@ Example:
 		fmt.Println("Login successful!")
 		fmt.Printf("Account: %s\n", sessionInfo.AccountUuid)
 		fmt.Printf("User: %s\n", sessionInfo.UserUuid)
-		fmt.Printf("Session UUID: %s\n", sessionInfo.Uuid)
+		if !passwordStdin {
+			fmt.Printf("Session UUID: %s\n", sessionInfo.Uuid)
+		}
 		fmt.Println("Session saved. You can now use other commands.")
 		return nil
 	},
@@ -156,11 +200,23 @@ func init() {
 
 	loginCmd.Flags().StringP("username", "u", "", "Username for authentication")
 	loginCmd.Flags().StringP("password", "p", "", "Password for authentication")
+	loginCmd.Flags().Bool("password-stdin", false, "Read a UTF-8 password from stdin until EOF (requires --username, never saves the password)")
 	loginCmd.Flags().String("access-key-id", "", "Access key ID for request signing")
 	loginCmd.Flags().String("access-key-secret", "", "Access key secret for request signing")
+	loginCmd.Flags().Bool("access-key-secret-stdin", false, "Read a UTF-8 access key secret from stdin until EOF (requires --access-key-id)")
 	loginCmd.Flags().String("ak", "", "Alias for --access-key-id")
 	loginCmd.Flags().String("sk", "", "Alias for --access-key-secret")
 	loginCmd.Flags().Bool("save-password", true, "Save password in config file (default: true)")
+}
+
+func readLoginSecret(input io.Reader, flag string) (string, error) {
+	const maxSecretBytes = 64 * 1024
+	data, err := io.ReadAll(io.LimitReader(input, maxSecretBytes+1))
+	defer clear(data)
+	if err != nil || len(data) == 0 || len(data) > maxSecretBytes || !utf8.Valid(data) {
+		return "", clierr.Wrap(clierr.Usage, fmt.Errorf("--%s requires 1 to 65536 bytes of valid UTF-8 input", flag))
+	}
+	return string(data), nil
 }
 
 func saveAccessKeyContext(requestCtx context.Context, endpoint, accessKeyID, accessKeySecret, contextName string, activate bool) error {

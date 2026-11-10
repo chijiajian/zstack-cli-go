@@ -4412,12 +4412,15 @@ Global Flags:
 ```text
 Start a virtual machine instance by specifying its name or UUID.
 If the identifier matches multiple VMs, all in 'Stopped' state will be started (with confirmation).
+Use --uuid-only for automation to disable name fallback. JSON output contains one operation/items result, including skipped and failed targets.
 
 Usage:
   zstack-cli instance start <name-or-uuid> [flags]
 
 Flags:
-  -h, --help   help for start
+  -h, --help                       help for start
+      --request-timeout duration   Timeout for resolving targets and for each start request (default 2m0s)
+      --uuid-only                  Require a single exact UUID match without falling back to a name
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -4853,11 +4856,13 @@ Usage:
 Flags:
       --access-key-id string       Access key ID for request signing
       --access-key-secret string   Access key secret for request signing
+      --access-key-secret-stdin    Read a UTF-8 access key secret from stdin until EOF (requires --access-key-id)
       --ak string                  Alias for --access-key-id
       --context-name string        Name for saved context (default: endpoint)
   -h, --help                       help for login
       --no-switch                  Save credentials without changing the default context
   -p, --password string            Password for authentication
+      --password-stdin             Read a UTF-8 password from stdin until EOF (requires --username, never saves the password)
       --save-password              Save password in config file (default: true) (default true)
       --sk string                  Alias for --access-key-secret
   -u, --username string            Username for authentication

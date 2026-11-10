@@ -20,11 +20,15 @@ zstack-cli login 192.0.2.10:8080 --username admin --context-name lab --save-pass
 
 Login prompts for a password. The endpoint is `host` or `host:port`, with 8080 as the default API port. `--save-password=false` stores the session and requires a new login when it expires. Saving passwords is enabled by default and allows later commands to renew expired sessions.
 
+For non-interactive login, send the password from a trusted secret provider as UTF-8 bytes to `login --password-stdin --username USER`. Close stdin at the end and do not add a newline. This mode preserves whitespace, accepts up to 64 KiB, and saves only the session. Use `--no-switch` to preserve the active context. It cannot be combined with `--password` or access key flags.
+
 Authenticate with an existing AK/SK pair as follows.
 
 ```sh
 zstack-cli login 192.0.2.10:8080 --ak "$LAB_AK" --sk "$LAB_SK" --context-name lab
 ```
+
+For noninteractive use, pass the secret to `login --access-key-id KEY_ID --access-key-secret-stdin` as UTF-8 bytes and close stdin without appending a newline. This mode saves the key pair in the selected configuration. Use `--no-switch` to keep the default context.
 
 Both AK/SK request paths use the same Date and signing logic, defaulting to the CLI host's local time zone. For servers with GMT/CST date parsing compatibility issues, set `ZSTACK_API_TIMEZONE` to the IANA zone required by that environment (for example `Asia/Shanghai`, `Asia/Singapore`, `Asia/Kuala_Lumpur`, `Europe/Berlin`, or `Asia/Dubai`). `UTC` produces the standard GMT header. The time zone database handles daylight saving time; offsets are not hardcoded and the endpoint is not used to guess the server's zone. Unknown zones fail before a request is sent.
 
@@ -71,6 +75,7 @@ zstack-cli describe volume data-01 --request-timeout 15s -o yaml
 
 - Ordinary JSON/YAML queries return a list, with `[]` for empty results. `--reply-with-count` returns `items` and `total`. `--count` prints the total alone.
 - `--limit` is the page size and `--start` is the offset. `--all-pages` retrieves subsequent pages. Concurrent resource changes can affect ordering and membership.
+- `get instances` includes `memorySizeBytes` in structured output. The integer is the exact reported capacity in bytes, or `null` when the server omits it. The existing `memorySize` is a display string. A missing `cpuNum` is also `null`.
 - `--fields` projects output. Unknown fields fail. List and detail responses have different structures, so inspect the command's JSON output before choosing fields.
 - Queries commonly support table, text, JSON and YAML. Check each command's help for its output contract.
 - Resource selection accepts UUIDs or exact names. Single-resource operations reject ambiguous names. Existing VM/image batch operations can select multiple resources sharing a name. Check their target list before execution.
@@ -88,6 +93,8 @@ zstack-cli volume recover VOLUME_UUID -o json
 zstack-cli volume resize VOLUME_UUID --size 40G --dry-run
 zstack-cli volume resize VOLUME_UUID --size 40G -o json
 ```
+
+For scripted VM startup, use `zstack-cli instance start VM_UUID --uuid-only --yes -o json --error-format json` after confirming the target. `--uuid-only` disables name fallback. The result is `{operation, items}` with per-target `succeeded`, `failed`, or `skipped` status. The JSON schema is fixed, so `--fields` cannot be used for startup JSON. A partially successful batch returns a nonzero exit code. A dry run may query targets and reports them as skipped without starting them. Use `--yes` only for an authorized target.
 
 Wait polls the state of a resource. A job defaults to the Succeeded target. Failed/Canceled while waiting for success exits nonzero, while an explicit `--for Failed` succeeds when that condition is reached. Progress goes to stderr and the final result goes to stdout. Wait deadlines include authentication, resolution, reads and polling intervals.
 

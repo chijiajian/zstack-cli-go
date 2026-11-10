@@ -1,4 +1,13 @@
 {
   "before": "Import-Module VCF.PowerCLI; Get-VM",
-  "after": "Import-Module $compatibilityManifest; Get-VM"
+  "after": "Import-Module $compatibilityManifest; Get-VM",
+  "supportedBehavior": "Import the opt-in compatibility module in a session free of legacy name conflicts.",
+  "unsupported": [],
+  "changes": [
+    {
+      "location": "Import",
+      "reason": "Select the provided compatibility manifest and check for loaded VMware or Hyper-V commands."
+    }
+  ],
+  "replacements": []
 }

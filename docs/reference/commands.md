@@ -3053,6 +3053,7 @@ Global Flags:
 
 ```text
 List all VM instances in the ZStack cloud platform.
+Structured output includes memorySizeBytes, the reported capacity in bytes or null if omitted.
 
 Usage:
   zstack-cli get instances [name] [flags]

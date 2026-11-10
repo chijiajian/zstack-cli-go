@@ -56,8 +56,9 @@ type FormattedVmInstance struct {
 var vmInstancesCmd = &cobra.Command{
 	Use:   "instances [name]",
 	Short: "List VM instances",
-	Long:  `List all VM instances in the ZStack cloud platform.`,
-	Args:  cobra.MaximumNArgs(1),
+	Long: `List all VM instances in the ZStack cloud platform.
+Structured output includes memorySizeBytes, the reported capacity in bytes or null if omitted.`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")

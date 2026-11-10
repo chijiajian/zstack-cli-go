@@ -21,7 +21,7 @@
       "group": "query",
       "file": "synthetic/query-id.json",
       "migration": "rewrite",
-      "verifiedBy": "numeric memory and omitted memory"
+      "verifiedBy": "single VM lookup filters on the server"
     },
     {
       "id": "query-server",
@@ -70,7 +70,10 @@
       "group": "safety",
       "file": "synthetic/old-object.json",
       "migration": "rewrite",
-      "verifiedBy": "copied VM rejected before mutation"
+      "verifiedBy": [
+        "copied VM rejected before mutation",
+        "start and wait refresh VM projection"
+      ]
     },
     {
       "id": "oem-native",

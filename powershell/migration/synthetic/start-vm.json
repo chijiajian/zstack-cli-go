@@ -1,4 +1,22 @@
 {
   "before": "Get-VM -Name $name | Start-VM",
-  "after": "Get-ZStackVM -Name $name | Start-ZStackVM"
+  "after": "Get-ZStackVM -Name $name | Start-ZStackVM",
+  "supportedBehavior": "Start a VM from the live lookup pipeline and return the refreshed VM.",
+  "unsupported": [],
+  "changes": [
+    {
+      "location": "Pipeline lookup and start",
+      "reason": "Use the two native commands and retain the pipeline."
+    }
+  ],
+  "replacements": [
+    {
+      "from": "Get-VM",
+      "to": "Get-ZStackVM"
+    },
+    {
+      "from": "Start-VM",
+      "to": "Start-ZStackVM"
+    }
+  ]
 }

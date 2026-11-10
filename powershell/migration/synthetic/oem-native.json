@@ -1,4 +1,18 @@
 {
   "before": "Get-VM",
-  "after": "Get-AcmeVM -Server $acmeConnection"
+  "after": "Get-AcmeVM -Server $acmeConnection",
+  "supportedBehavior": "Query with an OEM-prefixed command and explicit connection.",
+  "unsupported": [],
+  "changes": [
+    {
+      "location": "Lookup and -Server",
+      "reason": "Select the OEM command and its connection."
+    }
+  ],
+  "replacements": [
+    {
+      "from": "Get-VM",
+      "to": "Get-AcmeVM"
+    }
+  ]
 }

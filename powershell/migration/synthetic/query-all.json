@@ -1,4 +1,18 @@
 {
   "before": "Get-VM",
-  "after": "Get-ZStackVM"
+  "after": "Get-ZStackVM",
+  "supportedBehavior": "Enumerate inventory using the selected connection.",
+  "unsupported": [],
+  "changes": [
+    {
+      "location": "Lookup",
+      "reason": "Use the native VM command."
+    }
+  ],
+  "replacements": [
+    {
+      "from": "Get-VM",
+      "to": "Get-ZStackVM"
+    }
+  ]
 }

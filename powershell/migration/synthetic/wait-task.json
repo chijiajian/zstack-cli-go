@@ -1,4 +1,21 @@
 {
   "before": "Start-VM -VM $vm -RunAsync | Wait-Task",
-  "after": "$vm | Start-ZStackVM"
+  "after": "$vm | Start-ZStackVM",
+  "supportedBehavior": "Wait for Running as part of synchronous start.",
+  "unsupported": [
+    "Start-VM -RunAsync",
+    "Wait-Task"
+  ],
+  "changes": [
+    {
+      "location": "Start and task wait",
+      "reason": "Use synchronous start and consume the refreshed VM object."
+    }
+  ],
+  "replacements": [
+    {
+      "from": "Start-VM",
+      "to": "Start-ZStackVM"
+    }
+  ]
 }

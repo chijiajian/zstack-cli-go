@@ -246,7 +246,22 @@ else:
     Assert-CloudContract (Test-CloudRejected { Import-Module -Name $legacyManifest } 'CompatibilityConflict') 'legacy name collision rejected'
     Assert-CloudContract ((Get-VM) -eq 'legacy collision') 'collision leaves existing command intact'
     Remove-Item Function:Get-VM
-    $legacy = Import-Module -Name $legacyManifest -PassThru
+    $ambientRoot = Join-Path $work 'ambient modules'
+    $ambientModule = Join-Path $ambientRoot 'CloudContractAmbientVM'
+    $null = New-Item -ItemType Directory -Path $ambientModule -Force
+    Set-Content -LiteralPath (Join-Path $ambientModule 'CloudContractAmbientVM.psm1') -Value "function Get-VM { throw 'Unexpected ambient Get-VM invocation.' }"
+    New-ModuleManifest -Path (Join-Path $ambientModule 'CloudContractAmbientVM.psd1') `
+        -RootModule 'CloudContractAmbientVM.psm1' -FunctionsToExport 'Get-VM'
+    $savedModulePath = $env:PSModulePath
+    try {
+        $env:PSModulePath = $ambientRoot + [IO.Path]::PathSeparator + $savedModulePath
+        if (-not (Get-Module -Name CloudContractAmbientVM -ListAvailable)) { throw 'Ambient VM module fixture was not discoverable.' }
+        $legacy = Import-Module -Name $legacyManifest -PassThru
+        Assert-CloudContract (-not (Get-Module -Name CloudContractAmbientVM)) 'legacy import does not autoload an installed VM module'
+    } finally {
+        $env:PSModulePath = $savedModulePath
+        Remove-Module CloudContractAmbientVM -ErrorAction SilentlyContinue
+    }
     Assert-CloudContract ((Get-VM -Id vm-a -Server $connection).PowerState -eq 'PoweredOn') 'opt-in legacy Get-VM reuses core'
     Assert-CloudContract (Test-CloudRejected { Start-VM -VM $started -RunAsync } 'NamedParameterNotFound') 'unsupported legacy parameter rejected'
     Disconnect-ZStackServer -Server $connection

@@ -1,9 +1,10 @@
 Set-StrictMode -Version Latest
 
 $legacyNames = @('Connect-VIServer', 'Disconnect-VIServer', 'Get-VM', 'Start-VM')
-foreach ($name in $legacyNames) {
-    if (Get-Command -Name $name -All -ListImported -ErrorAction Ignore) {
-        throw "CloudAutomation.CompatibilityConflict: '$name' is already loaded. Use a separate PowerShell session."
+# An exact-name lookup can autoload a module even with -ListImported.
+foreach ($command in (Get-Command -All -ListImported)) {
+    if ($command.Name -in $legacyNames) {
+        throw "CloudAutomation.CompatibilityConflict: '$($command.Name)' is already loaded. Use a separate PowerShell session."
     }
 }
 $nativeManifest = Join-Path (Split-Path -Parent $PSScriptRoot) '__MODULE__.psd1'

@@ -59,3 +59,51 @@ function Read-CloudVMInventory {
     }
     return ,$rows
 }
+
+function Convert-CloudDetailWarning {
+    param([string] $Warning)
+
+    # Older CLI builds may append an API response to this prefix.
+    if ($Warning -cmatch '\A((?:host|image|instanceOffering|l3-network) [A-Za-z0-9-]{1,128} unavailable:)(?: ([a-z_]+)\z)?') {
+        $category = $Matches[2]
+        if ($category -cnotin @('operation_failed', 'invalid_arguments', 'authentication_failed', 'not_found',
+                'conflict', 'timeout', 'connection_failed', 'api_failed', 'output_failed', 'canceled')) {
+            $category = 'operation_failed'
+        }
+        return "$($Matches[1]) $category"
+    }
+    return 'related resource unavailable: operation_failed'
+}
+
+function Read-CloudVMDetail {
+    param($Connection, [string] $Id)
+
+    $null = Get-CloudCliPath 'resourceInventoryV1'
+    $result = Invoke-CloudConnectedCli $Connection @('describe', 'instance', $Id, '--uuid-only', '--request-timeout', '25s', '-o', 'json') 30
+    $document = Convert-CliResult $result 'DescribeVM' -Target $Id
+    $resource = $document['resource']
+    $related = $document['related']
+    if ($document['kind'] -cne 'instance' -or $resource -isnot [System.Collections.IDictionary] -or
+        $resource['uuid'] -cne $Id -or $related -isnot [System.Collections.IDictionary]) {
+        throw (New-CloudError -Operation DescribeVM -Failure InvalidInventory -Target $Id)
+    }
+    $warnings = @($document['warnings'] | Where-Object { $null -ne $_ })
+    if (@($warnings | Where-Object { $_ -isnot [string] }).Count) {
+        throw (New-CloudError -Operation DescribeVM -Failure InvalidWarnings -Target $Id)
+    }
+    $networks = $related['l3Networks']
+    $resource['memorySizeBytes'] = $resource['memorySize']
+    $vm = Convert-CloudVM $resource $Connection
+    $vm | Add-Member -NotePropertyMembers @{
+        Description = $resource['description']
+        HostId = $resource['hostUuid']
+        ImageId = $resource['imageUuid']
+        InstanceOfferingId = $resource['instanceOfferingUuid']
+        HostName = if ($related['host']) { $related['host']['name'] }
+        ImageName = if ($related['image']) { $related['image']['name'] }
+        InstanceOfferingName = if ($related['instanceOffering']) { $related['instanceOffering']['name'] }
+        L3NetworkIds = @(if ($networks -is [System.Collections.IDictionary]) { $networks.Keys })
+        Warnings = [string[]] @($warnings | ForEach-Object { Convert-CloudDetailWarning $_ })
+    }
+    return $vm
+}

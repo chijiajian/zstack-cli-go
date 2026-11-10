@@ -1,6 +1,6 @@
 # PowerShell migration examples
 
-[English](README.md) | [简体中文](README.zh-CN.md) | [PowerShell guide](../../docs/powershell.md)
+[English](README.md) | [简体中文](README.zh-CN.md) | [PowerShell guide](../../docs/powershell.md) | [Inventory and reporting examples](inventory.md)
 
 The following example assumes the preview package is installed and the endpoint and account have been authorized. Substitute the module name and command prefix for an OEM package.
 

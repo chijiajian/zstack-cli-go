@@ -25,27 +25,42 @@ import (
 )
 
 type FormattedPrimaryStorage struct {
-	Name                      string `json:"name" yaml:"name" header:"NAME"`
-	UUID                      string `json:"uuid" yaml:"uuid" header:"UUID"`
-	Description               string `json:"description" yaml:"description" header:"DESCRIPTION"`
-	ZoneUuid                  string `json:"zoneUuid" yaml:"zoneUuid" header:"ZONE UUID"`
-	Url                       string `json:"url" yaml:"url" header:"URL"`
-	TotalCapacity             string `json:"totalCapacity" yaml:"totalCapacity" header:"TOTAL CAPACITY"`
-	AvailableCapacity         string `json:"availableCapacity" yaml:"availableCapacity" header:"AVAILABLE CAPACITY"`
-	TotalPhysicalCapacity     string `json:"totalPhysicalCapacity" yaml:"totalPhysicalCapacity" header:"TOTAL PHYSICAL CAPACITY"`
-	AvailablePhysicalCapacity string `json:"availablePhysicalCapacity" yaml:"availablePhysicalCapacity" header:"AVAILABLE PHYSICAL CAPACITY"`
-	SystemUsedCapacity        string `json:"systemUsedCapacity" yaml:"systemUsedCapacity" header:"SYSTEM USED CAPACITY"`
-	Type                      string `json:"type" yaml:"type" header:"TYPE"`
-	State                     string `json:"state" yaml:"state" header:"STATE"`
-	Status                    string `json:"status" yaml:"status" header:"STATUS"`
-	AttachedClusterUuids      string `json:"attachedClusterUuids" yaml:"attachedClusterUuids" header:"ATTACHED CLUSTER UUIDS"`
+	Name                           string `json:"name" yaml:"name" header:"NAME"`
+	UUID                           string `json:"uuid" yaml:"uuid" header:"UUID"`
+	Description                    string `json:"description" yaml:"description" header:"DESCRIPTION"`
+	ZoneUuid                       string `json:"zoneUuid" yaml:"zoneUuid" header:"ZONE UUID"`
+	Url                            string `json:"url" yaml:"url" header:"URL"`
+	TotalCapacity                  string `json:"totalCapacity" yaml:"totalCapacity" header:"TOTAL CAPACITY"`
+	TotalCapacityBytes             *int64 `json:"totalCapacityBytes" yaml:"totalCapacityBytes" header:"TOTAL CAPACITY BYTES" table:"opt-in"`
+	AvailableCapacity              string `json:"availableCapacity" yaml:"availableCapacity" header:"AVAILABLE CAPACITY"`
+	AvailableCapacityBytes         *int64 `json:"availableCapacityBytes" yaml:"availableCapacityBytes" header:"AVAILABLE CAPACITY BYTES" table:"opt-in"`
+	TotalPhysicalCapacity          string `json:"totalPhysicalCapacity" yaml:"totalPhysicalCapacity" header:"TOTAL PHYSICAL CAPACITY"`
+	TotalPhysicalCapacityBytes     *int64 `json:"totalPhysicalCapacityBytes" yaml:"totalPhysicalCapacityBytes" header:"TOTAL PHYSICAL CAPACITY BYTES" table:"opt-in"`
+	AvailablePhysicalCapacity      string `json:"availablePhysicalCapacity" yaml:"availablePhysicalCapacity" header:"AVAILABLE PHYSICAL CAPACITY"`
+	AvailablePhysicalCapacityBytes *int64 `json:"availablePhysicalCapacityBytes" yaml:"availablePhysicalCapacityBytes" header:"AVAILABLE PHYSICAL CAPACITY BYTES" table:"opt-in"`
+	SystemUsedCapacity             string `json:"systemUsedCapacity" yaml:"systemUsedCapacity" header:"SYSTEM USED CAPACITY"`
+	SystemUsedCapacityBytes        *int64 `json:"systemUsedCapacityBytes" yaml:"systemUsedCapacityBytes" header:"SYSTEM USED CAPACITY BYTES" table:"opt-in"`
+	Type                           string `json:"type" yaml:"type" header:"TYPE"`
+	State                          string `json:"state" yaml:"state" header:"STATE"`
+	Status                         string `json:"status" yaml:"status" header:"STATUS"`
+	AttachedClusterUuids           string `json:"attachedClusterUuids" yaml:"attachedClusterUuids" header:"ATTACHED CLUSTER UUIDS"`
+}
+
+type primaryStorageQueryInventory struct {
+	view.PrimaryStorageInventoryView
+	TotalCapacityBytes             *int64 `json:"totalCapacity"`
+	AvailableCapacityBytes         *int64 `json:"availableCapacity"`
+	TotalPhysicalCapacityBytes     *int64 `json:"totalPhysicalCapacity"`
+	AvailablePhysicalCapacityBytes *int64 `json:"availablePhysicalCapacity"`
+	SystemUsedCapacityBytes        *int64 `json:"systemUsedCapacity"`
 }
 
 var primaryStorageCmd = &cobra.Command{
 	Use:   "primary-storages [name]",
 	Short: "List primary storages",
-	Long:  `List all primary storages in the ZStack cloud platform.`,
-	Args:  cobra.MaximumNArgs(1),
+	Long: `List all primary storages in the ZStack cloud platform.
+Structured output includes totalCapacityBytes, availableCapacityBytes, totalPhysicalCapacityBytes, availablePhysicalCapacityBytes, systemUsedCapacityBytes, or null if not reported.`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
@@ -53,7 +68,7 @@ var primaryStorageCmd = &cobra.Command{
 			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
-		result, err := common.Fetch[view.PrimaryStorageInventoryView](cobraCmd, queryParam, "v1/primary-storage")
+		result, err := common.Fetch[primaryStorageQueryInventory](cobraCmd, queryParam, "v1/primary-storage")
 		primaryStorages := result.Items
 		if err != nil {
 			return fmt.Errorf("Error querying primary storages: %w", err)
@@ -62,20 +77,25 @@ var primaryStorageCmd = &cobra.Command{
 		var formattedResults []FormattedPrimaryStorage
 		for _, ps := range primaryStorages {
 			formatted := FormattedPrimaryStorage{
-				Name:                      ps.Name,
-				UUID:                      ps.UUID,
-				Description:               ps.Description,
-				ZoneUuid:                  ps.ZoneUuid,
-				Url:                       ps.Url,
-				TotalCapacity:             utils.FormatDiskSize(ps.TotalCapacity),
-				AvailableCapacity:         utils.FormatDiskSize(ps.AvailableCapacity),
-				TotalPhysicalCapacity:     utils.FormatDiskSize(ps.TotalPhysicalCapacity),
-				AvailablePhysicalCapacity: utils.FormatDiskSize(ps.AvailablePhysicalCapacity),
-				SystemUsedCapacity:        utils.FormatDiskSize(ps.SystemUsedCapacity),
-				Type:                      ps.Type,
-				State:                     ps.State,
-				Status:                    ps.Status,
-				AttachedClusterUuids:      strings.Join(ps.AttachedClusterUuids, ","),
+				Name:                           ps.Name,
+				UUID:                           ps.UUID,
+				Description:                    ps.Description,
+				ZoneUuid:                       ps.ZoneUuid,
+				Url:                            ps.Url,
+				TotalCapacity:                  utils.FormatDiskSize(inventoryNumber(ps.TotalCapacityBytes)),
+				TotalCapacityBytes:             ps.TotalCapacityBytes,
+				AvailableCapacity:              utils.FormatDiskSize(inventoryNumber(ps.AvailableCapacityBytes)),
+				AvailableCapacityBytes:         ps.AvailableCapacityBytes,
+				TotalPhysicalCapacity:          utils.FormatDiskSize(inventoryNumber(ps.TotalPhysicalCapacityBytes)),
+				TotalPhysicalCapacityBytes:     ps.TotalPhysicalCapacityBytes,
+				AvailablePhysicalCapacity:      utils.FormatDiskSize(inventoryNumber(ps.AvailablePhysicalCapacityBytes)),
+				AvailablePhysicalCapacityBytes: ps.AvailablePhysicalCapacityBytes,
+				SystemUsedCapacity:             utils.FormatDiskSize(inventoryNumber(ps.SystemUsedCapacityBytes)),
+				SystemUsedCapacityBytes:        ps.SystemUsedCapacityBytes,
+				Type:                           ps.Type,
+				State:                          ps.State,
+				Status:                         ps.Status,
+				AttachedClusterUuids:           strings.Join(ps.AttachedClusterUuids, ","),
 			}
 			formattedResults = append(formattedResults, formatted)
 		}

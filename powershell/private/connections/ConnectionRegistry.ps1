@@ -47,6 +47,31 @@ function Get-CloudConnection {
     throw 'CloudAutomation.InvalidConnection: The connection is invalid, expired or belongs to another module.'
 }
 
+function Get-CloudObjectConnection {
+    param([object] $InputObject, [string] $Type, [object] $Server, [string] $Operation)
+
+    if ($null -eq $InputObject) { throw (New-CloudError -Operation $Operation -ExitCode 5) }
+    $key = $InputObject.PSObject.Properties['ConnectionId']
+    if ($null -eq $key -or $key.Value -isnot [string] -or -not $script:Connections.ContainsKey($key.Value)) {
+        throw (New-CloudError -Operation $Operation -ExitCode 5)
+    }
+    $connection = $script:Connections[$key.Value]
+    $identity = $null
+    if (-not $connection.Objects.TryGetValue($InputObject.PSObject, [ref] $identity)) {
+        throw (New-CloudError -Operation $Operation -ExitCode 5)
+    }
+    $originalId = if ($Type -ceq 'VM' -and $identity -is [string]) { $identity }
+        elseif ($identity -is [hashtable] -and $identity.Type -ceq $Type) { $identity.Id }
+    if (-not $originalId -or $InputObject.Id -cne $originalId -or
+        $InputObject.BrandId -cne $connection.BrandId -or $InputObject.Generation -cne $connection.Generation) {
+        throw (New-CloudError -Operation $Operation -ExitCode 5)
+    }
+    if ($null -ne $Server -and (Get-CloudConnection $Server).Id -cne $connection.Id) {
+        throw (New-CloudError -Operation $Operation -ExitCode 5 -Target $originalId)
+    }
+    return $connection
+}
+
 function Invoke-CloudConnectedCli {
     param($Connection, [string[]] $Arguments, [double] $TimeoutSeconds = 120)
 

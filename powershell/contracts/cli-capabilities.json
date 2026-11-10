@@ -44,6 +44,27 @@
       "baseline": "formatted string only",
       "sourceStatus": "verified-locally",
       "releaseStatus": "unpublished"
+    },
+    "resourceInventoryV1": {
+      "commands": [
+        "get disks",
+        "get hosts",
+        "get clusters",
+        "get zones",
+        "get nics",
+        "get primary-storages",
+        "get image-storages",
+        "get images",
+        "get instance-offerings",
+        "get disk-offerings",
+        "get l2-networks",
+        "get l3-networks",
+        "get ip-ranges",
+        "describe instance"
+      ],
+      "baseline": "some capacity fields only available as display strings",
+      "sourceStatus": "verified-locally",
+      "releaseStatus": "unpublished"
     }
   }
 }

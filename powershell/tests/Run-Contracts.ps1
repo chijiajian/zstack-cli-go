@@ -11,6 +11,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'ContractSupport.ps1')
+. (Join-Path $PSScriptRoot 'InventoryContracts.ps1')
 $source = Split-Path -Parent $PSScriptRoot
 $work = [System.IO.Directory]::CreateTempSubdirectory('cloud-contracts-').FullName
 $service = $null
@@ -129,7 +130,7 @@ else:
     Assert-CloudContract (Test-CloudRejected { & $installer -Archive $packages[0].Archive -SHA256 $packages[0].SHA256 -ModuleDirectory $installRoot } 'already installed') 'installed version not overwritten'
     $module = Import-Module -Name $manifest -PassThru
     $acme = Import-Module -Name (Join-Path $packages[1].Directory 'Acme.Cloud.psd1') -PassThru
-    Assert-CloudContract ($module.ExportedFunctions.Count -eq 5 -and $acme.ExportedFunctions.ContainsKey('Get-AcmeVM') -and -not $module.ExportedFunctions.ContainsKey('Get-VM')) 'OEM export scopes'
+    Assert-CloudContract ($module.ExportedFunctions.Count -eq 19 -and $acme.ExportedFunctions.Count -eq 19 -and $acme.ExportedFunctions.ContainsKey('Get-AcmeHardDisk') -and -not $module.ExportedFunctions.ContainsKey('Get-VM')) 'OEM export scopes'
     foreach ($case in @(
         @{ Command = 'Get-ZStackVM'; Name = 'ZStack PowerCLI'; Namespace = 'zstack-powershell'; Uri = 'https://example.invalid/zstack/powershell' }
         @{ Command = 'Get-AcmeVM'; Name = 'Acme Cloud Automation'; Namespace = 'acme-powershell'; Uri = 'https://example.invalid/acme/powershell' }
@@ -140,6 +141,7 @@ else:
             $description.Contains('0.1.2') -and $help.RelatedLinks.NavigationLink.Uri -ceq $case.Uri) "OEM help identifies $($case.Command) and its package"
     }
     Set-CloudContractDevelopmentCli $module $DevelopmentCliPath
+    Set-CloudContractDevelopmentCli $acme $DevelopmentCliPath
     $preflight = & $module {
         $expectedHash = $script:Package.cli.sha256
         $expectedVersion = $script:Package.cli.version
@@ -203,6 +205,7 @@ else:
     Assert-CloudContract (@(Get-ZStackVM -Name 'missing*').Count -eq 0) 'empty query pipeline'
     $csv = @($vms | Where-Object PowerState -eq 'PoweredOn' | Select-Object Name, NumCpu, MemoryGB | ConvertTo-Csv -NoTypeInformation)
     Assert-CloudContract ($csv.Count -eq 2 -and $csv[1] -match 'web-prod') 'existing CSV report pipeline'
+    Assert-CloudInventoryContracts $connection $endpoint $vms $credential $module
 
     $oldBinary = Join-Path (Split-Path -Parent $manifest) 'bin/windows-amd64/zstack-cli.exe'
     $oldHash = (Get-FileHash -LiteralPath $oldBinary -Algorithm SHA256).Hash

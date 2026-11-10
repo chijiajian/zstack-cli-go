@@ -39,3 +39,21 @@ Import-Module $manifest
 OEM 包使用提供方给定的模块名和命令前缀。不同品牌共用对象属性与脚本管道行为。
 
 运行 `Get-Help Get-ZStackVM -Full` 或相应的 OEM 命令，可以查看品牌、模块版本、CLI 构建、连接配置命名空间和提供方帮助地址。[迁移前后对照](../examples/powershell/README.zh-CN.md#迁移前后对照)覆盖报表、显式连接、启动、WhatIf、ErrorAction 和 OEM 兼容入口。
+
+## 当前源码中的资源查询与报表
+
+用匹配的 CLI 构建模块包后，即可使用下表的查询命令。每个资源在 PowerShell 成功流中输出一个对象，含 `Id`、`ConnectionId` 和资源专有属性。空查询不输出对象。有多个连接时，通过 `-Server` 指定其中一个。下表使用示例品牌 ZStack 的前缀。[资源盘点示例](../examples/powershell/inventory.zh-CN.md) · [VMware 迁移映射](../powershell/contracts/compatibility.md#inventory-and-reporting)
+
+| 查询范围 | 原生命令 |
+| --- | --- |
+| VM 磁盘、独立云盘和网卡 | `Get-ZStackHardDisk -VM`、`Get-ZStackVolume`、`Get-ZStackNetworkAdapter -VM` |
+| 物理资源 | `Get-ZStackVMHost`、`Get-ZStackCluster`、`Get-ZStackZone`、`Get-ZStackPrimaryStorage`、`Get-ZStackImageStorage` |
+| 部署资源 | `Get-ZStackImage`、`Get-ZStackInstanceOffering`、`Get-ZStackDiskOffering` |
+| 网络层级 | `Get-ZStackL2Network`、`Get-ZStackL3Network`、`Get-ZStackIPRange` |
+| 单台 VM 的关联信息 | `Get-ZStackVM -Id VM_UUID -Detail` |
+
+`Get-ZStackVM | Get-ZStackHardDisk` 和 `Get-ZStackVM | Get-ZStackNetworkAdapter` 继承每个实时 VM 对象的连接。显式传入的 `-Server` 必须与之相同。磁盘报表用 `CapacityBytes` 做精确计算，`CapacityGB` 按 2³⁰ 字节换算。`-IncludeNetworkName` 可在同一连接查询网卡的 L3 名称。VM 详情保留普通 VM 属性，并补充主机、镜像、规格和 L3 关联。无法查询的关联会记入 `Warnings`。
+
+`Get-ZStackPrimaryStorage` 保留 API 返回的 `SystemUsedCapacityBytes` 有符号字节数。字段缺失时返回 `$null`。
+
+VM 详情的 `Warnings` 会指出受影响的关联资源，并提供 `not_found` 或 `authentication_failed` 等固定失败类别。

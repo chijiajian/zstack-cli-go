@@ -76,12 +76,15 @@ zstack-cli describe volume data-01 --request-timeout 15s -o yaml
 - Ordinary JSON/YAML queries return a list, with `[]` for empty results. `--reply-with-count` returns `items` and `total`. `--count` prints the total alone.
 - `--limit` is the page size and `--start` is the offset. `--all-pages` retrieves subsequent pages. Concurrent resource changes can affect ordering and membership.
 - `get instances` includes `memorySizeBytes` in structured output. The integer is the exact reported capacity in bytes, or `null` when the server omits it. The existing `memorySize` is a display string. A missing `cpuNum` is also `null`.
+- `get disks` (also `get volumes`) adds `sizeBytes` for provisioned capacity and `actualSizeBytes` for the actual size reported by the API. JSON and YAML use integer byte counts, preserve a reported zero, and return `null` when the API omits a value. The existing `size` and `actualSize` fields remain display strings. Use `--fields` to include the byte columns in a table.
 - `--fields` projects output. Unknown fields fail. List and detail responses have different structures, so inspect the command's JSON output before choosing fields.
 - Queries commonly support table, text, JSON and YAML. Check each command's help for its output contract.
 - Resource selection accepts UUIDs or exact names. Single-resource operations reject ambiguous names. Existing VM/image batch operations can select multiple resources sharing a name. Check their target list before execution.
-- A failed main detail lookup exits nonzero. Failed optional relation lookups may preserve the main resource and return `warnings`. Automation should inspect those warnings.
+- A failed main detail lookup exits nonzero. Failed optional relation lookups may preserve the main resource and return `warnings` with the related resource and failure category. Automation should inspect those warnings.
 
 Use `get --help` to discover resources. `get volumes` and `get disks` share an implementation. `get jobs` queries long jobs. Query deadlines generally use `--request-timeout`. A single describe deadline covers resolution, main inventory and relations. Read adapters reject malformed/trailing JSON and missing inventories rather than reporting empty success.
+
+For an exact UUID lookup, use `describe instance VM_UUID --uuid-only -o json` or the same flag on `describe volume`. Host, storage, image and offering queries include nullable raw numeric fields alongside display strings. The command help names those fields. CPU capacity in the raw host fields uses Hz and memory and storage use bytes.
 
 ## 4. Wait, recover and resize
 

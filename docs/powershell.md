@@ -39,3 +39,21 @@ For the limited legacy command names, import the `Compatibility/ZStack.PowerCLI.
 For an OEM package, use the module name and command prefix supplied by the provider. Object properties and script pipeline behavior are shared across brands.
 
 Use `Get-Help Get-ZStackVM -Full` or the corresponding OEM command to see the brand, module version, CLI build, connection namespace and provider help link. The [paired migration examples](../examples/powershell/README.md#before-and-after) cover reporting, explicit connections, startup, WhatIf, ErrorAction and OEM compatibility.
+
+## Inventory and reporting in the current source
+
+Build the module package with the matching CLI to use the inventory commands below. They return one PowerShell object per resource, with `Id`, `ConnectionId` and resource-specific properties. Empty queries emit no objects. Use `-Server` for one explicit connection when several are active. The ZStack names below use the example brand's prefix. [Inventory examples](../examples/powershell/inventory.md) · [VMware migration mappings](../powershell/contracts/compatibility.md#inventory-and-reporting)
+
+| Inventory | Native commands |
+| --- | --- |
+| VM disks, volumes and adapters | `Get-ZStackHardDisk -VM`, `Get-ZStackVolume`, `Get-ZStackNetworkAdapter -VM` |
+| Physical resources | `Get-ZStackVMHost`, `Get-ZStackCluster`, `Get-ZStackZone`, `Get-ZStackPrimaryStorage`, `Get-ZStackImageStorage` |
+| Deployment resources | `Get-ZStackImage`, `Get-ZStackInstanceOffering`, `Get-ZStackDiskOffering` |
+| Network hierarchy | `Get-ZStackL2Network`, `Get-ZStackL3Network`, `Get-ZStackIPRange` |
+| One VM's related inventory | `Get-ZStackVM -Id VM_UUID -Detail` |
+
+`Get-ZStackVM | Get-ZStackHardDisk` and `Get-ZStackVM | Get-ZStackNetworkAdapter` inherit the connection of each live VM. Explicit `-Server` must agree with it. Disk reports use `CapacityBytes` for exact arithmetic and `CapacityGB` for display in units of 2³⁰ bytes. Optional `-IncludeNetworkName` resolves the L3 name in the same connection. VM detail keeps the ordinary VM properties and adds host, image, offering and L3 references, plus `Warnings` for unavailable related data.
+
+`Get-ZStackPrimaryStorage` preserves the API's signed `SystemUsedCapacityBytes` value. An omitted value appears as `$null`.
+
+VM detail `Warnings` identify the affected relation and report a stable failure category such as `not_found` or `authentication_failed`.

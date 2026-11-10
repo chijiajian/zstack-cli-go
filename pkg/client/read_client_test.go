@@ -25,7 +25,7 @@ func TestWaitAccessKeySignatureAndResourceMapping(t *testing.T) {
 				if r.URL.Path != "/zstack/v1/"+path || r.URL.Query().Get("q") != "uuid=id1" {
 					t.Errorf("unexpected URL %s", r.URL)
 				}
-				if _, err := http.ParseTime(r.Header.Get("Date")); err != nil {
+				if _, err := time.ParseInLocation(time.RFC1123, r.Header.Get("Date"), time.Local); err != nil {
 					t.Error(err)
 				}
 				mac := hmac.New(sha1.New, []byte("secret"))

@@ -26,6 +26,10 @@ Authenticate with an existing AK/SK pair as follows.
 zstack-cli login 10.255.255.21:8080 --ak "$LAB_AK" --sk "$LAB_SK" --context-name lab
 ```
 
+Both AK/SK request paths use the same Date and signing logic, defaulting to the CLI host's local time zone. For servers with GMT/CST date parsing compatibility issues, set `ZSTACK_API_TIMEZONE` to the IANA zone required by that environment (for example `Asia/Shanghai`, `Asia/Singapore`, `Asia/Kuala_Lumpur`, `Europe/Berlin`, or `Asia/Dubai`). `UTC` produces the standard GMT header. The time zone database handles daylight saving time; offsets are not hardcoded and the endpoint is not used to guess the server's zone. Unknown zones fail before a request is sent.
+
+For example, run `ZSTACK_API_TIMEZONE=Europe/Berlin zstack-cli get zones --context lab` in a shell. In PowerShell, set `$env:ZSTACK_API_TIMEZONE='Europe/Berlin'` before the command and clear it afterward with `Remove-Item Env:ZSTACK_API_TIMEZONE`. This variable applies to environments accessed by that process and is not saved in a context; check it when switching environments. Override the default only for a confirmed server requirement: a correct server should treat different time zone representations of the same instant equivalently. Acceptance of numeric zone abbreviations still depends on the server version; this setting cannot work around every date parsing defect. It does not change the system clock or add automatic retries. The host clock must remain accurate; account session authentication is unaffected.
+
 The default configuration is `~/.zstack-cli/config.yaml`. Set `ZSTACK_CONFIG` to select another file. Keep credential files out of version control. `config view` displays redacted values and its output cannot replace an authenticated configuration file.
 
 ## 2. Contexts and diagnostics

@@ -1,0 +1,4 @@
+{
+  "before": "Get-VM -Name 'missing*' | ForEach-Object Name",
+  "after": "Get-ZStackVM -Name 'missing*' | ForEach-Object Name"
+}

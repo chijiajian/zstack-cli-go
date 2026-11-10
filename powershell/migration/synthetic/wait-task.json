@@ -1,0 +1,4 @@
+{
+  "before": "Start-VM -VM $vm -RunAsync | Wait-Task",
+  "after": "$vm | Start-ZStackVM"
+}

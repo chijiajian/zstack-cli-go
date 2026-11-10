@@ -1,0 +1,4 @@
+{
+  "before": "Start-VM -VM $savedVm -ErrorAction Stop",
+  "after": "Get-ZStackVM -Id $zstackUuid -Server $connection | Start-ZStackVM -ErrorAction Stop"
+}

@@ -27,15 +27,22 @@ type FormattedDiskOffering struct {
 	Name              string `json:"name" yaml:"name" header:"NAME"`
 	UUID              string `json:"uuid" yaml:"uuid" header:"UUID"`
 	DiskSize          string `json:"diskSize" yaml:"diskSize" header:"DISK SIZE"`
+	DiskSizeBytes     *int64 `json:"diskSizeBytes" yaml:"diskSizeBytes" header:"DISK SIZE BYTES" table:"opt-in"`
 	Type              string `json:"type" yaml:"type" header:"TYPE"`
 	AllocatorStrategy string `json:"allocatorStrategy" yaml:"allocatorStrategy" header:"ALLOCATOR STRATEGY"`
 	State             string `json:"state" yaml:"state" header:"STATE"`
 }
 
+type diskOfferingQueryInventory struct {
+	view.DiskOfferingInventoryView
+	DiskSizeBytes *int64 `json:"diskSize"`
+}
+
 var diskOfferingsCmd = &cobra.Command{
 	Use:   "disk-offerings [name]",
 	Short: "List disk offerings",
-	Long:  `List all disk offerings in the ZStack cloud platform.`,
+	Long: `List all disk offerings in the ZStack cloud platform.
+Structured output includes diskSizeBytes, or null if not reported.`,
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
@@ -43,7 +50,7 @@ var diskOfferingsCmd = &cobra.Command{
 			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
-		result, err := common.Fetch[view.DiskOfferingInventoryView](cobraCmd, queryParam, "v1/disk-offerings")
+		result, err := common.Fetch[diskOfferingQueryInventory](cobraCmd, queryParam, "v1/disk-offerings")
 		diskOfferings := result.Items
 		if err != nil {
 			return fmt.Errorf("Error querying disk offerings: %w", err)
@@ -54,7 +61,8 @@ var diskOfferingsCmd = &cobra.Command{
 			formatted := FormattedDiskOffering{
 				Name:              offering.Name,
 				UUID:              offering.UUID,
-				DiskSize:          utils.FormatDiskSize(int64(offering.DiskSize)),
+				DiskSize:          utils.FormatDiskSize(int64(inventoryNumber(offering.DiskSizeBytes))),
+				DiskSizeBytes:     offering.DiskSizeBytes,
 				Type:              offering.Type,
 				AllocatorStrategy: offering.AllocatorStrategy,
 				State:             offering.State,

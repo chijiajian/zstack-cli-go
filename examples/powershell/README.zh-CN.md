@@ -1,6 +1,6 @@
 # PowerShell 迁移示例
 
-[English](README.md) | [简体中文](README.zh-CN.md) | [PowerShell 指南](../../docs/powershell.zh-CN.md)
+[English](README.md) | [简体中文](README.zh-CN.md) | [PowerShell 指南](../../docs/powershell.zh-CN.md) | [资源查询与报表示例](inventory.zh-CN.md)
 
 示例假设已安装预览包，并获得对目标地址及账户的授权。OEM 包需替换模块名称与命令前缀。
 

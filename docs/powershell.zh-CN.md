@@ -39,3 +39,30 @@ Import-Module $manifest
 OEM 包使用提供方给定的模块名和命令前缀。不同品牌共用对象属性与脚本管道行为。
 
 运行 `Get-Help Get-ZStackVM -Full` 或相应的 OEM 命令，可以查看品牌、模块版本、CLI 构建、连接配置命名空间和提供方帮助地址。[迁移前后对照](../examples/powershell/README.zh-CN.md#迁移前后对照)覆盖报表、显式连接、启动、WhatIf、ErrorAction 和 OEM 兼容入口。
+
+## 当前源码中的资源查询与报表
+
+使用匹配的 Windows x64 CLI 构建模块包后，即可使用下表的命令。每个资源输出一个 PowerShell 对象，包含 ZStack UUID（`Id`）、`ConnectionId` 和资源专有属性。空查询不输出对象。[资源盘点示例](../examples/powershell/inventory.zh-CN.md) · [VMware 迁移映射](../powershell/contracts/compatibility.md#inventory-and-reporting) · [模块打包说明](../powershell/packaging/Upgrade-Policy.md)
+
+有多个连接时，用 `-Server` 指定其中一个。传入当前会话中查询到的父资源对象时，查询会继承其连接。显式传入的 `-Server` 必须与该连接一致。命令支持 `-Id` 时按 ZStack UUID 精确匹配，支持 `-Name` 时可使用不区分大小写的 PowerShell 通配符。
+
+| 命令 | 资源筛选 | 常用报表字段 |
+| --- | --- | --- |
+| `Get-ZStackHardDisk` | `-VM` 或 VM 管道、`-Id`、`-Name` | `VMId`、`Type`、`CapacityBytes`、`ActualSizeBytes`、`CapacityGB` |
+| `Get-ZStackVolume` | `-Id`、`-Name`、`-Attached` 或 `-Unattached` | `VMId`、`Attached`、`PrimaryStorageId`、`CapacityBytes`、`ActualSizeBytes` |
+| `Get-ZStackNetworkAdapter` | `-VM` 或 VM 管道、`-Id`、`-IncludeNetworkName` | `VMId`、`MacAddress`、`IPAddress`、`L3NetworkId`、`NetworkName` |
+| `Get-ZStackVMHost` | `-Id`、`-Name`、`-Cluster` | `ClusterId`、`ConnectionState`、`NumCpu`、`CpuTotalHz`、`MemoryTotalBytes` |
+| `Get-ZStackCluster` | `-Id`、`-Name`、`-Zone` | `ZoneId`、`State`、`HypervisorType` |
+| `Get-ZStackZone` | `-Id`、`-Name` | `State`、`Type`、`Description` |
+| `Get-ZStackPrimaryStorage` | `-Id`、`-Name`、`-Zone` | `ZoneId`、`CapacityBytes`、`FreeSpaceBytes`、`PhysicalCapacityBytes`、`PhysicalFreeSpaceBytes`、`SystemUsedCapacityBytes` |
+| `Get-ZStackImageStorage` | `-Id`、`-Name` | `Type`、`CapacityBytes`、`FreeSpaceBytes` |
+| `Get-ZStackImage` | `-Id`、`-Name`、`-MediaType` | `MediaType`、`Format`、`CapacityBytes`、`ActualSizeBytes` |
+| `Get-ZStackInstanceOffering` | `-Id`、`-Name` | `NumCpu`、`MemoryBytes`、`MemoryGB` |
+| `Get-ZStackDiskOffering` | `-Id`、`-Name` | `CapacityBytes`、`CapacityGB`、`Type` |
+| `Get-ZStackL2Network` | `-Id`、`-Name`、`-Zone` | `ZoneId`、`VirtualNetworkId`、`PhysicalInterface` |
+| `Get-ZStackL3Network` | `-Id`、`-Name`、`-L2Network` | `L2NetworkId`、`IPVersion`、`DnsDomain` |
+| `Get-ZStackIPRange` | `-Id`、`-Name`、`-L3Network` | `L3NetworkId`、`CIDR`、`StartIP`、`EndIP`、`Gateway` |
+
+用 `Bytes` 字段做精确计算，`GB` 字段按 2³⁰ 字节换算，适用于展示。服务端报告的零会保留，未报告的容量为 `$null`。`SystemUsedCapacityBytes` 保留 API 返回的有符号字节值。L3 网络可查询时，`-IncludeNetworkName` 会在网卡所属连接中补充其名称。
+
+`Get-ZStackVM -Id VM_UUID -Detail` 接受一个精确的 ZStack UUID。详情保留普通 VM 属性，并补充主机、镜像和计算规格的 ID 与名称，以及 `L3NetworkIds` 和 `Warnings`。警告会指出受影响的关联资源，并提供 `not_found` 或 `authentication_failed` 等固定失败类别。

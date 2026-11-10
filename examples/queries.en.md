@@ -9,7 +9,7 @@ zstack-cli doctor --context lab --request-timeout 15s -o json
 zstack-cli get instances --context lab -q 'state=Stopped' --sort '+uuid' --limit 20 -o json
 zstack-cli get instances --context lab --all-pages --limit 100 --fields uuid,name,state -o json
 zstack-cli get instances --context lab --start 20 --limit 20 --reply-with-count -o json
-zstack-cli describe instance VM_UUID --context lab -o json
+zstack-cli describe instance VM_UUID --uuid-only --context lab -o json
 ```
 
 Preserve the CLI exit code and keep resource output separate from diagnostics.
@@ -26,6 +26,14 @@ fi
 
 An empty list is a successful query. Pagination can be affected by concurrent changes. Inspect detail warnings separately. Queries can renew account sessions with saved passwords. Strict read-only work uses session-only credentials or AK/SK.
 
+## Report exact disk capacity
+
+Replace `VM_UUID` with the ZStack VM UUID. Use the byte fields for calculations. A `null` value means the server did not report a size, and `0` is a reported zero.
+
+```sh
+zstack-cli get disks --context lab -q 'vmInstanceUuid=VM_UUID' --all-pages --fields uuid,name,vmInstanceUuid,sizeBytes,actualSizeBytes -o json
+```
+
 ## Compare environment usage
 
 Query each context and compare load.sampleTime, sampledHosts and connectedHosts alongside the values.
@@ -40,7 +48,7 @@ zstack-cli monitor usage --context lab --section capacity -o yaml
 
 ```sh
 zstack-cli get instances web-01 --context lab
-zstack-cli describe instance VM_UUID --context lab -o json
+zstack-cli describe instance VM_UUID --uuid-only --context lab -o json
 zstack-cli zql "query vmInstance.uuid where name='web-01' limit 10" --context lab
 zstack-cli zql "count vmInstance where state='Running'" --context lab
 ```

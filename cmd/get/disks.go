@@ -37,7 +37,9 @@ type FormattedVolume struct {
 	Type               string `json:"type" yaml:"type" header:"TYPE"`
 	Format             string `json:"format" yaml:"format" header:"FORMAT"`
 	Size               string `json:"size" yaml:"size" header:"SIZE"`
+	SizeBytes          *int64 `json:"sizeBytes" yaml:"sizeBytes" header:"SIZE BYTES" table:"opt-in"`
 	ActualSize         string `json:"actualSize" yaml:"actualSize" header:"ACTUAL SIZE"`
+	ActualSizeBytes    *int64 `json:"actualSizeBytes" yaml:"actualSizeBytes" header:"ACTUAL SIZE BYTES" table:"opt-in"`
 	DeviceID           int    `json:"deviceId" yaml:"deviceId" header:"DEVICE ID"`
 	State              string `json:"state" yaml:"state" header:"STATE"`
 	Status             string `json:"status" yaml:"status" header:"STATUS"`
@@ -46,12 +48,20 @@ type FormattedVolume struct {
 	Attached           string `json:"attached" yaml:"attached" header:"ATTACHED"`
 }
 
+// Pointer fields preserve a reported zero separately from an omitted value.
+type diskQueryInventory struct {
+	view.VolumeInventoryView
+	SizeBytes       *int64 `json:"size"`
+	ActualSizeBytes *int64 `json:"actualSize"`
+}
+
 var volumesCmd = &cobra.Command{
 	Use:     "disks [name]",
 	Aliases: []string{"volumes"},
 	Short:   "List disks",
-	Long:    `List all volumes (disks) in the ZStack cloud platform.`,
-	Args:    cobra.MaximumNArgs(1),
+	Long: `List all volumes (disks) in the ZStack cloud platform.
+Structured output includes sizeBytes and actualSizeBytes, the reported byte counts or null if omitted.`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
@@ -59,14 +69,13 @@ var volumesCmd = &cobra.Command{
 			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
-		result, err := common.Fetch[view.VolumeInventoryView](cobraCmd, queryParam, "v1/volumes")
-		volumes := result.Items
+		result, err := common.Fetch[diskQueryInventory](cobraCmd, queryParam, "v1/volumes")
 		if err != nil {
 			return err
 		}
 
 		var formattedResults []FormattedVolume
-		for _, volume := range volumes {
+		for _, volume := range result.Items {
 			attached := "No"
 			if volume.VmInstanceUuid != "" {
 				attached = "Yes"
@@ -90,8 +99,10 @@ var volumesCmd = &cobra.Command{
 				InstallPath:        volume.InstallPath,
 				Type:               volume.Type,
 				Format:             volume.Format,
-				Size:               utils.FormatDiskSize(int64(volume.Size)),
-				ActualSize:         utils.FormatDiskSize(int64(volume.ActualSize)),
+				Size:               utils.FormatDiskSize(inventoryNumber(volume.SizeBytes)),
+				SizeBytes:          volume.SizeBytes,
+				ActualSize:         utils.FormatDiskSize(inventoryNumber(volume.ActualSizeBytes)),
+				ActualSizeBytes:    volume.ActualSizeBytes,
 				DeviceID:           volume.DeviceId,
 				State:              volume.State,
 				Status:             volume.Status,

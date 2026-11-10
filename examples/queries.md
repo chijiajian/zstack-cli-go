@@ -9,7 +9,7 @@ zstack-cli doctor --context lab --request-timeout 15s -o json
 zstack-cli get instances --context lab -q 'state=Stopped' --sort '+uuid' --limit 20 -o json
 zstack-cli get instances --context lab --all-pages --limit 100 --fields uuid,name,state -o json
 zstack-cli get instances --context lab --start 20 --limit 20 --reply-with-count -o json
-zstack-cli describe instance VM_UUID --context lab -o json
+zstack-cli describe instance VM_UUID --uuid-only --context lab -o json
 ```
 
 保存退出码并分离业务结果与诊断：
@@ -26,6 +26,14 @@ fi
 
 正常输出为空列表仍是成功；分页不是快照。详情中的 warnings 要单独处理。get 可能续期保存密码的账户；严格只读任务请使用 session-only 配置或 AK/SK。
 
+## 查询精确的磁盘容量
+
+将 `VM_UUID` 换成 ZStack 云主机的 UUID。用字节字段做计算。`null` 表示服务端未报告容量，`0` 表示服务端报告了零。
+
+```sh
+zstack-cli get disks --context lab -q 'vmInstanceUuid=VM_UUID' --all-pages --fields uuid,name,vmInstanceUuid,sizeBytes,actualSizeBytes -o json
+```
+
 ## 比较环境使用率
 
 分别查询指定 context，比较时同时核对 load.sampleTime、sampledHosts 和 connectedHosts。
@@ -40,7 +48,7 @@ zstack-cli monitor usage --context lab --section capacity -o yaml
 
 ```sh
 zstack-cli get instances web-01 --context lab
-zstack-cli describe instance VM_UUID --context lab -o json
+zstack-cli describe instance VM_UUID --uuid-only --context lab -o json
 zstack-cli zql "query vmInstance.uuid where name='web-01' limit 10" --context lab
 zstack-cli zql "count vmInstance where state='Running'" --context lab
 ```

@@ -27,14 +27,21 @@ type FormattedL2Network struct {
 	UUID              string `json:"uuid" yaml:"uuid" header:"UUID"`
 	Type              string `json:"type" yaml:"type" header:"TYPE"`
 	Vlan              int    `json:"vlan" yaml:"vlan" header:"VLAN"`
+	VirtualNetworkID  *int   `json:"virtualNetworkId" yaml:"virtualNetworkId" header:"VIRTUAL NETWORK ID" table:"opt-in"`
 	PhysicalInterface string `json:"physicalInterface" yaml:"physicalInterface" header:"PHYSICAL INTERFACE"`
 	ZoneUuid          string `json:"zoneUuid" yaml:"zoneUuid" header:"ZONE UUID"`
+}
+
+type l2NetworkQueryInventory struct {
+	view.L2NetworkInventoryView
+	VirtualNetworkID *int `json:"virtualNetworkId"`
 }
 
 var l2NetworksCmd = &cobra.Command{
 	Use:   "l2-networks [name]",
 	Short: "List L2 networks",
-	Long:  `List all Layer 2 networks in the ZStack cloud platform.`,
+	Long: `List all Layer 2 networks in the ZStack cloud platform.
+Structured output includes virtualNetworkId, or null if not reported.`,
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
@@ -42,7 +49,7 @@ var l2NetworksCmd = &cobra.Command{
 			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
-		result, err := common.Fetch[view.L2NetworkInventoryView](cobraCmd, queryParam, "v1/l2-networks")
+		result, err := common.Fetch[l2NetworkQueryInventory](cobraCmd, queryParam, "v1/l2-networks")
 		l2Networks := result.Items
 		if err != nil {
 			return fmt.Errorf("Error querying L2 networks: %w", err)
@@ -54,7 +61,8 @@ var l2NetworksCmd = &cobra.Command{
 				Name:              network.Name,
 				UUID:              network.UUID,
 				Type:              network.Type,
-				Vlan:              network.VirtualNetworkId,
+				Vlan:              inventoryNumber(network.VirtualNetworkID),
+				VirtualNetworkID:  network.VirtualNetworkID,
 				PhysicalInterface: network.PhysicalInterface,
 				ZoneUuid:          network.ZoneUuid,
 			}

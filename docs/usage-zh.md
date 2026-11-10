@@ -74,12 +74,15 @@ zstack-cli describe volume data-01 --request-timeout 15s -o yaml
 - 普通 JSON/YAML 查询返回列表，空结果为 `[]`。`--reply-with-count` 返回 `items` 和 `total`；`--count` 只输出总数。
 - `--limit` 是单页大小，`--start` 是偏移；`--all-pages` 自动拉取后续页。分页不是快照，资源并发变化可能影响结果。
 - `get instances` 的结构化输出包含 `memorySizeBytes`，为服务端报告的精确字节数。服务端未提供时为 `null`。原有 `memorySize` 为展示字符串。服务端未提供 `cpuNum` 时也返回 `null`。
+- `get disks`（别名 `get volumes`）的 JSON/YAML 包含配置容量 `sizeBytes` 和 API 报告的实际占用 `actualSizeBytes`，单位为字节。服务端报告的 `0` 会保留，未提供时返回 `null`。原有 `size` 和 `actualSize` 继续用于展示。可用 `--fields` 显式选择字节数表格列。
 - `--fields` 限制输出字段，未知字段会报错。字段名以该命令实际 JSON 输出为准，详情结构与列表结构不同。
 - 查询通常支持 table、text、json、yaml；具体格式以子命令帮助为准，不能假定所有命令都输出相同结构。
 - 资源选择使用 UUID 或精确名称；单资源操作遇到重名会拒绝。已有实例/镜像批量操作可能选择多个同名资源，执行前检查目标列表。
-- `describe` 主资源查询失败会返回非零；可选关联读取失败可能保留主资源并返回 `warnings`，自动化需同时检查这些警告。
+- `describe` 主资源查询失败会返回非零。可选关联读取失败时可能保留主资源，并在 `warnings` 中提供关联资源和失败类别。自动化需同时检查这些警告。
 
 完整资源列表：`zstack-cli get --help`。`get volumes` 与 `get disks` 共用实现，`get jobs` 可用于长任务查询。
+
+需要按 UUID 精确查询时，可用 `describe instance VM_UUID --uuid-only -o json`。`describe volume` 也支持该参数。主机、存储、镜像和规格查询同时提供可空的原始数值和展示字符串，具体字段见命令帮助。主机 CPU 容量用 Hz，内存和存储用字节。
 
 ## 4. 等待、恢复与扩容
 

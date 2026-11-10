@@ -2196,6 +2196,7 @@ Usage:
 Flags:
   -h, --help                       help for instance
       --request-timeout duration   Deadline for detail and related resource queries (default 30s)
+      --uuid-only                  Require an exact UUID without falling back to a name
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -2239,6 +2240,7 @@ Usage:
 Flags:
   -h, --help                       help for volume
       --request-timeout duration   Deadline for detail and related resource queries (default 30s)
+      --uuid-only                  Require an exact UUID without falling back to a name
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -2741,6 +2743,7 @@ Global Flags:
 
 ```text
 List all disk offerings in the ZStack cloud platform.
+Structured output includes diskSizeBytes, or null if not reported.
 
 Usage:
   zstack-cli get disk-offerings [name] [flags]
@@ -2769,6 +2772,7 @@ Global Flags:
 
 ```text
 List all volumes (disks) in the ZStack cloud platform.
+Structured output includes sizeBytes and actualSizeBytes, the reported byte counts or null if omitted.
 
 Usage:
   zstack-cli get disks [name] [flags]
@@ -2889,6 +2893,7 @@ Global Flags:
 
 ```text
 List all physical hosts in the ZStack cloud platform.
+Structured output includes totalCpuHz, availableCpuHz, totalMemoryBytes, availableMemoryBytes, cpuCount, cpuSocketCount, or null if not reported.
 
 Usage:
   zstack-cli get hosts [name] [flags]
@@ -2966,6 +2971,7 @@ Examples:
   zstack-cli get image-storages --output json
   zstack-cli get image-storages --output yaml
   zstack-cli get image-storages --output text
+Structured output includes totalCapacityBytes, availableCapacityBytes, or null if not reported.
 
 Usage:
   zstack-cli get image-storages [name] [flags]
@@ -2997,6 +3003,7 @@ Global Flags:
 
 ```text
 List all images in the ZStack cloud platform.
+Structured output includes sizeBytes, actualSizeBytes, or null if not reported.
 
 Usage:
   zstack-cli get images [name] [flags]
@@ -3025,6 +3032,7 @@ Global Flags:
 
 ```text
 List all instance offerings in the ZStack cloud platform.
+Structured output includes memorySizeBytes, cpuCount, or null if not reported.
 
 Usage:
   zstack-cli get instance-offerings [name] [flags]
@@ -3117,6 +3125,7 @@ Global Flags:
 
 ```text
 List all Layer 2 networks in the ZStack cloud platform.
+Structured output includes virtualNetworkId, or null if not reported.
 
 Usage:
   zstack-cli get l2-networks [name] [flags]
@@ -3438,6 +3447,7 @@ Global Flags:
 
 ```text
 List all primary storages in the ZStack cloud platform.
+Structured output includes totalCapacityBytes, availableCapacityBytes, totalPhysicalCapacityBytes, availablePhysicalCapacityBytes, systemUsedCapacityBytes, or null if not reported.
 
 Usage:
   zstack-cli get primary-storages [name] [flags]

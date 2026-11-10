@@ -1,0 +1,10 @@
+{
+  "id": "acme",
+  "displayName": "Acme Cloud Automation",
+  "moduleName": "Acme.Cloud",
+  "commandPrefix": "Acme",
+  "configNamespace": "acme-powershell",
+  "publisher": "Acme",
+  "helpUri": "https://example.invalid/acme/powershell",
+  "moduleGuid": "f3d3d45e-652e-4309-9a6f-91c62f6f8be1"
+}

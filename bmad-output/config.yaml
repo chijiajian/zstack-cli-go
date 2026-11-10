@@ -1,0 +1,7 @@
+project:
+  name: zstack-powershell-oem-migration
+  track: BMad Method
+  has_ui: false
+paths:
+  output_folder: bmad-output
+language: zh-CN

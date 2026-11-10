@@ -2,11 +2,16 @@ package resources
 
 import (
 	"bufio"
+	"context"
 	"fmt"
-	"os"
+	"io"
+	"net/http"
+	"net/url"
 	"strings"
+	"time"
 
 	"github.com/chijiajian/zstack-cli-go/pkg/client"
+	"github.com/chijiajian/zstack-cli-go/pkg/clierr"
 	"github.com/chijiajian/zstack-cli-go/pkg/types"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
 	"github.com/spf13/cobra"
@@ -18,7 +23,8 @@ var StartInstanceCmd = &cobra.Command{
 	Use:   "start <name-or-uuid>",
 	Short: "Start virtual machine instance",
 	Long: `Start a virtual machine instance by specifying its name or UUID.
-If the identifier matches multiple VMs, all in 'Stopped' state will be started (with confirmation).`,
+If the identifier matches multiple VMs, all in 'Stopped' state will be started (with confirmation).
+Use --uuid-only for automation to disable name fallback. JSON output contains one operation/items result, including skipped and failed targets.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runStartInstance(cmd, args[0])
@@ -27,122 +33,160 @@ If the identifier matches multiple VMs, all in 'Stopped' state will be started (
 
 func init() {
 	InstanceCmd.AddCommand(StartInstanceCmd)
+	StartInstanceCmd.Flags().Bool("uuid-only", false, "Require a single exact UUID match without falling back to a name")
+	StartInstanceCmd.Flags().Duration("request-timeout", 2*time.Minute, "Timeout for resolving targets and for each start request")
+}
 
-	/*
-		StartInstanceCmd.Flags().Bool("dry-run", false, "Preview the API request without sending it")
-		StartInstanceCmd.Flags().BoolP("yes", "y", false, "Automatic yes to prompts")
-		StartInstanceCmd.Flags().StringP("output", "o", "", "Output format: json, yaml, table, wide, or name")
-		StartInstanceCmd.Flags().StringSlice("fields", nil, "Custom fields to display in table output")
-	*/
+type startItem struct {
+	UUID      string                           `json:"uuid"`
+	Status    string                           `json:"status"`
+	Inventory *sdkView.VmInstanceInventoryView `json:"inventory,omitempty"`
+	Error     *clierr.Diagnostic               `json:"error,omitempty"`
 }
 
 func runStartInstance(cmd *cobra.Command, identifier string) error {
-	cli := client.GetClient()
-	if cli == nil {
-		return fmt.Errorf("Not logged in. Please run 'zstack-cli login' first.")
+	output, _ := cmd.Flags().GetString("output")
+	format := utils.ParseFormat(output)
+	if format == utils.JSONFormat && cmd.Flags().Changed("fields") {
+		return clierr.Wrap(clierr.Usage, fmt.Errorf("start JSON has a fixed schema and does not support --fields"))
 	}
-
-	vms, err := client.GetReadyVMsByNameOrUUID(cli, identifier)
+	timeout, _ := cmd.Flags().GetDuration("request-timeout")
+	if timeout <= 0 {
+		return clierr.Wrap(clierr.Usage, fmt.Errorf("request timeout must be positive"))
+	}
+	uuidOnly, _ := cmd.Flags().GetBool("uuid-only")
+	options := client.ResolveOptions{AllowMultiple: true}
+	if uuidOnly {
+		options = client.ResolveOptions{Strategy: client.ResolveUUID}
+	}
+	resolveCtx, cancelResolve := context.WithTimeout(cmd.Context(), timeout)
+	cli, err := client.NewMutationClient(resolveCtx)
 	if err != nil {
-		return fmt.Errorf("Error querying VMs: %w", err)
+		cancelResolve()
+		return err
 	}
-	if len(vms) == 0 {
-		return fmt.Errorf("No VMs found with name or UUID '%s'.", identifier)
+	vms, err := cli.Reader().ResolveMatches(resolveCtx, "instance", identifier, options)
+	cancelResolve()
+	if err != nil {
+		return err
+	}
+	if uuidOnly && vms[0].UUID != identifier {
+		return clierr.Wrap(clierr.Remote, fmt.Errorf("UUID query returned a different instance"))
 	}
 
-	var toStart, skipped []sdkView.VmInstanceInventoryView
-
+	var toStart []client.ResolvedResource
+	items := make([]startItem, 0, len(vms))
+	var skipped []client.ResolvedResource
 	for _, vm := range vms {
+		if !uuidOnly && !types.IsVMActive(vm.State) {
+			continue
+		}
 		if types.IsVMRunnable(vm.State) {
 			toStart = append(toStart, vm)
 		} else {
 			skipped = append(skipped, vm)
+			items = append(items, startItem{UUID: vm.UUID, Status: "skipped"})
 		}
 	}
+	if len(toStart)+len(skipped) == 0 {
+		return clierr.Wrap(clierr.NotFound, fmt.Errorf("no active instance matched %q", identifier))
+	}
 
+	dryRun, _ := cmd.Flags().GetBool("dry-run")
+	autoYes, _ := cmd.Flags().GetBool("yes")
+	var human io.Writer = cmd.OutOrStdout()
+	if format == utils.JSONFormat {
+		human = io.Discard
+		if !dryRun && !autoYes && len(toStart) > 0 {
+			human = cmd.ErrOrStderr()
+		}
+	}
 	if len(toStart) == 0 {
-		fmt.Println("No matched VMs are in 'Stopped' state to start.")
-		if len(skipped) > 0 {
-			fmt.Println("Matched but skipped (not Stopped):")
-			for _, s := range skipped {
-				fmt.Printf("  - %s (%s) state=%s\n", s.Name, s.UUID, s.State)
-			}
+		fmt.Fprintln(human, "No matched VMs are in 'Stopped' state to start.")
+	} else {
+		fmt.Fprintf(human, "Matched %d VM(s); %d will be started, %d will be skipped.\nWill start:\n", len(toStart)+len(skipped), len(toStart), len(skipped))
+		for _, vm := range toStart {
+			fmt.Fprintf(human, "  - %s (%s)\n", vm.Name, vm.UUID)
 		}
-		return nil
-	}
-
-	fmt.Printf("Matched %d VM(s); %d will be started, %d will be skipped.\n", len(vms), len(toStart), len(skipped))
-	fmt.Println("Will start:")
-	for _, s := range toStart {
-		fmt.Printf("  - %s (%s)\n", s.Name, s.UUID)
 	}
 	if len(skipped) > 0 {
-		fmt.Println("Skipped (not Stopped):")
-		for _, s := range skipped {
-			fmt.Printf("  - %s (%s) state=%s\n", s.Name, s.UUID, s.State)
+		fmt.Fprintln(human, "Skipped (not Stopped):")
+		for _, vm := range skipped {
+			fmt.Fprintf(human, "  - %s (%s) state=%s\n", vm.Name, vm.UUID, vm.State)
 		}
 	}
-
-	// dry-run
-	dryRun, _ := cmd.Flags().GetBool("dry-run")
+	if dryRun && len(toStart) > 0 {
+		fmt.Fprintln(human, "Dry-run: no start requests will be sent.")
+	}
+	if !dryRun && !autoYes && len(toStart) > 0 {
+		if _, err := fmt.Fprint(human, "Do you want to continue? [y/N]: "); err != nil {
+			return clierr.Wrap(clierr.Output, err)
+		}
+		line, _ := bufio.NewReader(cmd.InOrStdin()).ReadString('\n')
+		answer := strings.ToLower(strings.TrimSpace(line))
+		if answer != "y" && answer != "yes" {
+			fmt.Fprintln(human, "Aborted by user.")
+			dryRun = true
+		}
+	}
 	if dryRun {
-		fmt.Println("Dry-run: no API calls will be made.")
-		return nil
-	}
-
-	autoYes, _ := cmd.Flags().GetBool("yes")
-	if !autoYes {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Do you want to continue? [y/N]: ")
-		line, _ := reader.ReadString('\n')
-		line = strings.TrimSpace(strings.ToLower(line))
-		if line != "y" && line != "yes" {
-			fmt.Println("Aborted by user.")
-			return nil
+		for _, vm := range toStart {
+			items = append(items, startItem{UUID: vm.UUID, Status: "skipped"})
 		}
+		toStart = nil
 	}
 
 	var successes []sdkView.VmInstanceInventoryView
-	var failures []struct {
-		VM  sdkView.VmInstanceInventoryView
-		Err error
-	}
-
-	for _, s := range toStart {
-		resp, err := cli.StartVmInstance(s.UUID, param.StartVmInstanceParam{})
+	var failed int
+	var firstFailure error
+	for _, vm := range toStart {
+		var resp sdkView.VmInstanceInventoryView
+		requestCtx, cancel := context.WithTimeout(cmd.Context(), timeout)
+		err := cli.Mutate(requestCtx, http.MethodPut, "v1/vm-instances/"+url.PathEscape(vm.UUID)+"/actions", param.StartVmInstanceParam{}, &resp)
+		cancel()
+		if err == nil && resp.UUID != vm.UUID {
+			err = clierr.Wrap(clierr.Remote, fmt.Errorf("start response did not identify the requested instance"))
+		}
 		if err != nil {
-			failures = append(failures, struct {
-				VM  sdkView.VmInstanceInventoryView
-				Err error
-			}{VM: s, Err: err})
-			fmt.Fprintf(os.Stderr, "Failed to start %s (%s): %v\n", s.Name, s.UUID, err)
+			diagnostic := clierr.Describe(err)
+			items = append(items, startItem{UUID: vm.UUID, Status: "failed", Error: &diagnostic})
+			if firstFailure == nil {
+				firstFailure = err
+			}
+			failed++
+			if format != utils.JSONFormat {
+				fmt.Fprintf(cmd.ErrOrStderr(), "Failed to start %s (%s): %v\n", vm.Name, vm.UUID, err)
+			}
 			continue
 		}
-		successes = append(successes, *resp)
-		fmt.Printf("Started %s (%s)\n", resp.Name, resp.UUID)
-	}
-
-	fmt.Printf("\nSummary: %d started, %d failed, %d skipped\n", len(successes), len(failures), len(skipped))
-	if len(failures) > 0 {
-		fmt.Fprintln(os.Stderr, "Failures:")
-		for _, f := range failures {
-			fmt.Fprintf(os.Stderr, "  - %s (%s): %v\n", f.VM.Name, f.VM.UUID, f.Err)
+		items = append(items, startItem{UUID: vm.UUID, Status: "succeeded", Inventory: &resp})
+		successes = append(successes, resp)
+		if format != utils.JSONFormat {
+			fmt.Fprintf(human, "Started %s (%s)\n", resp.Name, resp.UUID)
 		}
 	}
 
-	outputFormat, _ := cmd.Flags().GetString("output")
-	format := utils.ParseFormat(outputFormat)
-
-	fields, _ := cmd.Flags().GetStringSlice("fields")
-
-	if len(successes) > 0 {
-		if err := utils.PrintVMs(successes, format, fields); err != nil {
-			return fmt.Errorf("Error formatting output : %w", err)
+	if format == utils.JSONFormat {
+		if err := utils.Print(struct {
+			Operation string      `json:"operation"`
+			Items     []startItem `json:"items"`
+		}{Operation: "start", Items: items}, format); err != nil {
+			return fmt.Errorf("format start result: %w", err)
+		}
+	} else if len(toStart) > 0 {
+		fmt.Fprintf(human, "\nSummary: %d started, %d failed, %d skipped\n", len(successes), failed, len(skipped))
+		fields, _ := cmd.Flags().GetStringSlice("fields")
+		if len(successes) > 0 {
+			if err := utils.PrintVMs(successes, format, fields); err != nil {
+				return fmt.Errorf("format start result: %w", err)
+			}
 		}
 	}
-
-	if len(failures) > 0 {
-		return fmt.Errorf("%d VM operations failed", len(failures))
+	if failed == 1 && len(toStart) == 1 && format == utils.JSONFormat {
+		return firstFailure
+	}
+	if failed > 0 {
+		return fmt.Errorf("%d VM operations failed", failed)
 	}
 	return nil
 }

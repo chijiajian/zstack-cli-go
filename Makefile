@@ -73,6 +73,7 @@ skill-check: build
 	$(PYTHON) skills/zstack-operations/scripts/check_cli.py --cli ./$(BIN_NAME) --profile monitor
 	$(PYTHON) skills/zstack-operations/scripts/check_cli.py --cli ./$(BIN_NAME) --profile zql
 	$(PYTHON) skills/zstack-operations/scripts/check_cli.py --cli ./$(BIN_NAME) --profile iam
+	$(PYTHON) skills/zstack-operations/scripts/check_cli.py --cli ./$(BIN_NAME) --profile powershell
 	$(PYTHON) -m unittest discover -s scripts -p 'test_skill_check.py' -v
 
 skill-package:

@@ -42,18 +42,27 @@ Use `Get-Help Get-ZStackVM -Full` or the corresponding OEM command to see the br
 
 ## Inventory and reporting in the current source
 
-Build the module package with the matching CLI to use the inventory commands below. They return one PowerShell object per resource, with `Id`, `ConnectionId` and resource-specific properties. Empty queries emit no objects. Use `-Server` for one explicit connection when several are active. The ZStack names below use the example brand's prefix. [Inventory examples](../examples/powershell/inventory.md) · [VMware migration mappings](../powershell/contracts/compatibility.md#inventory-and-reporting)
+Use a module package built with the matching Windows x64 CLI. The following commands are available in packages built from this source. Each resource produces a PowerShell object with a ZStack UUID in `Id`, a `ConnectionId`, and resource-specific properties. An empty query emits no objects. [Inventory examples](../examples/powershell/inventory.md) · [VMware migration mappings](../powershell/contracts/compatibility.md#inventory-and-reporting) · [Package build policy](../powershell/packaging/Upgrade-Policy.md)
 
-| Inventory | Native commands |
-| --- | --- |
-| VM disks, volumes and adapters | `Get-ZStackHardDisk -VM`, `Get-ZStackVolume`, `Get-ZStackNetworkAdapter -VM` |
-| Physical resources | `Get-ZStackVMHost`, `Get-ZStackCluster`, `Get-ZStackZone`, `Get-ZStackPrimaryStorage`, `Get-ZStackImageStorage` |
-| Deployment resources | `Get-ZStackImage`, `Get-ZStackInstanceOffering`, `Get-ZStackDiskOffering` |
-| Network hierarchy | `Get-ZStackL2Network`, `Get-ZStackL3Network`, `Get-ZStackIPRange` |
-| One VM's related inventory | `Get-ZStackVM -Id VM_UUID -Detail` |
+Use `-Server` to select a connection when multiple connections are active. Queries scoped by a live parent object inherit its connection. An explicit `-Server` must match that connection. Where supported, `-Id` matches ZStack UUIDs exactly and `-Name` accepts case-insensitive PowerShell wildcards.
 
-`Get-ZStackVM | Get-ZStackHardDisk` and `Get-ZStackVM | Get-ZStackNetworkAdapter` inherit the connection of each live VM. Explicit `-Server` must agree with it. Disk reports use `CapacityBytes` for exact arithmetic and `CapacityGB` for display in units of 2³⁰ bytes. Optional `-IncludeNetworkName` resolves the L3 name in the same connection. VM detail keeps the ordinary VM properties and adds host, image, offering and L3 references, plus `Warnings` for unavailable related data.
+| Cmdlet | Resource filters | Report properties |
+| --- | --- | --- |
+| `Get-ZStackHardDisk` | `-VM` or VM pipeline, `-Id`, `-Name` | `VMId`, `Type`, `CapacityBytes`, `ActualSizeBytes`, `CapacityGB` |
+| `Get-ZStackVolume` | `-Id`, `-Name`, `-Attached` or `-Unattached` | `VMId`, `Attached`, `PrimaryStorageId`, `CapacityBytes`, `ActualSizeBytes` |
+| `Get-ZStackNetworkAdapter` | `-VM` or VM pipeline, `-Id`, `-IncludeNetworkName` | `VMId`, `MacAddress`, `IPAddress`, `L3NetworkId`, `NetworkName` |
+| `Get-ZStackVMHost` | `-Id`, `-Name`, `-Cluster` | `ClusterId`, `ConnectionState`, `NumCpu`, `CpuTotalHz`, `MemoryTotalBytes` |
+| `Get-ZStackCluster` | `-Id`, `-Name`, `-Zone` | `ZoneId`, `State`, `HypervisorType` |
+| `Get-ZStackZone` | `-Id`, `-Name` | `State`, `Type`, `Description` |
+| `Get-ZStackPrimaryStorage` | `-Id`, `-Name`, `-Zone` | `ZoneId`, `CapacityBytes`, `FreeSpaceBytes`, `PhysicalCapacityBytes`, `PhysicalFreeSpaceBytes`, `SystemUsedCapacityBytes` |
+| `Get-ZStackImageStorage` | `-Id`, `-Name` | `Type`, `CapacityBytes`, `FreeSpaceBytes` |
+| `Get-ZStackImage` | `-Id`, `-Name`, `-MediaType` | `MediaType`, `Format`, `CapacityBytes`, `ActualSizeBytes` |
+| `Get-ZStackInstanceOffering` | `-Id`, `-Name` | `NumCpu`, `MemoryBytes`, `MemoryGB` |
+| `Get-ZStackDiskOffering` | `-Id`, `-Name` | `CapacityBytes`, `CapacityGB`, `Type` |
+| `Get-ZStackL2Network` | `-Id`, `-Name`, `-Zone` | `ZoneId`, `VirtualNetworkId`, `PhysicalInterface` |
+| `Get-ZStackL3Network` | `-Id`, `-Name`, `-L2Network` | `L2NetworkId`, `IPVersion`, `DnsDomain` |
+| `Get-ZStackIPRange` | `-Id`, `-Name`, `-L3Network` | `L3NetworkId`, `CIDR`, `StartIP`, `EndIP`, `Gateway` |
 
-`Get-ZStackPrimaryStorage` preserves the API's signed `SystemUsedCapacityBytes` value. An omitted value appears as `$null`.
+Use `Bytes` fields for exact arithmetic and `GB` fields for display in units of 2³⁰ bytes. Reported zero stays zero. An unreported capacity is `$null`. `SystemUsedCapacityBytes` retains the API's signed value. `-IncludeNetworkName` resolves the adapter's L3 name within its connection when the network is available.
 
-VM detail `Warnings` identify the affected relation and report a stable failure category such as `not_found` or `authentication_failed`.
+`Get-ZStackVM -Id VM_UUID -Detail` accepts one exact ZStack UUID. It keeps the ordinary VM properties and adds host, image and instance-offering IDs and names, `L3NetworkIds`, and `Warnings`. A warning identifies the affected relation and gives a fixed failure category such as `not_found` or `authentication_failed`.

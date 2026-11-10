@@ -25,28 +25,45 @@ import (
 )
 
 type FormattedHost struct {
-	Name            string `json:"name" yaml:"name" header:"NAME"`
-	UUID            string `json:"uuid" yaml:"uuid" header:"UUID"`
-	ManagementIp    string `json:"managementIp" yaml:"managementIp" header:"MANAGEMENT IP"`
-	HypervisorType  string `json:"hypervisorType" yaml:"hypervisorType" header:"HYPERVISOR TYPE"`
-	State           string `json:"state" yaml:"state" header:"STATE"`
-	Status          string `json:"status" yaml:"status" header:"STATUS"`
-	ClusterUuid     string `json:"clusterUuid" yaml:"clusterUuid" header:"CLUSTER UUID"`
-	ZoneUuid        string `json:"zoneUuid" yaml:"zoneUuid" header:"ZONE UUID"`
-	TotalCpu        string `json:"totalCpu" yaml:"totalCpu" header:"TOTAL CPU"`
-	AvailableCpu    string `json:"availableCpu" yaml:"availableCpu" header:"AVAILABLE CPU"`
-	TotalMemory     string `json:"totalMemory" yaml:"totalMemory" header:"TOTAL MEMORY"`
-	AvailableMemory string `json:"availableMemory" yaml:"availableMemory" header:"AVAILABLE MEMORY"`
-	CpuSockets      int    `json:"cpuSockets" yaml:"cpuSockets" header:"CPU SOCKETS"`
-	CpuNum          int    `json:"cpuNum" yaml:"cpuNum" header:"CPU NUM"`
-	Architecture    string `json:"architecture" yaml:"architecture" header:"ARCHITECTURE"`
-	Description     string `json:"description" yaml:"description" header:"DESCRIPTION"`
+	Name                 string `json:"name" yaml:"name" header:"NAME"`
+	UUID                 string `json:"uuid" yaml:"uuid" header:"UUID"`
+	ManagementIp         string `json:"managementIp" yaml:"managementIp" header:"MANAGEMENT IP"`
+	HypervisorType       string `json:"hypervisorType" yaml:"hypervisorType" header:"HYPERVISOR TYPE"`
+	State                string `json:"state" yaml:"state" header:"STATE"`
+	Status               string `json:"status" yaml:"status" header:"STATUS"`
+	ClusterUuid          string `json:"clusterUuid" yaml:"clusterUuid" header:"CLUSTER UUID"`
+	ZoneUuid             string `json:"zoneUuid" yaml:"zoneUuid" header:"ZONE UUID"`
+	TotalCpu             string `json:"totalCpu" yaml:"totalCpu" header:"TOTAL CPU"`
+	TotalCpuHz           *int64 `json:"totalCpuHz" yaml:"totalCpuHz" header:"TOTAL CPU HZ" table:"opt-in"`
+	AvailableCpu         string `json:"availableCpu" yaml:"availableCpu" header:"AVAILABLE CPU"`
+	AvailableCpuHz       *int64 `json:"availableCpuHz" yaml:"availableCpuHz" header:"AVAILABLE CPU HZ" table:"opt-in"`
+	TotalMemory          string `json:"totalMemory" yaml:"totalMemory" header:"TOTAL MEMORY"`
+	TotalMemoryBytes     *int64 `json:"totalMemoryBytes" yaml:"totalMemoryBytes" header:"TOTAL MEMORY BYTES" table:"opt-in"`
+	AvailableMemory      string `json:"availableMemory" yaml:"availableMemory" header:"AVAILABLE MEMORY"`
+	AvailableMemoryBytes *int64 `json:"availableMemoryBytes" yaml:"availableMemoryBytes" header:"AVAILABLE MEMORY BYTES" table:"opt-in"`
+	CpuSockets           int    `json:"cpuSockets" yaml:"cpuSockets" header:"CPU SOCKETS"`
+	CpuSocketCount       *int   `json:"cpuSocketCount" yaml:"cpuSocketCount" header:"CPU SOCKET COUNT" table:"opt-in"`
+	CpuNum               int    `json:"cpuNum" yaml:"cpuNum" header:"CPU NUM"`
+	CpuCount             *int   `json:"cpuCount" yaml:"cpuCount" header:"CPU COUNT" table:"opt-in"`
+	Architecture         string `json:"architecture" yaml:"architecture" header:"ARCHITECTURE"`
+	Description          string `json:"description" yaml:"description" header:"DESCRIPTION"`
+}
+
+type hostQueryInventory struct {
+	view.HostInventoryView
+	TotalCpuHz           *int64 `json:"totalCpuCapacity"`
+	AvailableCpuHz       *int64 `json:"availableCpuCapacity"`
+	TotalMemoryBytes     *int64 `json:"totalMemoryCapacity"`
+	AvailableMemoryBytes *int64 `json:"availableMemoryCapacity"`
+	CpuCount             *int   `json:"cpuNum"`
+	CpuSocketCount       *int   `json:"cpuSockets"`
 }
 
 var hostsCmd = &cobra.Command{
 	Use:   "hosts [name]",
 	Short: "List physical hosts",
-	Long:  `List all physical hosts in the ZStack cloud platform.`,
+	Long: `List all physical hosts in the ZStack cloud platform.
+Structured output includes totalCpuHz, availableCpuHz, totalMemoryBytes, availableMemoryBytes, cpuCount, cpuSocketCount, or null if not reported.`,
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
 
 		queryParam, err := common.BuildQueryParams(cobraCmd, args, "name")
@@ -55,7 +72,7 @@ var hostsCmd = &cobra.Command{
 			return fmt.Errorf("Error building query parameters: %w", err)
 		}
 
-		result, err := common.Fetch[view.HostInventoryView](cobraCmd, queryParam, "v1/hosts")
+		result, err := common.Fetch[hostQueryInventory](cobraCmd, queryParam, "v1/hosts")
 		hosts := result.Items
 		if err != nil {
 			return fmt.Errorf("Error querying hosts: %w", err)
@@ -64,22 +81,28 @@ var hostsCmd = &cobra.Command{
 		var formattedResults []FormattedHost
 		for _, host := range hosts {
 			formatted := FormattedHost{
-				Name:            host.Name,
-				UUID:            host.UUID,
-				ManagementIp:    host.ManagementIp,
-				HypervisorType:  host.HypervisorType,
-				State:           host.State,
-				Status:          host.Status,
-				ClusterUuid:     host.ClusterUuid,
-				ZoneUuid:        host.ZoneUuid,
-				TotalCpu:        utils.FormatCpuCapacity(host.TotalCpuCapacity),
-				AvailableCpu:    utils.FormatCpuCapacity(host.AvailableCpuCapacity),
-				TotalMemory:     utils.FormatMemorySize(host.TotalMemoryCapacity),
-				AvailableMemory: utils.FormatMemorySize(host.AvailableMemoryCapacity),
-				CpuSockets:      host.CpuSockets,
-				CpuNum:          host.CpuNum,
-				Architecture:    host.Architecture,
-				Description:     host.Description,
+				Name:                 host.Name,
+				UUID:                 host.UUID,
+				ManagementIp:         host.ManagementIp,
+				HypervisorType:       host.HypervisorType,
+				State:                host.State,
+				Status:               host.Status,
+				ClusterUuid:          host.ClusterUuid,
+				ZoneUuid:             host.ZoneUuid,
+				TotalCpu:             utils.FormatCpuCapacity(inventoryNumber(host.TotalCpuHz)),
+				TotalCpuHz:           host.TotalCpuHz,
+				AvailableCpu:         utils.FormatCpuCapacity(inventoryNumber(host.AvailableCpuHz)),
+				AvailableCpuHz:       host.AvailableCpuHz,
+				TotalMemory:          utils.FormatMemorySize(inventoryNumber(host.TotalMemoryBytes)),
+				TotalMemoryBytes:     host.TotalMemoryBytes,
+				AvailableMemory:      utils.FormatMemorySize(inventoryNumber(host.AvailableMemoryBytes)),
+				AvailableMemoryBytes: host.AvailableMemoryBytes,
+				CpuSockets:           inventoryNumber(host.CpuSocketCount),
+				CpuSocketCount:       host.CpuSocketCount,
+				CpuNum:               inventoryNumber(host.CpuCount),
+				CpuCount:             host.CpuCount,
+				Architecture:         host.Architecture,
+				Description:          host.Description,
 			}
 			formattedResults = append(formattedResults, formatted)
 		}

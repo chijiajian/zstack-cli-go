@@ -6,3 +6,5 @@
 - `login --access-key-id KEY_ID --access-key-secret-stdin` 从私有 stdin 读取 UTF-8 SK，读到 EOF。AK/SK 写入所选配置，配置必须放在受保护的目录内。PowerShell 模块用独立私有目录，并在断开时清理。
 - 获授权且核对 VM UUID 后可执行 `instance start VM_UUID --uuid-only --yes -o json --error-format json`。`--uuid-only` 不回退到名称匹配。成功流是 `operation` 与 `items`，逐项检查 `status` 和退出码。需要预览时使用 `--dry-run`，可能查询目标，且不会启动。超时后先查状态，避免重复写请求。
 - `get instances -o json` 提供原始字节字段 `memorySizeBytes`，未报告时为 `null`。不要从展示字段 `memorySize` 反算容量。
+
+- `get disks -o json` 的 `sizeBytes` 和 `actualSizeBytes` 分别是配置容量和报告的实际占用。未报告值为 `null`。`describe instance UUID --uuid-only -o json` 禁止按名称回退，仍需检查返回的 `warnings`。

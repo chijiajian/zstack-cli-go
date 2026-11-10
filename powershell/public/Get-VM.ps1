@@ -3,10 +3,18 @@ function Get-CloudVM {
     param(
         [Parameter(Position = 0, ParameterSetName = 'Name')] [ValidateNotNullOrEmpty()] [string[]] $Name,
         [Parameter(Mandatory, ParameterSetName = 'Id')] [ValidateNotNullOrEmpty()] [ValidatePattern('\A[A-Za-z0-9-]+\z')] [string[]] $Id,
-        [object] $Server
+        [object] $Server,
+        [switch] $Detail
     )
 
+    if ($Detail -and ($PSCmdlet.ParameterSetName -ne 'Id' -or $Id.Count -ne 1)) {
+        throw (New-CloudError -Operation DescribeVM -ExitCode 2)
+    }
     $connection = Get-CloudConnection $Server
+    if ($Detail) {
+        Read-CloudVMDetail $connection $Id[0]
+        return
+    }
     if ($PSCmdlet.ParameterSetName -eq 'Id' -and $Id.Count -eq 1) {
         Convert-CloudVM (Read-CloudVMInventory $connection -Id $Id[0]) $connection
         return

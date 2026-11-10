@@ -6,7 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strconv"
+
+	"github.com/chijiajian/zstack-cli-go/pkg/clierr"
 )
 
 type Reader interface {
@@ -19,6 +22,16 @@ type Document struct {
 	Resource map[string]any `json:"resource" yaml:"resource"`
 	Related  map[string]any `json:"related" yaml:"related"`
 	Warnings []string       `json:"warnings,omitempty" yaml:"warnings,omitempty"`
+}
+
+var warningID = regexp.MustCompile(`^[A-Za-z0-9-]{1,128}$`)
+
+func relationWarning(relation, id string, err error) string {
+	if !warningID.MatchString(id) {
+		id = "unknown-id"
+	}
+	// Error strings may include a raw response body. Report only the classified code.
+	return fmt.Sprintf("%s %s unavailable: %s", relation, id, clierr.Describe(err).Code)
 }
 
 func (s Service) one(ctx context.Context, path, uuid string) (map[string]any, error) {
@@ -78,7 +91,7 @@ func (s Service) Describe(ctx context.Context, kind, uuid string) (Document, err
 				network, err := s.one(ctx, "v1/l3-networks", id)
 				if err != nil {
 					networks[id] = nil
-					doc.Warnings = append(doc.Warnings, fmt.Sprintf("l3-network %s unavailable: %v", id, err))
+					doc.Warnings = append(doc.Warnings, relationWarning("l3-network", id, err))
 				} else {
 					networks[id] = network
 				}
@@ -96,7 +109,7 @@ func (s Service) Describe(ctx context.Context, kind, uuid string) (Document, err
 		related, err := s.one(ctx, ref.path, id)
 		if err != nil {
 			doc.Related[ref.key] = nil
-			doc.Warnings = append(doc.Warnings, fmt.Sprintf("%s %s unavailable: %v", ref.key, id, err))
+			doc.Warnings = append(doc.Warnings, relationWarning(ref.key, id, err))
 			continue
 		}
 		doc.Related[ref.key] = related

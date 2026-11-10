@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -140,34 +141,53 @@ func TestQueryOutputContracts(t *testing.T) {
 }
 
 func TestDescribePreservesDetailWhenRelatedResourceDenied(t *testing.T) {
+	const marker = "synthetic-related-response-marker"
 	for _, kind := range []string{"instance", "volume"} {
 		t.Run(kind, func(t *testing.T) {
 			path := "vm-instances"
 			field, relatedPath := "hostUuid", "hosts"
+			warnings := []string{"l3-network network-a unavailable: not_found", "host related-id unavailable: authentication_failed"}
 			if kind == "volume" {
 				path = "volumes"
 				field, relatedPath = "primaryStorageUuid", "primary-storage"
+				warnings = []string{"primaryStorage related-id unavailable: authentication_failed"}
 			}
 			cfg := mockConfig(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/zstack/v1/l3-networks/network-a" {
+					http.Error(w, marker, http.StatusNotFound)
+					return
+				}
 				if strings.HasPrefix(r.URL.Path, "/zstack/v1/"+relatedPath+"/") || r.URL.Path == "/zstack/v1/primary-storage" {
 					if kind == "volume" && r.URL.Query().Get("q") != "uuid=related-id" {
 						t.Errorf("missing exact UUID filter: %s", r.URL)
 					}
-					http.Error(w, `{"error":{"code":"permission.denied"}}`, 403)
+					http.Error(w, `{"error":{"code":"TEST.4","details":"`+marker+`"}}`, http.StatusForbidden)
 					return
 				}
 				if r.URL.Path != "/zstack/v1/"+path && r.URL.Path != "/zstack/v1/"+path+"/id1" {
 					t.Errorf("unexpected path %s", r.URL)
 				}
-				inventory(w, map[string]any{"uuid": "id1", "name": "demo", field: "related-id", "size": int64(9007199254740993), "state": "Running"})
+				resource := map[string]any{"uuid": "id1", "name": "demo", field: "related-id", "size": int64(9007199254740993), "state": "Running"}
+				if kind == "instance" {
+					resource["vmNics"] = []any{map[string]any{"l3NetworkUuid": "network-a"}}
+				}
+				inventory(w, resource)
 			})
 			out, stderr, err := invokeCLI(t, cfg, "", "describe", kind, "id1", "-o", "json")
 			var doc struct {
 				Resource map[string]json.RawMessage `json:"resource"`
 				Warnings []string                   `json:"warnings"`
 			}
-			if err != nil || json.Unmarshal([]byte(out), &doc) != nil || len(doc.Warnings) != 1 || !strings.Contains(stderr, "permission.denied") || string(doc.Resource["size"]) != "9007199254740993" {
+			if err != nil || json.Unmarshal([]byte(out), &doc) != nil || !slices.Equal(doc.Warnings, warnings) || string(doc.Resource["size"]) != "9007199254740993" {
 				t.Fatalf("err=%v out=%s stderr=%s", err, out, stderr)
+			}
+			if strings.Contains(out+stderr, marker) || strings.Contains(out+stderr, "TEST.4") {
+				t.Fatal("related API response was exposed")
+			}
+			for _, warning := range warnings {
+				if !strings.Contains(stderr, "Warning: "+warning+"\n") {
+					t.Errorf("sanitized warning missing from stderr: %s", warning)
+				}
 			}
 		})
 	}

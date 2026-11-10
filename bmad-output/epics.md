@@ -93,9 +93,9 @@ Track: **BMad Method**。来源：[PRD](prd.md)、[Architecture](architecture.md
 | ID | User Story / intent | Blocked by | Status |
 | --- | --- | --- | --- |
 | 5.1 | [定义OEM品牌配置与校验](stories/5.1.brand-schema.story.md) | 2.1 | done |
-| 5.2 | [生成内置CLI的品牌发行包](stories/5.2.bundled-package.story.md) | 5.1, 2.1, 1.4 | review |
-| 5.3 | [统一OEM帮助和错误展示](stories/5.3.branded-diagnostics.story.md) | 5.1, 2.3 | review |
-| 5.4 | [完成离线安装与整包升级回退](stories/5.4.offline-upgrade.story.md) | 5.2, 2.4 | review |
+| 5.2 | [生成内置CLI的品牌发行包](stories/5.2.bundled-package.story.md) | 5.1, 2.1, 1.4 | done |
+| 5.3 | [统一OEM帮助和错误展示](stories/5.3.branded-diagnostics.story.md) | 5.1, 2.3 | done |
+| 5.4 | [完成离线安装与整包升级回退](stories/5.4.offline-upgrade.story.md) | 5.2, 2.4 | done |
 
 **Cross-epic dependencies:** Epic 1, Epic 2。反向依赖在各story的Blocks字段中。
 
@@ -111,10 +111,10 @@ Track: **BMad Method**。来源：[PRD](prd.md)、[Architecture](architecture.md
 
 | ID | User Story / intent | Blocked by | Status |
 | --- | --- | --- | --- |
-| 6.1 | [交付双语安装与迁移说明](stories/6.1.bilingual-guides.story.md) | 4.4, 5.4, 5.3 | review |
-| 6.2 | [建立Windows原生模块契约回归](stories/6.2.windows-contract-ci.story.md) | 3.4, 4.4, 5.3, 5.4 | review |
-| 6.3 | [建立脚本迁移样本与改造量报告](stories/6.3.migration-corpus.story.md) | 1.1, 4.4, 6.1 | review |
-| 6.4 | [形成可审查的试点与发布证据包](stories/6.4.release-evidence.story.md) | 6.1, 6.2, 6.3 | review |
+| 6.1 | [交付双语安装与迁移说明](stories/6.1.bilingual-guides.story.md) | 4.4, 5.4, 5.3 | done |
+| 6.2 | [建立Windows原生模块契约回归](stories/6.2.windows-contract-ci.story.md) | 3.4, 4.4, 5.3, 5.4 | done |
+| 6.3 | [建立脚本迁移样本与改造量报告](stories/6.3.migration-corpus.story.md) | 1.1, 4.4, 6.1 | done |
+| 6.4 | [形成可审查的试点与发布证据包](stories/6.4.release-evidence.story.md) | 6.1, 6.2, 6.3 | done |
 
 **Cross-epic dependencies:** Epic 1, Epic 3, Epic 4, Epic 5。反向依赖在各story的Blocks字段中。
 
@@ -131,7 +131,6 @@ Track: **BMad Method**。来源：[PRD](prd.md)、[Architecture](architecture.md
 ## Delivery Tracking
 
 - Total: 24
-- review: 7
-- done: 17
-- Remaining review: 7
-- 4 个 CLI 前置故事和 13 个 PowerShell/OEM 实现故事已通过本轮评审。双版本 Windows 原生模拟套件和 0.1.2 的双认证真实 API 验收记录属于历史证据；当前未提交源码尚无对应 Windows 报告。客户迁移脚本验收待办。
+- done: 24
+- Remaining review: 0
+- 0.1.2 预览版故事均已结案。[Windows 原生报告](windows-contract-evidence-2026-11-10.md)记录当前实现提交的双版本验证。客户脚本和正式 OEM 发布仍待验收。见[发布验收清单](../powershell/release/acceptance-checklist.md)。

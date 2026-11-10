@@ -13,6 +13,7 @@
 | [决策记录](decision-log.md) | 选择与理由 |
 | [未决项与路线图](addendum.md) | OEM名称、客户脚本、后续能力 |
 | [校验记录](validation-notes.md) | 已做规划检查与未验证项 |
+| [Windows 契约证据](windows-contract-evidence-2026-11-10.md) | 原生预览包、精确构建标识和合成迁移指标 |
 
 PowerShell 模块内置 CLI，CLI 继续复用 Go SDK。用户安装一个模块包即可使用，Import-Module 加载已安装的模块。预览包含对象、管道、错误映射、有限兼容入口和 OEM 打包。
 

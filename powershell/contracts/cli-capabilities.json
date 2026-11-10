@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "contractVersion": 1,
+  "baseline": "Pre-PowerShell source, Go SDK v0.0.10",
+  "releaseVersion": null,
+  "capabilities": {
+    "passwordStdin": {
+      "command": [
+        "login"
+      ],
+      "flag": "password-stdin",
+      "baseline": "missing",
+      "sourceStatus": "verified-locally",
+      "releaseStatus": "unpublished"
+    },
+    "accessKeySecretStdin": {
+      "command": ["login"],
+      "flag": "access-key-secret-stdin",
+      "baseline": "access-key secret passed through CLI flags or environment",
+      "sourceStatus": "verified-locally",
+      "releaseStatus": "unpublished"
+    },
+    "startResultV1": {
+      "command": [
+        "instance",
+        "start"
+      ],
+      "flags": [
+        "uuid-only",
+        "request-timeout",
+        "output",
+        "yes"
+      ],
+      "baseline": "mixed text and JSON, UUID can fall back to name",
+      "sourceStatus": "verified-locally",
+      "releaseStatus": "unpublished"
+    },
+    "vmMemoryBytes": {
+      "command": [
+        "get",
+        "instances"
+      ],
+      "field": "memorySizeBytes",
+      "baseline": "formatted string only",
+      "sourceStatus": "verified-locally",
+      "releaseStatus": "unpublished"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "before": "Get-VM -Server $vi",
+  "after": "Get-ZStackVM -Server $connection"
+}

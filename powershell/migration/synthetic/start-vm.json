@@ -1,0 +1,4 @@
+{
+  "before": "Get-VM -Name $name | Start-VM",
+  "after": "Get-ZStackVM -Name $name | Start-ZStackVM"
+}

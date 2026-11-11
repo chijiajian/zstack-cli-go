@@ -1180,7 +1180,7 @@
       "command": "zstack-cli job resume",
       "category": "mutation",
       "leaf": true,
-      "help": "resume a long job\n\nUsage:\n  zstack-cli job resume <name-or-uuid> [flags]\n\nFlags:\n  -h, --help                       help for resume\n      --request-timeout duration   Deadline for resolution and action completion (default 2m0s)\n  -y, --yes                        Automatic yes to confirmation prompts\n\nGlobal Flags:\n      --context string        Use a saved context for this command without changing the default\n      --dry-run               Preview the request without contacting the server\n      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default \"text\")\n  -o, --output string         Output format: text, json, yaml or table (default \"text\")\n      --version               Show zstack-cli version"
+      "help": "resume a long job\n\nUsage:\n  zstack-cli job resume <name-or-uuid> [flags]\n\nFlags:\n  -h, --help                       help for resume\n      --request-timeout duration   Deadline for resolution and action completion (default 2m0s)\n      --uuid-only                  Require exact UUID without name fallback\n  -y, --yes                        Automatic yes to confirmation prompts\n\nGlobal Flags:\n      --context string        Use a saved context for this command without changing the default\n      --dry-run               Preview the request without contacting the server\n      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default \"text\")\n  -o, --output string         Output format: text, json, yaml or table (default \"text\")\n      --version               Show zstack-cli version"
     },
     {
       "aliases": [],
@@ -1709,7 +1709,7 @@
       "command": "zstack-cli wait long-job",
       "category": "read",
       "leaf": true,
-      "help": "Wait for a long-running async job\n\nUsage:\n  zstack-cli wait long-job <name-or-uuid> [flags]\n\nAliases:\n  long-job, job, longjob\n\nFlags:\n      --for string          Required state or status (default \"Succeeded\")\n  -h, --help                help for long-job\n      --interval duration   Polling interval (default 5s)\n  -o, --output string       Output format: text, table, json, or yaml (default \"text\")\n      --progress            Print state changes to stderr\n      --timeout duration    Maximum time to wait (default 10m0s)\n\nGlobal Flags:\n      --context string        Use a saved context for this command without changing the default\n      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default \"text\")\n      --version               Show zstack-cli version"
+      "help": "Wait for a long-running async job\n\nUsage:\n  zstack-cli wait long-job <name-or-uuid> [flags]\n\nAliases:\n  long-job, job, longjob\n\nFlags:\n      --for string          Required state or status (default \"Succeeded\")\n  -h, --help                help for long-job\n      --interval duration   Polling interval (default 5s)\n  -o, --output string       Output format: text, table, json, or yaml (default \"text\")\n      --progress            Print state changes to stderr\n      --timeout duration    Maximum time to wait (default 10m0s)\n      --uuid-only           Require exact UUID and return the observed job on a terminal mismatch in JSON mode\n\nGlobal Flags:\n      --context string        Use a saved context for this command without changing the default\n      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default \"text\")\n      --version               Show zstack-cli version"
     },
     {
       "aliases": [],
@@ -1723,7 +1723,7 @@
       "command": "zstack-cli zql",
       "category": "read",
       "leaf": true,
-      "help": "Execute a ZStack Query Language statement and print the JSON response\n\nUsage:\n  zstack-cli zql <statement> [flags]\n\nExamples:\n  zstack-cli zql \"query vmInstance.uuid where name='web-01' limit 10\" --context lab\n\nFlags:\n  -h, --help            help for zql\n  -o, --output string   Output format: json (preserves the server's results and returnWith data) (default \"json\")\n\nGlobal Flags:\n      --context string        Use a saved context for this command without changing the default\n      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default \"text\")\n      --version               Show zstack-cli version"
+      "help": "Execute a ZStack Query Language statement and print the JSON response\n\nUsage:\n  zstack-cli zql <statement> [flags]\n\nExamples:\n  zstack-cli zql \"query vmInstance.uuid where name='web-01' limit 10\" --context lab\n\nFlags:\n  -h, --help                       help for zql\n  -o, --output string              Output format: json (preserves the server's results and returnWith data) (default \"json\")\n      --request-timeout duration   Deadline for authentication and the ZQL request (default 2m0s)\n\nGlobal Flags:\n      --context string        Use a saved context for this command without changing the default\n      --error-format string   Error diagnostics on stderr: text or json (stable code and exitCode) (default \"text\")\n      --version               Show zstack-cli version"
     }
   ]
 }

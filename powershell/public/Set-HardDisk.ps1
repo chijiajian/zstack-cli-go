@@ -9,7 +9,7 @@ function Set-CloudHardDisk {
     process {
         foreach ($item in $HardDisk) {
             try {
-                $target = Get-CloudDeviceSelection $item @('Volume', 'HardDisk') $Server SetHardDisk
+                $target = Get-CloudResourceSelection $item @('Volume', 'HardDisk') $Server SetHardDisk
                 $bytes = ConvertTo-CloudMemoryBytes $CapacityGB SetHardDisk
                 $arguments = @('volume', 'resize', $target.Id, '--size', [string] $bytes)
                 Invoke-CloudDeviceWrite $PSCmdlet $target $arguments resize-volume SetHardDisk 'Expand virtual disk to total capacity' $TimeoutSeconds Volume HardDisk

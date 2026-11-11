@@ -9,7 +9,7 @@ function Restore-CloudVolumeSnapshot {
     process {
         foreach ($item in $Snapshot) {
             try {
-                $target = Get-CloudDeviceSelection $item VolumeSnapshot $Server RestoreVolumeSnapshot
+                $target = Get-CloudResourceSelection $item VolumeSnapshot $Server RestoreVolumeSnapshot
                 $volumeId = Get-CloudDeviceParentId $target VolumeId $Volume @('Volume', 'HardDisk') RestoreVolumeSnapshot
                 $arguments = @('snapshot', 'revert', $target.Id, '--volume', $volumeId)
                 Invoke-CloudDeviceWrite $PSCmdlet $target $arguments revert-snapshot RestoreVolumeSnapshot "Revert volume from snapshot for $volumeId" $TimeoutSeconds VolumeSnapshot

@@ -74,7 +74,8 @@ func Describe(err error) Diagnostic {
 		kind = typed.Kind
 	case errors.As(err, &httpErr):
 		kind = fromHTTP(httpErr.Status)
-		if httpErr.Code == "ID.1000" {
+		// ZStack can return HTTP 503 for an invalid session or an admin-only API.
+		if httpErr.Code == "ID.1000" || httpErr.Code == "ID.1002" {
 			kind = Auth
 		}
 	case errors.As(err, &network):

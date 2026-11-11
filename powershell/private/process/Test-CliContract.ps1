@@ -79,6 +79,19 @@ function Assert-CloudCliCapability {
                 Assert-CloudCliHelp $Path $Capability @('get', $inventory) @('all-pages', 'fields', 'request-timeout', 'output')
             }
         }
+        'usageV1' { Assert-CloudCliHelp $Path $Capability @('monitor', 'usage') @('section', 'output') }
+        'zqlV1' { Assert-CloudCliHelp $Path $Capability @('zql') @('request-timeout', 'output') }
+        'longJobV1' {
+            Assert-CloudCliHelp $Path $Capability @('get', 'long-jobs') @('all-pages', 'fields', 'request-timeout', 'output')
+            Assert-CloudCliHelp $Path $Capability @('wait', 'long-job') @('uuid-only', 'for', 'timeout', 'interval', 'output')
+            Assert-CloudCliHelp $Path $Capability @('job', 'resume') @('uuid-only', 'request-timeout', 'output', 'yes')
+        }
+        'platformInventoryV1' {
+            foreach ($inventory in 'accounts', 'users', 'roles', 'policies', 'projects', 'security-groups',
+                'security-group-rules', 'vips', 'load-balancers', 'load-balancer-listeners', 'load-balancer-server-groups') {
+                Assert-CloudCliHelp $Path $Capability @('get', $inventory) @('all-pages', 'fields', 'request-timeout', 'output')
+            }
+        }
         default { throw 'CloudAutomation.UnsupportedCapability: Unknown package capability.' }
     }
 }

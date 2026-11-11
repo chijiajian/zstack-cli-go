@@ -54,7 +54,8 @@ $privateFiles = @(
     'private/process/Invoke-CliProcess.ps1', 'branding/Resolve-Message.ps1',
     'private/process/Convert-CliResult.ps1', 'private/process/Test-CliContract.ps1', 'private/connections/ConnectionRegistry.ps1',
     'private/objects/Convert-CloudVM.ps1', 'private/objects/Resolve-CloudVMTarget.ps1',
-    'private/queries/ResourceInventory.ps1',
+    'private/queries/ResourceInventory.ps1', 'private/queries/PlatformInventory.ps1',
+    'private/queries/PlatformReports.ps1', 'private/queries/LongJob.ps1',
     'private/mutations/Invoke-CloudShouldProcess.ps1', 'private/mutations/Wait-CloudVMState.ps1',
     'private/mutations/Invoke-CloudVMOperation.ps1', 'private/mutations/Invoke-CloudDeviceWrite.ps1'
 )
@@ -120,6 +121,34 @@ $deviceHelp = [ordered]@{
 foreach ($command in $deviceHelp.GetEnumerator()) {
     $entries[$command.Key] = $command.Key.Replace('-Cloud', '-') + '.ps1'
     $requirements[$command.Key] = 'deviceLifecycleV1'
+    $helpSummaries[$command.Key] = $command.Value
+}
+$platformHelp = [ordered]@{
+    'Get-CloudUsage' = 'Returns capacity and sampled host load from the selected cloud.'
+    'Invoke-CloudZql' = 'Runs a ZQL query or count and returns each server result set.'
+    'Get-CloudLongJob' = 'Queries real cloud long jobs by name or ID.'
+    'Wait-CloudLongJob' = 'Waits for a real cloud long job to reach a terminal state.'
+    'Resume-CloudLongJob' = 'Resumes an explicitly selected suspended cloud long job.'
+    'Get-CloudAccount' = 'Returns visible ZStack accounts.'
+    'Get-CloudUser' = 'Returns visible ZStack account users.'
+    'Get-CloudRole' = 'Returns visible roles.'
+    'Get-CloudPolicy' = 'Returns visible policies and statement counts.'
+    'Get-CloudProject' = 'Returns visible IAM2 projects.'
+    'Get-CloudSecurityGroup' = 'Returns security groups.'
+    'Get-CloudSecurityGroupRule' = 'Returns rules for the selected security groups or connection.'
+    'Get-CloudVip' = 'Returns virtual IPs.'
+    'Get-CloudLoadBalancer' = 'Returns load balancers, optionally scoped to selected virtual IPs.'
+    'Get-CloudLoadBalancerListener' = 'Returns listeners for the selected load balancers or connection.'
+    'Get-CloudLoadBalancerServerGroup' = 'Returns server groups for the selected load balancers or connection.'
+}
+foreach ($command in $platformHelp.GetEnumerator()) {
+    $entries[$command.Key] = $command.Key.Replace('-Cloud', '-') + '.ps1'
+    $requirements[$command.Key] = switch -Wildcard ($command.Key) {
+        '*Usage' { 'usageV1' }
+        '*Zql' { 'zqlV1' }
+        '*LongJob' { 'longJobV1' }
+        default { 'platformInventoryV1' }
+    }
     $helpSummaries[$command.Key] = $command.Value
 }
 $messages = @('branding/messages.en.json', 'branding/messages.zh-CN.json')

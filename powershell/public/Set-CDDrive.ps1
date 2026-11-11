@@ -11,14 +11,14 @@ function Set-CloudCDDrive {
     process {
         foreach ($item in $CD) {
             try {
-                $target = Get-CloudDeviceSelection $item CDDrive $Server SetCDDrive
+                $target = Get-CloudResourceSelection $item CDDrive $Server SetCDDrive
                 $vmId = Get-CloudDeviceParentId $target VMId $VM VM SetCDDrive
                 if ($PSCmdlet.ParameterSetName -ceq 'Eject') {
                     if (-not $NoMedia) { throw (New-CloudError -Operation SetCDDrive -ExitCode 2 -Target $target.Id) }
                     $arguments = @('instance', 'detach-iso', $vmId, '--cdrom', $target.Id)
                     Invoke-CloudDeviceWrite $PSCmdlet $target $arguments detach-iso SetCDDrive "Eject ISO from VM $vmId" $TimeoutSeconds CDDrive
                 } else {
-                    $image = Get-CloudDeviceSelection $IsoImage Image $target.Connection.Public SetCDDrive
+                    $image = Get-CloudResourceSelection $IsoImage Image $target.Connection.Public SetCDDrive
                     $arguments = @('instance', 'attach-iso', $vmId, '--cdrom', $target.Id, '--iso', $image.Id)
                     Invoke-CloudDeviceWrite $PSCmdlet $target $arguments attach-iso SetCDDrive "Insert ISO $($image.Id) on VM $vmId" $TimeoutSeconds CDDrive
                 }

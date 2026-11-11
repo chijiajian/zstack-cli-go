@@ -33,14 +33,7 @@ var idPattern = regexp.MustCompile(`^[A-Za-z0-9-]{1,128}$`)
 func Invalid(message string) error { return clierr.Wrap(clierr.Usage, fmt.Errorf("%s", message)) }
 
 func Resolve(ctx context.Context, reader *client.ReadClient, kind, id string) (client.ResolvedResource, error) {
-	if !idPattern.MatchString(id) {
-		return client.ResolvedResource{}, Invalid("a valid UUID is required")
-	}
-	resource, err := reader.Resolve(ctx, kind, id, client.ResolveUUID)
-	if err == nil && resource.UUID != id {
-		err = clierr.Wrap(clierr.Remote, fmt.Errorf("UUID query returned a different resource"))
-	}
-	return resource, err
+	return reader.ResolveExactUUID(ctx, kind, id)
 }
 
 type operation struct {

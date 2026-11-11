@@ -1,17 +1,3 @@
-function Get-CloudDeviceSelection {
-    param($Reference, [string[]] $Types, $Server, [string] $Operation)
-    if ($Reference -is [string]) {
-        if ($Reference -cnotmatch '\A[A-Za-z0-9-]{1,128}\z') { throw (New-CloudError -Operation $Operation -ExitCode 2) }
-        return @{ Connection = Get-CloudConnection $Server; Id = $Reference; Name = $Reference }
-    }
-    $type = @($Types | Where-Object { $Reference.PSObject.TypeNames -ccontains "Cloud.Automation.$_" })
-    if ($type.Count -ne 1) { throw (New-CloudError -Operation $Operation -ExitCode 5) }
-    $connection = Get-CloudObjectConnection $Reference $type[0] $Server $Operation
-    $identity = $null
-    $null = $connection.Objects.TryGetValue($Reference.PSObject, [ref] $identity)
-    return @{ Connection = $connection; Id = $identity.Id; Name = $Reference.Name; Identity = $identity }
-}
-
 function Read-CloudWrittenDevice {
     param($Connection, [string] $Type, [string] $Id, [string] $OutputType, $Clock, [int] $Budget, [string] $Operation)
     try {
@@ -53,7 +39,7 @@ function Get-CloudDeviceParentId {
     param($Target, [string] $Key, $Reference, [string[]] $Types, [string] $Operation)
     $expected = if ($Target.ContainsKey('Identity')) { $Target.Identity[$Key] }
     if ($null -ne $Reference) {
-        $parent = Get-CloudDeviceSelection $Reference $Types $Target.Connection.Public $Operation
+        $parent = Get-CloudResourceSelection $Reference $Types $Target.Connection.Public $Operation
         if ($expected -and $expected -cne $parent.Id) { throw (New-CloudError -Operation $Operation -ExitCode 5 -Target $Target.Id) }
         return $parent.Id
     }

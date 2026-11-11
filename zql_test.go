@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestZQLPassesStatementAndPreservesResult(t *testing.T) {
@@ -43,4 +45,30 @@ func TestZQLResponseContract(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestZQLPermissionAndRequestDeadline(t *testing.T) {
+	t.Run("permission", func(t *testing.T) {
+		cfg := mockConfig(t, func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "private response", http.StatusForbidden)
+		})
+		out, stderr, err := invokeCLI(t, cfg, "", "zql", "count vmInstance", "--error-format", "json")
+		assertDiagnostic(t, stderr, err, "authentication_failed", 3)
+		if out != "" || strings.Contains(stderr, "private response") {
+			t.Fatalf("unexpected output: %s %s", out, stderr)
+		}
+	})
+	t.Run("deadline", func(t *testing.T) {
+		cfg := mockConfig(t, func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case <-r.Context().Done():
+			case <-time.After(3 * time.Second):
+			}
+		})
+		out, stderr, err := invokeCLI(t, cfg, "", "zql", "count vmInstance", "--request-timeout", "500ms", "--error-format", "json")
+		assertDiagnostic(t, stderr, err, "timeout", 6)
+		if out != "" {
+			t.Fatalf("unexpected output: %s", out)
+		}
+	})
 }

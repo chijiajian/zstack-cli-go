@@ -17,7 +17,11 @@ func TestJobActionsValidateStateAndUseBoundedTransport(t *testing.T) {
 			var writes atomic.Int32
 			cfg := mockConfig(t, func(w http.ResponseWriter, r *http.Request) {
 				if r.Method == "GET" {
-					inventory(w, map[string]any{"uuid": "job-id", "name": "job", "state": tc.state})
+					state := tc.state
+					if tc.action == "resume" && writes.Load() > 0 {
+						state = "Succeeded"
+					}
+					inventory(w, map[string]any{"uuid": "job-id", "name": "job", "state": state})
 					return
 				}
 				writes.Add(1)
@@ -104,6 +108,84 @@ func TestIAMMutationRejectsUnconfirmedIdentity(t *testing.T) {
 			assertDiagnostic(t, stderr, err, "api_failed", 8)
 			if out != "" || writes.Load() != 1 {
 				t.Fatalf("unexpected success output or retry: %q writes=%d", out, writes.Load())
+			}
+		})
+	}
+}
+
+func TestResumeLongJobExactUUIDDoesNotFallbackOrMutateWrongIdentity(t *testing.T) {
+	for _, body := range []string{`{"inventories":[]}`, `{"inventories":[{"uuid":"other-job","name":"job-id","state":"Suspended"}]}`} {
+		t.Run(body, func(t *testing.T) {
+			var calls atomic.Int32
+			cfg := mockConfig(t, func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				if r.Method != "GET" || r.URL.Path != "/zstack/v1/longjobs" || r.URL.Query().Get("q") != "uuid=job-id" {
+					t.Errorf("unexpected request %s %s", r.Method, r.URL)
+				}
+				w.Write([]byte(body))
+			})
+			out, stderr, err := invokeCLI(t, cfg, "", "job", "resume", "job-id", "--uuid-only", "--yes", "-o", "json", "--error-format", "json")
+			if body == `{"inventories":[]}` {
+				assertDiagnostic(t, stderr, err, "not_found", 4)
+			} else {
+				assertDiagnostic(t, stderr, err, "api_failed", 8)
+			}
+			if calls.Load() != 1 || out != "" {
+				t.Fatalf("calls=%d out=%s", calls.Load(), out)
+			}
+		})
+	}
+}
+
+func TestResumeLongJobVerifiesStateWithExactReadback(t *testing.T) {
+	for _, tc := range []struct {
+		name, responseState, readID, readState string
+		wantError                              bool
+	}{
+		{"accepted but still suspended", "Running", "job-id", "Suspended", true},
+		{"state observed after stale response", "Suspended", "job-id", "Waiting", false},
+		{"job advanced to failure", "Running", "job-id", "Failed", false},
+		{"unknown state", "Running", "job-id", "", true},
+		{"job disappeared", "Running", "", "", true},
+		{"different job", "Running", "other-id", "Running", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var writes, readbacks atomic.Int32
+			cfg := mockConfig(t, func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case r.Method == "GET" && r.URL.Path == "/zstack/v1/longjobs" && r.URL.Query().Get("q") == "uuid=job-id":
+					if writes.Load() == 0 {
+						inventory(w, map[string]any{"uuid": "job-id", "name": "before", "state": "Suspended"})
+						return
+					}
+					readbacks.Add(1)
+					if tc.readID == "" {
+						inventory(w)
+						return
+					}
+					inventory(w, map[string]any{"uuid": tc.readID, "name": "after", "state": tc.readState})
+				case r.Method == "PUT" && r.URL.Path == "/zstack/v1/longjobs/job-id/actions":
+					writes.Add(1)
+					w.Write([]byte(`{"inventory":{"uuid":"job-id","name":"mutation","state":"` + tc.responseState + `"}}`))
+				default:
+					t.Errorf("unexpected request %s %s", r.Method, r.URL)
+					http.NotFound(w, r)
+				}
+			})
+			out, stderr, err := invokeCLI(t, cfg, "", "job", "resume", "job-id", "--uuid-only", "--yes", "-o", "json", "--error-format", "json")
+			if writes.Load() != 1 || readbacks.Load() != 1 {
+				t.Fatalf("expected one write and one readback, got %d and %d", writes.Load(), readbacks.Load())
+			}
+			if tc.wantError {
+				assertDiagnostic(t, stderr, err, "api_failed", 8)
+				if out != "" {
+					t.Fatalf("unverified resume emitted success: %s", out)
+				}
+				return
+			}
+			var job struct{ UUID, Name, State string }
+			if err != nil || json.Unmarshal([]byte(out), &job) != nil || job.UUID != "job-id" || job.Name != "after" || job.State != tc.readState {
+				t.Fatalf("expected verified state %s, got %v %s %s", tc.readState, err, out, stderr)
 			}
 		})
 	}

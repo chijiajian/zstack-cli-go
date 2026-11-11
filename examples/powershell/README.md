@@ -79,3 +79,32 @@ $drive = $vm | Get-ZStackCDDrive -Id $driveId
 $drive = $drive | Set-ZStackCDDrive -IsoImage $isoImageId
 $drive | Set-ZStackCDDrive -NoMedia
 ```
+
+## ZStack platform operations
+
+Run these examples after connecting to the authorized cloud with `Connect-ZStackServer`. Save that connection in `$server`.
+
+```powershell
+$report = Get-ZStackUsage -Server $server
+$report.Capacity | Select-Object Metric, Unit, Total, Used, Available, Percent |
+    Export-Csv ./zstack-capacity.csv -NoTypeInformation
+$report.Load | Select-Object SampleTime, ConnectedHosts, SampledHosts, CpuPercent, MemoryPercent
+
+$sets = @(Invoke-ZStackZql -Server $server -Query 'query vmInstance.uuid,name limit 5; count vmInstance')
+$sets[0].Records | ForEach-Object { [pscustomobject] $_ } | Select-Object uuid, name
+$sets[1].Total
+
+Get-ZStackSecurityGroup -Server $server -Name 'app*' | Get-ZStackSecurityGroupRule |
+    Select-Object SecurityGroupId, Direction, Protocol, StartPort, EndPort, AllowedCidr
+Get-ZStackVip -Server $server -Name 'app*' | Get-ZStackLoadBalancer | Get-ZStackLoadBalancerListener |
+    Select-Object Name, LoadBalancerId, LoadBalancerPort, ServerGroupId
+Get-ZStackProject -Server $server | Select-Object Id, Name, LinkedAccountId, State
+```
+
+Set `$jobId` to the UUID of a suspended long job you are authorized to resume. Review the preview before submitting the action.
+
+```powershell
+$job = Get-ZStackLongJob -Server $server -Id $jobId
+$job | Resume-ZStackLongJob -WhatIf
+$job | Resume-ZStackLongJob -Confirm | Wait-ZStackLongJob -TimeoutSeconds 600
+```

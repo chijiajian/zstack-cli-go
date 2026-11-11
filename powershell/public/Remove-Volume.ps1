@@ -8,7 +8,7 @@ function Remove-CloudVolume {
     process {
         foreach ($item in $Volume) {
             try {
-                $target = Get-CloudDeviceSelection $item Volume $Server RemoveVolume
+                $target = Get-CloudResourceSelection $item Volume $Server RemoveVolume
                 $arguments = @('delete', 'volume', $target.Id)
                 Invoke-CloudDeviceWrite $PSCmdlet $target $arguments delete-volume RemoveVolume 'Delete detached data volume to recycle bin' $TimeoutSeconds
             } catch { $PSCmdlet.WriteError($_) }

@@ -159,11 +159,11 @@ For other IAM resources, for example `delete account test-account`, the CLI prom
 zstack-cli get jobs -o json
 zstack-cli describe job JOB_UUID -o json
 zstack-cli job resume JOB_UUID --dry-run -o json
-zstack-cli job resume JOB_UUID --yes --request-timeout 2m -o json
+zstack-cli job resume JOB_UUID --uuid-only --yes --request-timeout 2m -o json
 zstack-cli job clean JOB_UUID --yes -o json
 ```
 
-Resume accepts Suspended. Clean accepts Succeeded, Failed or Canceled. Dry-run previews the request, while execution resolves and checks the current state. Continue with `wait job` when completion is needed after resume. Local tests cover state protection and request contracts. Existing live long jobs have not been resumed or cleaned during validation.
+Resume accepts Suspended. After the request, it reads back the same UUID within the request deadline and succeeds only if the task has moved to a recognized state other than Suspended. Clean accepts Succeeded, Failed or Canceled. Dry-run previews the request, while execution resolves and checks the current state. Continue with `wait long-job JOB_UUID --uuid-only -o json` when completion is needed. Exact UUID mode prevents name fallback. A different terminal state produces the observed job on stdout in JSON mode and a conflict exit code.
 
 ## 7. Automation errors
 
@@ -248,7 +248,7 @@ Capacity includes vCPU, memory, logical primary storage and physical primary sto
 Use `get instances web-01` for exact-name selection, `get instances -q 'uuid=VM_UUID'` for a UUID filter, and `describe instance VM_UUID` for details. For projections, counts, relations or VM-specific ZWatch metrics, use `zql` and pass the whole statement as one quoted argument.
 
 ```sh
-zstack-cli zql "query vmInstance.name where uuid='VM_UUID' limit 1" --context lab
+zstack-cli zql --request-timeout 30s "query vmInstance.name where uuid='VM_UUID' limit 1" --context lab
 ```
 
 The selected server parses ZQL. Supported syntax and visible resources depend on server version and account permissions. JSON output preserves results, aggregate fields and returnWith. See [query examples](../examples/queries.en.md) for per-VM CPU time series.

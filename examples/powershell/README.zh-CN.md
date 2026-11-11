@@ -36,6 +36,47 @@ VMware 示例中的 `$vi` 来自 `Connect-VIServer`，ZStack 示例中的 `$serv
 
 `$oemCompatibilityManifest` 指向已安装 OEM 包中的兼容清单，例如 `Compatibility/Acme.Cloud.Compatibility.psd1`。用同一包中的 `Connect-AcmeServer` 创建 `$oemConnection`。使用 OEM 原生命令时调用 `Get-AcmeVM -Server $oemConnection`，并通过 `Get-Help Get-AcmeVM -Full` 查看包信息。VM 对象来自 CSV 或旧会话时，按 UUID 重新查询。
 
+## 公开 PowerCLI 场景
+
+在独立会话中导入已安装的原生模块和兼容模块。使用 ZStack 连接，按环境替换 VM 名称和 UUID。
+
+```powershell
+$module = Import-Module ZStack.PowerCLI -PassThru
+Import-Module (Join-Path $module.ModuleBase 'Compatibility/ZStack.PowerCLI.Compatibility.psd1')
+$server = Connect-VIServer -Server '10.255.255.21:8080' -Credential (Get-Credential)
+$vms = Get-VM -Name 'app-*' -Server $server
+$vms | Select-Object Name, NumCpu, MemoryGB, PowerState, Id |
+    Export-Csv ./vm-inventory.csv -NoTypeInformation
+$vms | Get-HardDisk | Select-Object VMId, Name, CapacityGB
+$vms | Get-NetworkAdapter | Select-Object VMId, MacAddress, NetworkName
+$clusters = Get-Cluster -Server $server
+Get-VMHost -Location $clusters | Select-Object Name, ClusterId, ConnectionState, NumCpu, MemoryTotalGB
+```
+
+按顺序启动时，把已授权的 ZStack UUID 放入 `vm-order.csv`，表头为 `Id`。此循环逐台预览。实际执行获得授权后，将 `-WhatIf` 改为 `-Confirm`。
+
+```powershell
+foreach ($entry in (Import-Csv ./vm-order.csv)) {
+    $vm = Get-VM -Id $entry.Id -Server $server -ErrorAction Stop
+    if (-not $vm) { throw "找不到 VM $($entry.Id)" }
+    $vm | Start-VM -TimeoutSeconds 180 -WhatIf -ErrorAction Stop
+}
+```
+
+同步启动会在 VM 达到 `Running` 后返回刷新对象。计划优雅关机时使用 `Stop-ZStackVM`，并确认达到 `Stopped`。下一台 VM 依赖客户机或应用就绪时，使用独立探针。
+
+快照年龄巡检通过父云盘查询卷快照，可保留按日期筛选的报表逻辑。
+
+```powershell
+$cutoff = [datetimeoffset]::Now.AddDays(-7)
+$vms | Get-HardDisk | Get-ZStackVolumeSnapshot |
+    Where-Object { $_.CreateDate -and [datetimeoffset]::Parse($_.CreateDate) -lt $cutoff } |
+    Select-Object Name, VolumeId, CreateDate
+Disconnect-VIServer -Server $server
+```
+
+[存储和网络报表](inventory.zh-CN.md)展示主存储和 L2/L3 的改写方式。[兼容矩阵](../../powershell/contracts/compatibility.md)列出了参数与对象差异。
+
 ## VM 生命周期
 
 使用当前源码构建的模块包，并把占位符换成获准测试环境中的 UUID。管道使用实时 ZStack 对象，写命令均带 `-WhatIf`。创建预览不返回 VM，因此后续预览请指定另一台已获授权的测试 VM。

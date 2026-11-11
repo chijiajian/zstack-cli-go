@@ -38,10 +38,12 @@ function Get-StaticCommandCounts {
 
 $catalog = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'corpus-manifest.json') -Raw | ConvertFrom-Json -AsHashtable
 $passed = @()
+$zstackOnly = $false
 if ($ContractReport) {
     $report = Get-Content -LiteralPath $ContractReport -Raw | ConvertFrom-Json -AsHashtable
     if ($report.cloud -cne 'loopback mock') { throw 'This assessment only accepts a synthetic contract report.' }
     $passed = $report.passed
+    $zstackOnly = $report['zstackOnly'] -eq $true
 }
 $rows = @(foreach ($sample in $catalog.cases) {
     $pair = Get-Content -LiteralPath (Join-Path $PSScriptRoot $sample.file) -Raw | ConvertFrom-Json -AsHashtable
@@ -55,27 +57,34 @@ $rows = @(foreach ($sample in $catalog.cases) {
         if ($removed -lt 1 -or $added -lt 1) { throw "Invalid command replacement in sample $($sample.id)." }
         $replacementCount += [Math]::Min($removed, $added)
     }
-    $missing = @($sample.verifiedBy | Where-Object { $passed -cnotcontains $_ })
+    $skipped = $zstackOnly -and $sample['requiresOem']
+    $missing = @(if (-not $skipped) { $sample.verifiedBy | Where-Object { $passed -cnotcontains $_ } })
     [pscustomobject]@{
         Id = $sample.id; Group = $sample.group; Migration = $sample.migration
+        Source = $pair['source']
         SupportedBehavior = $pair.supportedBehavior; Unsupported = @($pair.unsupported)
         Changes = @($pair.changes); AddedLines = $lines.Added; RemovedLines = $lines.Removed
         ChangedLines = $lines.Added + $lines.Removed; CommandReplacements = $replacementCount
-        SyntheticCheck = if ($missing.Count -eq 0) { 'Passed' } else { 'NotRecorded' }
+        SyntheticCheck = if ($skipped) { 'Skipped' } elseif ($missing.Count -eq 0) { 'Passed' } else { 'NotRecorded' }
         UnrecordedChecks = $missing
         Before = $pair.before; After = $pair.after
     }
 })
-$inScope = @($rows | Where-Object { $_.Migration -ne 'review' -and $_.Unsupported.Count -eq 0 })
+$skippedCases = @($rows | Where-Object SyntheticCheck -eq 'Skipped' | ForEach-Object Id)
+$unrecordedCases = @($rows | Where-Object SyntheticCheck -eq 'NotRecorded' | ForEach-Object Id)
+$inScope = @($rows | Where-Object { $_.SyntheticCheck -ne 'Skipped' -and $_.Migration -ne 'review' -and $_.Unsupported.Count -eq 0 })
 $inScopePassed = @($inScope | Where-Object SyntheticCheck -eq 'Passed').Count
 [pscustomobject]@{
     Kind = 'synthetic'
+    ZStackOnly = $zstackOnly
     Summary = [ordered]@{
         Samples = $rows.Count
+        Unchanged = @($rows | Where-Object Migration -eq 'unchanged').Count
         CommandOnly = @($rows | Where-Object Migration -eq 'command-only').Count
         Rewrite = @($rows | Where-Object Migration -eq 'rewrite').Count
         ManualReview = @($rows | Where-Object Migration -eq 'review').Count
         Unsupported = @($rows | Where-Object { $_.Unsupported.Count -gt 0 }).Count
+        Skipped = $skippedCases.Count
         InScope = $inScope.Count
         InScopePassed = $inScopePassed
         InScopePassRate = if ($ContractReport -and $inScope.Count) { $inScopePassed / $inScope.Count }
@@ -84,5 +93,7 @@ $inScopePassed = @($inScope | Where-Object SyntheticCheck -eq 'Passed').Count
         ChangedLines = ($rows | Measure-Object ChangedLines -Sum).Sum
         CommandReplacements = ($rows | Measure-Object CommandReplacements -Sum).Sum
     }
+    SkippedCases = $skippedCases
+    UnrecordedCases = $unrecordedCases
     Cases = $rows
 }

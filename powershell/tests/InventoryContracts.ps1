@@ -1,5 +1,5 @@
 function Assert-CloudInventoryContracts {
-    param($Connection, [string] $Endpoint, [object[]] $VMs, [pscredential] $Credential, [psmoduleinfo] $Module)
+    param($Connection, [string] $Endpoint, [object[]] $VMs, [pscredential] $Credential, [psmoduleinfo] $Module, [switch] $ZStackOnly)
 
     $root, $other, $noDisks = $VMs
     $disks = @($root, $other, $root | Get-ZStackHardDisk)
@@ -73,6 +73,7 @@ function Assert-CloudInventoryContracts {
     Assert-CloudContract ($legacyWarnings.Count -eq 2 -and $legacyWarnings[0] -ceq 'image missing-image unavailable: operation_failed' -and
         $legacyWarnings[1] -ceq 'related resource unavailable: operation_failed') 'VM detail drops legacy raw response text and unknown warning content'
 
+    if ($ZStackOnly) { return }
     $oem = Connect-AcmeServer -Server $Endpoint -Credential $Credential
     try {
         $oemVm = Get-AcmeVM -Id vm-a -Server $oem

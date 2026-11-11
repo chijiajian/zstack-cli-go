@@ -78,6 +78,7 @@
     {
       "id": "oem-native",
       "group": "oem",
+      "requiresOem": true,
       "file": "synthetic/oem-native.json",
       "migration": "rewrite",
       "verifiedBy": "OEM export scopes"
@@ -88,6 +89,85 @@
       "file": "synthetic/legacy-collision.json",
       "migration": "review",
       "verifiedBy": "legacy name collision rejected"
+    },
+    {
+      "id": "s01-vm-csv",
+      "group": "public",
+      "file": "public/s01-vm-csv.json",
+      "migration": "unchanged",
+      "verifiedBy": [
+        "S01 legacy VM filters preserve CSV columns and empty pipelines"
+      ]
+    },
+    {
+      "id": "s02-host-cluster",
+      "group": "public",
+      "file": "public/s02-host-cluster.json",
+      "migration": "unchanged",
+      "verifiedBy": [
+        "S02 legacy host and cluster reports preserve associations and units"
+      ]
+    },
+    {
+      "id": "s03-vm-disks-and-nics",
+      "group": "public",
+      "file": "public/s03-vm-disks-and-nics.json",
+      "migration": "unchanged",
+      "verifiedBy": [
+        "S03 legacy disk and NIC pipelines batch parents and preserve report fields",
+        "S03 legacy inventory rejects detached objects and wrong servers"
+      ]
+    },
+    {
+      "id": "s04-ordered-power",
+      "group": "public",
+      "file": "public/s04-ordered-power.json",
+      "migration": "rewrite",
+      "verifiedBy": [
+        "S04 legacy Start-VM WhatIf makes no write",
+        "S04 legacy start timeout reports unknown outcome without a retry",
+        "VM stop uses graceful shutdown and omits HA override by default"
+      ]
+    },
+    {
+      "id": "s05-snapshot-age",
+      "group": "public",
+      "file": "public/s05-snapshot-age.json",
+      "migration": "rewrite",
+      "verifiedBy": [
+        "snapshot query is scoped to volume",
+        "snapshot delete verified absent"
+      ]
+    },
+    {
+      "id": "s06-capacity-topology",
+      "group": "public",
+      "file": "public/s06-capacity-topology.json",
+      "migration": "rewrite",
+      "verifiedBy": [
+        "storage reports preserve logical and physical capacity, signed usage, zero and unknown values",
+        "L2, L3 and IP range queries preserve typed hierarchy and network ID zero"
+      ]
+    },
+    {
+      "id": "s07-volume-revert",
+      "group": "public",
+      "file": "public/s07-volume-revert.json",
+      "migration": "rewrite",
+      "verifiedBy": [
+        "snapshot rejects the wrong parent volume",
+        "snapshot revert targets the original volume",
+        "snapshot delete verified absent"
+      ]
+    },
+    {
+      "id": "s08-historical-metrics",
+      "group": "public",
+      "file": "public/s08-historical-metrics.json",
+      "migration": "review",
+      "verifiedBy": [
+        "usage keeps missing load separate from zero"
+      ]
     }
   ]
 }

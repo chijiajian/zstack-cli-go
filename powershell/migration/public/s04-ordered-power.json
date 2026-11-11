@@ -1,0 +1,21 @@
+{
+  "source": "https://community.broadcom.com/vmware-cloud-foundation/discussion/help-with-scripting-shut-downpower-on",
+  "before": "foreach ($id in $ids) {\n    $vm = Get-VM -Id $id -Server $server\n    $vm | Start-VM -Confirm:$false -ErrorAction Stop\n    $vm | Stop-VMGuest -Confirm:$false -ErrorAction Stop\n}",
+  "after": "foreach ($id in $ids) {\n    $vm = Get-VM -Id $id -Server $server -ErrorAction Stop\n    if (-not $vm) { throw \"Missing VM: $id\" }\n    $running = $vm | Start-VM -TimeoutSeconds 180 -Confirm:$false -ErrorAction Stop\n    $running | Stop-ZStackVM -Confirm:$false -ErrorAction Stop\n}",
+  "supportedBehavior": "Keep the explicit VM list, pipeline and fail-fast loop. Each action verifies the platform state.",
+  "unsupported": [
+    "VMware Tools shutdown and readiness"
+  ],
+  "changes": [
+    {
+      "location": "Scenario workflow",
+      "reason": "Keep the explicit VM list, pipeline and fail-fast loop. Each action verifies the platform state."
+    }
+  ],
+  "replacements": [
+    {
+      "from": "Stop-VMGuest",
+      "to": "Stop-ZStackVM"
+    }
+  ]
+}

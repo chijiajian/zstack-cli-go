@@ -5,7 +5,9 @@ param(
     [string] $DevelopmentCliPath,
     [string] $PythonPath = (Get-Command python, python3 -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source),
     [string] $ReportPath,
-    [switch] $Benchmark
+    [version] $ModuleVersion = '0.1.2',
+    [switch] $Benchmark,
+    [switch] $ZStackOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,6 +17,7 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'LifecycleContracts.ps1')
 . (Join-Path $PSScriptRoot 'DeviceContracts.ps1')
 . (Join-Path $PSScriptRoot 'PlatformContracts.ps1')
+. (Join-Path $PSScriptRoot 'MigrationContracts.ps1')
 $source = Split-Path -Parent $PSScriptRoot
 $work = [System.IO.Directory]::CreateTempSubdirectory('cloud-contracts-').FullName
 $service = $null
@@ -58,13 +61,13 @@ function Wait-CloudFixtureEndpoint {
 }
 
 function Get-FreshCloudModuleVersion {
-    param([string] $ModuleDirectory, [switch] $Rollback)
+    param([string] $ModuleDirectory, [version] $RequiredVersion)
 
     $shell = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
     $modulePath = $ModuleDirectory.Replace("'", "''")
     $command = '$ErrorActionPreference = "Stop"; $env:PSModulePath = ''{0}'' + [IO.Path]::PathSeparator + (Join-Path $PSHOME "Modules"); ' -f $modulePath
-    if ($Rollback) {
-        $command += '(Import-Module -FullyQualifiedName @{ ModuleName = "ZStack.PowerCLI"; RequiredVersion = "0.1.2" } -PassThru).Version.ToString()'
+    if ($RequiredVersion) {
+        $command += '(Import-Module -FullyQualifiedName @{ ModuleName = "ZStack.PowerCLI"; RequiredVersion = "' + $RequiredVersion + '" } -PassThru).Version.ToString()'
     } else {
         $command += '(Import-Module ZStack.PowerCLI -PassThru).Version.ToString()'
     }
@@ -112,18 +115,22 @@ else:
     Assert-CloudContract (Test-CloudRejected { Convert-CliResult $probe Query -Shape Array } 'Protocol') 'malformed JSON rejected'
 
     $builder = Join-Path $source 'packaging/Build-Package.ps1'
-    $brands = @((Join-Path $source 'branding/examples/zstack.json'), (Join-Path $source 'branding/examples/acme.json'))
+    $brands = @((Join-Path $source 'branding/examples/zstack.json'))
+    if (-not $ZStackOnly) { $brands += Join-Path $source 'branding/examples/acme.json' }
     $rejectedPath = Join-Path $work 'rejected packages'
-    $build = @{ BrandConfig = $brands; CliPath = $WindowsCliPath; ModuleVersion = [version] '0.1.2'; OutputDirectory = $rejectedPath }
+    $build = @{ BrandConfig = $brands; CliPath = $WindowsCliPath; ModuleVersion = $ModuleVersion; OutputDirectory = $rejectedPath }
     Assert-CloudContract (Test-CloudRejected { & $builder @build -CliVersion 'invalid-fixture-version' } 'CliVersionMismatch') 'packager rejects a mismatched CLI version'
     Assert-CloudContract (Test-CloudRejected { & $builder @build -CliCommit 'invalid-fixture-commit' } 'CliVersionMismatch') 'packager rejects a mismatched CLI commit'
     Assert-CloudContract (-not (Test-Path -LiteralPath $rejectedPath)) 'CLI mismatch leaves no package output'
-    $packages = @(& $builder -BrandConfig $brands -CliPath $WindowsCliPath -ModuleVersion 0.1.2 -OutputDirectory (Join-Path $work 'packages'))
-    Assert-CloudContract ($packages.Count -eq 2) 'two OEM packages'
-    foreach ($file in 'private/process/Invoke-CliProcess.ps1', 'private/objects/Convert-CloudVM.ps1', 'bin/windows-amd64/zstack-cli.exe') {
-        $a = (Get-FileHash -LiteralPath (Join-Path $packages[0].Directory $file)).Hash
-        $b = (Get-FileHash -LiteralPath (Join-Path $packages[1].Directory $file)).Hash
-        Assert-CloudContract ($a -eq $b) "OEM common payload $file"
+    $build.OutputDirectory = Join-Path $work 'packages'
+    $packages = @(& $builder @build)
+    if (-not $ZStackOnly) {
+        Assert-CloudContract ($packages.Count -eq 2) 'two OEM packages'
+        foreach ($file in 'private/process/Invoke-CliProcess.ps1', 'private/objects/Convert-CloudVM.ps1', 'bin/windows-amd64/zstack-cli.exe') {
+            $a = (Get-FileHash -LiteralPath (Join-Path $packages[0].Directory $file)).Hash
+            $b = (Get-FileHash -LiteralPath (Join-Path $packages[1].Directory $file)).Hash
+            Assert-CloudContract ($a -eq $b) "OEM common payload $file"
+        }
     }
     if (-not $IsWindows -and -not $DevelopmentCliPath) { throw 'Supply a local native CLI for non-Windows development verification.' }
     $installer = Join-Path $source 'packaging/Install-Offline.ps1'
@@ -132,19 +139,22 @@ else:
     $manifest = & $installer -Archive $packages[0].Archive -SHA256 $packages[0].SHA256 -ModuleDirectory $installRoot
     Assert-CloudContract (Test-CloudRejected { & $installer -Archive $packages[0].Archive -SHA256 $packages[0].SHA256 -ModuleDirectory $installRoot } 'already installed') 'installed version not overwritten'
     $module = Import-Module -Name $manifest -PassThru
-    $acme = Import-Module -Name (Join-Path $packages[1].Directory 'Acme.Cloud.psd1') -PassThru
-    Assert-CloudContract ($module.ExportedFunctions.Count -eq 57 -and $acme.ExportedFunctions.Count -eq 57 -and $acme.ExportedFunctions.ContainsKey('New-AcmeVM') -and $acme.ExportedFunctions.ContainsKey('Get-AcmeHardDisk') -and $acme.ExportedFunctions.ContainsKey('Set-AcmeCDDrive') -and -not $module.ExportedFunctions.ContainsKey('Get-VM')) 'OEM export scopes'
-    foreach ($case in @(
-        @{ Command = 'Get-ZStackVM'; Name = 'ZStack PowerCLI'; Namespace = 'zstack-powershell'; Uri = 'https://example.invalid/zstack/powershell' }
-        @{ Command = 'Get-AcmeVM'; Name = 'Acme Cloud Automation'; Namespace = 'acme-powershell'; Uri = 'https://example.invalid/acme/powershell' }
-    )) {
+    Assert-CloudContract ($module.Version -eq $ModuleVersion) 'installed module matches the requested test version'
+    Assert-CloudContract ($module.ExportedFunctions.Count -eq 57 -and -not $module.ExportedFunctions.ContainsKey('Get-VM')) 'ZStack native export scope'
+    $helpCases = @(@{ Command = 'Get-ZStackVM'; Name = 'ZStack PowerCLI'; Namespace = 'zstack-powershell'; Uri = 'https://example.invalid/zstack/powershell' })
+    if (-not $ZStackOnly) {
+        $acme = Import-Module -Name (Join-Path $packages[1].Directory 'Acme.Cloud.psd1') -PassThru
+        Assert-CloudContract ($acme.ExportedFunctions.Count -eq 57 -and $acme.ExportedFunctions.ContainsKey('New-AcmeVM') -and $acme.ExportedFunctions.ContainsKey('Get-AcmeHardDisk') -and $acme.ExportedFunctions.ContainsKey('Set-AcmeCDDrive')) 'OEM export scopes'
+        $helpCases += @{ Command = 'Get-AcmeVM'; Name = 'Acme Cloud Automation'; Namespace = 'acme-powershell'; Uri = 'https://example.invalid/acme/powershell' }
+        Set-CloudContractDevelopmentCli $acme $DevelopmentCliPath
+    }
+    foreach ($case in $helpCases) {
         $help = Get-Help -Name $case.Command -Full
         $description = @($help.Description.Text) -join ' '
         Assert-CloudContract ($description.Contains($case.Name) -and $description.Contains($case.Namespace) -and
-            $description.Contains('0.1.2') -and $help.RelatedLinks.NavigationLink.Uri -ceq $case.Uri) "OEM help identifies $($case.Command) and its package"
+            $description.Contains(" $ModuleVersion) uses CLI ") -and $help.RelatedLinks.NavigationLink.Uri -ceq $case.Uri) "OEM help identifies $($case.Command) and its package"
     }
     Set-CloudContractDevelopmentCli $module $DevelopmentCliPath
-    Set-CloudContractDevelopmentCli $acme $DevelopmentCliPath
     $preflight = & $module {
         $expectedHash = $script:Package.cli.sha256
         $expectedVersion = $script:Package.cli.version
@@ -208,31 +218,32 @@ else:
     Assert-CloudContract (@(Get-ZStackVM -Name 'missing*').Count -eq 0) 'empty query pipeline'
     $csv = @($vms | Where-Object PowerState -eq 'PoweredOn' | Select-Object Name, NumCpu, MemoryGB | ConvertTo-Csv -NoTypeInformation)
     Assert-CloudContract ($csv.Count -eq 2 -and $csv[1] -match 'web-prod') 'existing CSV report pipeline'
-    Assert-CloudInventoryContracts $connection $endpoint $vms $credential $module
+    Assert-CloudInventoryContracts $connection $endpoint $vms $credential $module -ZStackOnly:$ZStackOnly
 
     $oldBinary = Join-Path (Split-Path -Parent $manifest) 'bin/windows-amd64/zstack-cli.exe'
     $oldHash = (Get-FileHash -LiteralPath $oldBinary -Algorithm SHA256).Hash
     $boundCli = & $module { param($Connection) (Get-CloudConnection $Connection).CliPath } $connection
-    $upgrade = & $builder -BrandConfig $brands[0] -CliPath $WindowsCliPath -ModuleVersion 0.1.3 -OutputDirectory (Join-Path $work 'upgrade packages')
+    $upgradeVersion = [version]::new($ModuleVersion.Major, $ModuleVersion.Minor, ($ModuleVersion.Build + 1))
+    $upgrade = & $builder -BrandConfig $brands[0] -CliPath $WindowsCliPath -ModuleVersion $upgradeVersion -OutputDirectory (Join-Path $work 'upgrade packages')
     $incomplete = Join-Path $work 'incomplete.zip'
     Remove-Item -LiteralPath (Join-Path $upgrade.Directory 'public/Get-VM.ps1')
     [System.IO.Compression.ZipFile]::CreateFromDirectory((Split-Path -Parent $upgrade.Directory), $incomplete, [System.IO.Compression.CompressionLevel]::Optimal, $true)
     $incompleteHash = (Get-FileHash -LiteralPath $incomplete -Algorithm SHA256).Hash
     Assert-CloudContract (Test-CloudRejected { & $installer -Archive $incomplete -SHA256 $incompleteHash -ModuleDirectory $installRoot } 'Incomplete module package') 'incomplete newer package rejected despite matching archive checksum'
-    Assert-CloudContract (-not (Test-Path -LiteralPath (Join-Path $installRoot 'ZStack.PowerCLI/0.1.3')) -and
+    Assert-CloudContract (-not (Test-Path -LiteralPath (Join-Path $installRoot "ZStack.PowerCLI/$upgradeVersion")) -and
         @(Get-ChildItem -LiteralPath $installRoot -Force -Directory -Filter '.cloud-install-*').Count -eq 0) 'failed install leaves no discoverable upgrade or staging files'
     $interrupted = Join-Path $installRoot '.cloud-install-interrupted/payload'
     [System.IO.Compression.ZipFile]::ExtractToDirectory($upgrade.Archive, $interrupted)
-    Assert-CloudContract ((Get-FreshCloudModuleVersion $installRoot) -eq '0.1.2') 'fresh session ignores interrupted staging'
+    Assert-CloudContract ((Get-FreshCloudModuleVersion $installRoot) -ceq $ModuleVersion.ToString()) 'fresh session ignores interrupted staging'
     $upgradeManifest = & $installer -Archive $upgrade.Archive -SHA256 $upgrade.SHA256 -ModuleDirectory $installRoot
-    Assert-CloudContract ((Get-FreshCloudModuleVersion $installRoot) -eq '0.1.3' -and
+    Assert-CloudContract ((Get-FreshCloudModuleVersion $installRoot) -ceq $upgradeVersion.ToString() -and
         (Test-Path -LiteralPath $upgradeManifest -PathType Leaf)) 'fresh session imports the newer installed module'
     $activeCli = & $module { param($Connection) (Get-CloudConnection $Connection).CliPath } $connection
-    Assert-CloudContract ($module.Version -eq '0.1.2' -and $activeCli -ceq $boundCli -and
+    Assert-CloudContract ($module.Version -eq $ModuleVersion -and $activeCli -ceq $boundCli -and
         (-not $IsWindows -or $activeCli -ceq $oldBinary) -and
         (Get-FileHash -LiteralPath $oldBinary -Algorithm SHA256).Hash -eq $oldHash -and
         (Get-ZStackVM -Id vm-a -Server $connection).Id -eq 'vm-a') 'active connection keeps its original CLI after upgrade'
-    Assert-CloudContract ((Get-FreshCloudModuleVersion $installRoot -Rollback) -eq '0.1.2') 'fresh session explicitly rolls back to the intact older module'
+    Assert-CloudContract ((Get-FreshCloudModuleVersion $installRoot -RequiredVersion $ModuleVersion) -ceq $ModuleVersion.ToString()) 'fresh session explicitly rolls back to the intact older module'
 
     $copy = $vms[0] | ConvertTo-Json | ConvertFrom-Json
     Assert-CloudContract (Test-CloudRejected { $copy | Start-ZStackVM -ErrorAction Stop } 'ResolveVM.Conflict') 'copied VM rejected before mutation'
@@ -240,7 +251,9 @@ else:
     try {
         Assert-CloudContract (Test-CloudRejected { Get-ZStackVM } 'ConnectionRequired') 'multi-connection requires explicit selection'
         Assert-CloudContract (Test-CloudRejected { $vms[0] | Start-ZStackVM -Server $other -ErrorAction Stop } 'ResolveVM.Conflict') 'cross-connection write rejected'
-        Assert-CloudContract (Test-CloudRejected { Get-AcmeVM -Server $connection } 'InvalidConnection') 'cross-OEM connection rejected'
+        if (-not $ZStackOnly) {
+            Assert-CloudContract (Test-CloudRejected { Get-AcmeVM -Server $connection } 'InvalidConnection') 'cross-OEM connection rejected'
+        }
     } finally { Disconnect-ZStackServer -Server $other }
     $null = (Get-ZStackVM -Id vm-a) | Start-ZStackVM -WhatIf -ErrorAction Stop
     Assert-CloudContract ((Get-ZStackVM -Id vm-a).RawState -eq 'Stopped') 'WhatIf sends no write'
@@ -283,6 +296,10 @@ else:
     Assert-CloudContract (Test-CloudRejected { Import-Module -Name $legacyManifest } 'CompatibilityConflict') 'legacy name collision rejected'
     Assert-CloudContract ((Get-VM) -eq 'legacy collision') 'collision leaves existing command intact'
     Remove-Item Function:Get-VM
+    function Get-HardDisk { 'disk collision' }
+    Assert-CloudContract ((Test-CloudRejected { Import-Module -Name $legacyManifest } 'CompatibilityConflict') -and
+        (Get-HardDisk) -ceq 'disk collision') 'new inventory name collision leaves existing command intact'
+    Remove-Item Function:Get-HardDisk
     $ambientRoot = Join-Path $work 'ambient modules'
     $ambientModule = Join-Path $ambientRoot 'CloudContractAmbientVM'
     $null = New-Item -ItemType Directory -Path $ambientModule -Force
@@ -304,10 +321,12 @@ else:
     Assert-CloudLifecycleContracts $connection $endpoint $credential
     Assert-CloudDeviceContracts $connection $endpoint $credential
     Assert-CloudPlatformContracts $connection $endpoint $credential
+    Assert-CloudMigrationContracts $connection $endpoint $credential $legacy
     Disconnect-ZStackServer -Server $connection
     $connection = $null
     Assert-CloudContract (-not (Test-Path -LiteralPath $sessionDir)) 'session cleanup'
     Assert-CloudContract (Test-CloudRejected { $started | Start-ZStackVM -ErrorAction Stop } 'ResolveVM.Conflict') 'disconnected VM cannot write'
+    Assert-CloudMigrationAssessmentContracts (Join-Path $source 'migration/Assess-Migration.ps1') $work ($tests.ToArray())
     $report = [ordered]@{
         powerShell = $PSVersionTable.PSVersion.ToString()
         os = [System.Runtime.InteropServices.RuntimeInformation]::OSDescription
@@ -318,6 +337,7 @@ else:
         cli = (Get-Content -LiteralPath (Join-Path $packages[0].Directory 'package.json') -Raw | ConvertFrom-Json -AsHashtable).cli
         packages = @($packages | Select-Object ModuleName, Version, SHA256)
         cloud = 'loopback mock'
+        zstackOnly = [bool] $ZStackOnly
         passed = $tests.ToArray()
     }
     if ($Benchmark) {

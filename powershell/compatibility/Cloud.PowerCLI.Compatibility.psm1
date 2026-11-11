@@ -1,6 +1,6 @@
 Set-StrictMode -Version Latest
 
-$legacyNames = @('Connect-VIServer', 'Disconnect-VIServer', 'Get-VM', 'Start-VM')
+$legacyNames = @(__LEGACYEXPORTS__)
 # An exact-name lookup can autoload a module even with -ListImported.
 foreach ($command in (Get-Command -All -ListImported)) {
     if ($command.Name -in $legacyNames) {
@@ -32,9 +32,73 @@ function Get-VM {
     & '__MODULE__\Get-__PREFIX__VM' @PSBoundParameters
 }
 
+function Get-HardDisk {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline)] [ValidateNotNullOrEmpty()] [object[]] $VM,
+        [string[]] $Name,
+        [string[]] $Id,
+        [object] $Server
+    )
+    begin { $targets = [System.Collections.Generic.List[object]]::new() }
+    process { $targets.AddRange($VM) }
+    end {
+        if ($targets.Count) {
+            $PSBoundParameters['VM'] = $targets.ToArray()
+            & '__MODULE__\Get-__PREFIX__HardDisk' @PSBoundParameters
+        }
+    }
+}
+
+function Get-NetworkAdapter {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory, ValueFromPipeline)] [ValidateNotNullOrEmpty()] [object[]] $VM,
+        [string[]] $Id,
+        [object] $Server
+    )
+    begin { $targets = [System.Collections.Generic.List[object]]::new() }
+    process { $targets.AddRange($VM) }
+    end {
+        if ($targets.Count) {
+            $PSBoundParameters['VM'] = $targets.ToArray()
+            & '__MODULE__\Get-__PREFIX__NetworkAdapter' -IncludeNetworkName @PSBoundParameters
+        }
+    }
+}
+
+function Get-VMHost {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0)] [string[]] $Name,
+        [string[]] $Id,
+        [object[]] $Location,
+        [object] $Server
+    )
+    if ($PSBoundParameters.ContainsKey('Location')) {
+        $PSBoundParameters['Cluster'] = $Location
+        $null = $PSBoundParameters.Remove('Location')
+    }
+    & '__MODULE__\Get-__PREFIX__VMHost' @PSBoundParameters
+}
+
+function Get-Cluster {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0)] [string[]] $Name,
+        [string[]] $Id,
+        [object] $Server
+    )
+    & '__MODULE__\Get-__PREFIX__Cluster' @PSBoundParameters
+}
+
 function Start-VM {
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Medium')]
-    param([Parameter(Mandatory, Position = 0, ValueFromPipeline)] [ValidateNotNullOrEmpty()] [object[]] $VM, [object] $Server)
+    param(
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline)] [ValidateNotNullOrEmpty()] [object[]] $VM,
+        [object] $Server,
+        [ValidateRange(1, 3600)] [int] $TimeoutSeconds = 300
+    )
     process {
         $forward = @{}
         foreach ($key in $PSBoundParameters.Keys) { if ($key -ne 'VM') { $forward[$key] = $PSBoundParameters[$key] } }

@@ -1,0 +1,9 @@
+{
+  "source": "https://github.com/aws-samples/sample-vmware-collector-v2/blob/main/README.md",
+  "before": "$vms | Get-HardDisk | Select-Object Name,CapacityGB\n$vms | Get-NetworkAdapter | Select-Object MacAddress,NetworkName",
+  "after": "$vms | Get-HardDisk | Select-Object Name,CapacityGB\n$vms | Get-NetworkAdapter | Select-Object MacAddress,NetworkName",
+  "supportedBehavior": "Keep both object pipelines and CSV-ready projections using live ZStack VMs.",
+  "unsupported": [],
+  "changes": [],
+  "replacements": []
+}

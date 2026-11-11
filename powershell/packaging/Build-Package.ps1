@@ -193,12 +193,17 @@ foreach ($brand in $brands) {
             Set-Content -LiteralPath (Join-Path $moduleRoot $file) -Value $definition -NoNewline -Encoding utf8
             $commands += @{ name = $function; file = $file }
         }
+        $legacyNames = @('Connect-VIServer', 'Disconnect-VIServer', 'Get-VM', 'Start-VM')
+        if ($brand.id -ceq 'zstack') {
+            $legacyNames += 'Get-HardDisk', 'Get-NetworkAdapter', 'Get-VMHost', 'Get-Cluster'
+        }
         $tokens = @{
             '__MODULE__' = $name; '__VERSION__' = $version; '__GUID__' = $brand.moduleGuid
             '__PUBLISHER__' = $brand.publisher.Replace("'", "''")
             '__DESCRIPTION__' = $brand.displayName.Replace("'", "''")
             '__PREFIX__' = $brand.commandPrefix
             '__EXPORTS__' = (@($commands | ForEach-Object { "'$($_.name)'" }) -join ', ')
+            '__LEGACYEXPORTS__' = (@($legacyNames | ForEach-Object { "'$_'" }) -join ', ')
         }
         $tokenPattern = '__[A-Z]+__'
         $replaceToken = [System.Text.RegularExpressions.MatchEvaluator] { param($match) return $tokens[$match.Value] }

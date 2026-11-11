@@ -1,0 +1,9 @@
+{
+  "source": "https://github.com/alanrenouf/vCheck-vSphere",
+  "before": "$cluster = Get-Cluster -Name $pattern -Server $server\nGet-VMHost -Location $cluster | Select-Object Name,ConnectionState,NumCpu,MemoryTotalGB",
+  "after": "$cluster = Get-Cluster -Name $pattern -Server $server\nGet-VMHost -Location $cluster | Select-Object Name,ConnectionState,NumCpu,MemoryTotalGB",
+  "supportedBehavior": "Keep a live cluster selection and report host identity and capacity.",
+  "unsupported": [],
+  "changes": [],
+  "replacements": []
+}

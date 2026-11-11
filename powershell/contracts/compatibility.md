@@ -1,15 +1,19 @@
-# PowerCLI script migration baseline
+# PowerCLI script migration
 
-The 0.1.2 preview supports the compatibility subset below. The inventory section describes native query commands available when building from the current source. The acceptance record separates fixture tests, live ZStack checks and customer script validation. [Acceptance evidence](../release/acceptance-checklist.md)
+The table describes the ZStack compatibility subset in packages built from the current source. Import the compatibility manifest in a separate session. The acceptance record tracks fixture tests, live ZStack checks and customer script validation. [Acceptance evidence](../release/acceptance-checklist.md)
 
 | VMware entry | Native entry (example brand) | Planned parameter subset | CLI dependency |
 | --- | --- | --- | --- |
 | `Connect-VIServer` | `Connect-ZStackServer` | `Server`, `Credential` | `login --password-stdin --save-password=false --no-switch` |
 | `Disconnect-VIServer` | `Disconnect-ZStackServer` | `Server` connection objects | `logout --context` |
 | `Get-VM` | `Get-ZStackVM` | `Name` (arrays, position 0, wildcard), `Id`, `Server` | `get instances --all-pages --sort +uuid -o json` |
-| `Start-VM` | `Start-ZStackVM` | `VM` (objects or names in the compatibility module), `Server`, `WhatIf`, `Confirm`, common parameters | `instance start --uuid-only --yes -o json`, then `wait instance` |
+| `Get-HardDisk` | `Get-ZStackHardDisk` | `VM` (live objects or pipeline), `Name`, `Id`, `Server` | `get disks` |
+| `Get-NetworkAdapter` | `Get-ZStackNetworkAdapter` | `VM` (live objects or pipeline), `Id`, `Server`. The wrapper looks up the ZStack L3 network name. | `get nics`, `get l3-networks` |
+| `Get-VMHost` | `Get-ZStackVMHost` | `Name`, `Id`, `Server`, `Location` (live ZStack cluster objects) | `get hosts` |
+| `Get-Cluster` | `Get-ZStackCluster` | `Name`, `Id`, `Server` | `get clusters` |
+| `Start-VM` | `Start-ZStackVM` | `VM` (objects or names in the compatibility module), `Server`, `WhatIf`, `Confirm`, common parameters and the ZStack extension `TimeoutSeconds` | `instance start --uuid-only --yes -o json`, then `wait instance` |
 
-The independent compatibility module will expose only this subset. Native names come from the brand configuration. `Get-VM` projects `Name`, `NumCpu`, `MemoryGB`, `PowerState`, and `Id` so that filtering and CSV export can retain their existing shape. `Id` remains a ZStack UUID. With multiple connections, callers select one explicitly. Start waits for `Running`; a timeout can leave the operation outcome unknown.
+The opt-in ZStack module exposes these eight names. `Get-VM` projects `Name`, `NumCpu`, `MemoryGB`, `PowerState`, and `Id` so that filtering and CSV export can retain their existing shape. Use ZStack UUIDs for `Id` and one explicit connection for independent queries when multiple connections are open. Use live objects for related queries and writes. Start waits for `Running` with a per-VM budget of 300 seconds by default. After an unknown outcome, read the VM state before retrying.
 
 | Requires review or rewrite | Why |
 | --- | --- |
@@ -22,7 +26,7 @@ The independent compatibility module will expose only this subset. Native names 
 
 ## Inventory and reporting
 
-The following mappings apply to packages built from the current source. The native names preserve report shapes while exposing ZStack identities and relationships. Use the existing compatibility module for its four documented commands. [Inventory examples](../../examples/powershell/inventory.md) · [盘点示例](../../examples/powershell/inventory.zh-CN.md)
+The following mappings apply to packages built from the current source. Both entry points return live ZStack objects. Disk `CapacityGB`, NIC `MacAddress` and `NetworkName`, and common VM columns can remain in reports. The compatibility NIC query also requires permission to read the related L3 inventory. Use ZStack `VMId`, `ClusterId`, and `L3NetworkId` for relationships, and the reported byte and hertz fields for capacity. VMware-specific selectors such as disk type, adapter name, host state, and datacenter or folder scope require a migration review. [Inventory examples](../../examples/powershell/inventory.md) · [盘点示例](../../examples/powershell/inventory.zh-CN.md)
 
 | VMware workflow | Native ZStack workflow | Migration detail |
 | --- | --- | --- |
@@ -33,7 +37,7 @@ The following mappings apply to packages built from the current source. The nati
 | `Get-Template` deployment inventory | `Get-ZStackImage`, `Get-ZStackInstanceOffering`, `Get-ZStackDiskOffering` | Use `MediaType` to distinguish install media and image kinds. Offerings are separate ZStack objects. |
 | `Get-VirtualPortGroup` inventory | `Get-ZStackL2Network`, `Get-ZStackL3Network`, `Get-ZStackIPRange` | Traverse native network relationships. `VirtualNetworkId` is the reported L2 ID, with its meaning determined by the network type. |
 
-VMware references: [Get-HardDisk](https://developer.broadcom.com/powercli/latest/vmware.vimautomation.core/commands/get-harddisk), [Get-VMHost](https://developer.broadcom.com/powercli/latest/vmware.vimautomation.core/commands/get-vmhost), [Get-VirtualPortGroup](https://developer.broadcom.com/powercli/latest/vmware.vimautomation.core/commands/get-virtualportgroup).
+[VMware Get-HardDisk](https://developer.broadcom.com/powercli/latest/vmware.vimautomation.core/commands/get-harddisk) · [Get-NetworkAdapter](https://developer.broadcom.com/powercli/latest/vmware.vimautomation.core/commands/get-networkadapter) · [Get-VMHost](https://developer.broadcom.com/powercli/latest/vmware.vimautomation.core/commands/get-vmhost) · [Get-Cluster](https://developer.broadcom.com/powercli/latest/vmware.vimautomation.core/commands/get-cluster) · [Get-VirtualPortGroup](https://developer.broadcom.com/powercli/latest/vmware.vimautomation.core/commands/get-virtualportgroup).
 
 ## VM lifecycle
 

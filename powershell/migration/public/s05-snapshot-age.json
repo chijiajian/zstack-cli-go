@@ -1,0 +1,19 @@
+{
+  "source": "https://github.com/vmware-archive/PowerCLI-Example-Scripts/blob/master/PowerActions/VM-Snapshot-Report.ps1",
+  "before": "$vms | Get-Snapshot | Where-Object Created -lt $cutoff | Select-Object Name,Created",
+  "after": "$vms | Get-HardDisk | Get-ZStackVolumeSnapshot | Where-Object { $_.CreateDate -and [datetimeoffset]::Parse($_.CreateDate) -lt $cutoff } | Select-Object Name,VolumeId,CreateDate",
+  "supportedBehavior": "Keep the age filter and report one row per volume snapshot.",
+  "unsupported": [],
+  "changes": [
+    {
+      "location": "Scenario workflow",
+      "reason": "Keep the age filter and report one row per volume snapshot."
+    }
+  ],
+  "replacements": [
+    {
+      "from": "Get-Snapshot",
+      "to": "Get-ZStackVolumeSnapshot"
+    }
+  ]
+}

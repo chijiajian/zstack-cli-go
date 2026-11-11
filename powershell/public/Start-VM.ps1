@@ -4,6 +4,7 @@ function Start-CloudVM {
         [Parameter(Mandatory, Position = 0, ValueFromPipeline, ParameterSetName = 'VM')] [ValidateNotNullOrEmpty()] [object[]] $VM,
         [Parameter(Mandatory, ParameterSetName = 'Name')] [ValidateNotNullOrEmpty()] [string[]] $Name,
         [Parameter(Mandatory, ParameterSetName = 'Id')] [ValidateNotNullOrEmpty()] [ValidatePattern('\A[A-Za-z0-9-]+\z')] [string[]] $Id,
+        [ValidateRange(1, 3600)] [int] $TimeoutSeconds = 300,
         [object] $Server
     )
 
@@ -15,7 +16,7 @@ function Start-CloudVM {
             $clock = [System.Diagnostics.Stopwatch]::StartNew()
             $target = $null
             try {
-                $selection = @{ Server = $Server; TimeoutSeconds = 300 }
+                $selection = @{ Server = $Server; TimeoutSeconds = $TimeoutSeconds }
                 $selection[$parameter] = $selector
                 $target = Resolve-CloudVMTarget @selection
             } catch { $PSCmdlet.WriteError($_); continue }
@@ -27,7 +28,7 @@ function Start-CloudVM {
                 continue
             }
             try {
-                $remaining = Get-CloudRemainingTime $clock 300 'StartVM' $vmId
+                $remaining = Get-CloudRemainingTime $clock $TimeoutSeconds 'StartVM' $vmId
                 $milliseconds = [long] [Math]::Floor($remaining * 1000)
                 $arguments = @('instance', 'start', $vmId, '--uuid-only', '--yes', '--request-timeout', "${milliseconds}ms", '-o', 'json')
                 $result = Invoke-CloudConnectedCli $target.Connection $arguments $remaining
@@ -38,7 +39,7 @@ function Start-CloudVM {
                 }
             } catch { $PSCmdlet.WriteError($_); continue }
             try {
-                Wait-CloudVMState $target $clock 300 2
+                Wait-CloudVMState $target $clock $TimeoutSeconds 2
             } catch { $PSCmdlet.WriteError((New-CloudError -Operation StartVM -Failure StateUnverified -Mutation -Target $vmId)) }
         }
     }

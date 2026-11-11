@@ -5,13 +5,18 @@ param(
     [Parameter(Mandatory)] [string] $WindowsCliPath,
     [string] $DevelopmentCliPath,
     [string] $ReportPath,
-    [switch] $Benchmark
+    [version] $ModuleVersion,
+    [switch] $Benchmark,
+    [switch] $ZStackOnly
 )
 
 $ErrorActionPreference = 'Stop'
 $module = Import-Module -Name $PesterManifest -PassThru
 if ($module.Version -ne [version] '5.7.1') { throw 'Contract tests require Pester 5.7.1.' }
-$data = @{ WindowsCliPath = $WindowsCliPath; DevelopmentCliPath = $DevelopmentCliPath; ReportPath = $ReportPath; Benchmark = [bool] $Benchmark }
+$data = @{
+    WindowsCliPath = $WindowsCliPath; DevelopmentCliPath = $DevelopmentCliPath; ReportPath = $ReportPath
+    ModuleVersion = $ModuleVersion; Benchmark = [bool] $Benchmark; ZStackOnly = [bool] $ZStackOnly
+}
 $configuration = New-PesterConfiguration
 $configuration.Run.Container = New-PesterContainer -Path (Join-Path $PSScriptRoot 'integration/ModuleContracts.Tests.ps1') -Data $data
 $configuration.Run.PassThru = $true

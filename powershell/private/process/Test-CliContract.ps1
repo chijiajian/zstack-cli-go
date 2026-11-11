@@ -45,6 +45,16 @@ function Assert-CloudCliCapability {
             }
             Assert-CloudCliHelp $Path $Capability @('describe', 'instance') @('uuid-only', 'request-timeout', 'output')
         }
+        'vmLifecycleV1' {
+            $writeFlags = @('uuid-only', 'request-timeout', 'output', 'yes', 'dry-run')
+            foreach ($operation in 'update', 'pause', 'resume', 'stop', 'restart', 'recover') {
+                Assert-CloudCliHelp $Path $Capability @('instance', $operation) $writeFlags
+            }
+            Assert-CloudCliHelp $Path $Capability @('instance', 'stop') 'stop-ha'
+            Assert-CloudCliHelp $Path $Capability @('delete', 'instance') $writeFlags
+            Assert-CloudCliHelp $Path $Capability @('create', 'instance') ($writeFlags + @('resource-uuid', 'strategy', 'image', 'l3-network'))
+            Assert-CloudCliHelp $Path $Capability @('wait', 'instance') @('uuid-only', 'for', 'timeout', 'interval')
+        }
         default { throw 'CloudAutomation.UnsupportedCapability: Unknown package capability.' }
     }
 }

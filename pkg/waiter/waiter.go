@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/chijiajian/zstack-cli-go/pkg/clierr"
 )
 
 type Observation struct {
@@ -36,6 +38,17 @@ type Evaluate func(Observation, string) (bool, error)
 
 func Match(o Observation, target string) (bool, error) {
 	return strings.EqualFold(o.State, target) || strings.EqualFold(o.Status, target), nil
+}
+
+// VM observes state only. Destroyed is terminal until an explicit recovery.
+func VM(o Observation, target string) (bool, error) {
+	if strings.EqualFold(o.State, target) {
+		return true, nil
+	}
+	if strings.EqualFold(o.State, "Destroyed") {
+		return false, clierr.Wrap(clierr.Conflict, fmt.Errorf("VM reached Destroyed"))
+	}
+	return false, nil
 }
 
 // Long-job terminal states follow ZStack's LongJobState contract. An explicitly

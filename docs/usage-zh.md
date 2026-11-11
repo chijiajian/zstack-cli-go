@@ -101,6 +101,8 @@ wait 只查询，不启动实例或恢复任务。job 默认等待 Succeeded；�
 
 实例恢复要求 Destroyed，数据盘恢复要求 Deleted；根盘随实例恢复，彻底删除后不能恢复。扩容的 `--size` 是目标总容量，只能增大；G 按 1024³ 字节计算，不自动扩展客户机分区或文件系统。recover/resize 的 dry-run 是离线预览，不验证实时状态。
 
+VM 创建、更新、暂停、恢复运行、停机、重启、删除和回收站恢复支持 `--uuid-only -o json` 精确模式，同时传入 `--yes` 或 `--dry-run`。结果使用 `operation` 和 `items`，请求预算覆盖目标查询与写入。精确创建要求指定 `--resource-uuid` 和 `--strategy`。精确停机仅在显式传入 `--stop-ha` 时发送该字段。可使用 `wait instance VM_UUID --uuid-only --for Stopped -o json` 等待精确 VM 状态。 [PowerShell 生命周期示例](../examples/powershell/README.zh-CN.md#vm-生命周期)
+
 ## 5. IAM 管理
 
 | 资源 | 创建 | 更新 | 删除 | 额外操作 |

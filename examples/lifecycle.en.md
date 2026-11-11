@@ -4,6 +4,13 @@
 
 These are independent examples. Replace UUIDs with authorized test resources. Inspect current state before choosing an operation.
 
+Use exact UUID mode for VM automation and preview writes before running them.
+
+```sh
+zstack-cli instance pause VM_UUID --uuid-only --dry-run --context lab -o json
+zstack-cli wait instance VM_UUID --uuid-only --for Paused --context lab -o json
+```
+
 ```sh
 zstack-cli wait instance VM_UUID --context lab --for Stopped --timeout 5m
 zstack-cli volume attach VOLUME_UUID --context lab --instance VM_UUID

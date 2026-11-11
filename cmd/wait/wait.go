@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/chijiajian/zstack-cli-go/cmd/vmops"
 	zstackclient "github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/waiter"
 	"github.com/spf13/cobra"
@@ -57,6 +58,9 @@ func newWaitResourceCmd(resourceType string, aliases []string, short string) *co
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runWait(cmd, resourceType, args[0])
 		},
+	}
+	if resourceType == "instance" {
+		cmd.Flags().Bool("uuid-only", false, "Require exact UUID and wait for VM state without name fallback")
 	}
 	defaultTarget := ""
 	if resourceType == "long-job" {
@@ -99,7 +103,13 @@ func runWait(cmd *cobra.Command, resourceType string, identifier string) error {
 	if err != nil {
 		return err
 	}
-	resolved, err := cli.Resolve(ctx, resourceType, identifier, zstackclient.ResolveAuto)
+	exact := vmops.Enabled(cmd)
+	var resolved zstackclient.ResolvedResource
+	if exact {
+		resolved, err = vmops.Resolve(ctx, cli, resourceType, identifier)
+	} else {
+		resolved, err = cli.Resolve(ctx, resourceType, identifier, zstackclient.ResolveAuto)
+	}
 	if err != nil {
 		return err
 	}
@@ -109,6 +119,8 @@ func runWait(cmd *cobra.Command, resourceType string, identifier string) error {
 	evaluate := waiter.Match
 	if resourceType == "long-job" {
 		evaluate = waiter.Job
+	} else if exact {
+		evaluate = waiter.VM
 	}
 	progress, _ := cmd.Flags().GetBool("progress")
 	var notify func(waiter.Observation) error
@@ -122,6 +134,10 @@ func runWait(cmd *cobra.Command, resourceType string, identifier string) error {
 		}
 	}
 	result, err := waiter.Run(ctx, convert(resolved), target, interval, func(ctx context.Context) (waiter.Observation, error) {
+		if exact {
+			r, err := vmops.Resolve(ctx, cli, resourceType, resolved.UUID)
+			return convert(r), err
+		}
 		r, e := cli.Resolve(ctx, resourceType, resolved.UUID, zstackclient.ResolveUUID)
 		return convert(r), e
 	}, evaluate, notify)

@@ -35,3 +35,25 @@ VMware 示例中的 `$vi` 来自 `Connect-VIServer`，ZStack 示例中的 `$serv
 | 在 OEM 会话启用旧命令名 | `Import-Module VCF.PowerCLI`，再运行 `Get-VM -Name 'web*' -Server $vi` | 在独立会话中 `Import-Module $oemCompatibilityManifest`，再运行 `Get-VM -Name 'web*' -Server $oemConnection` |
 
 `$oemCompatibilityManifest` 指向已安装 OEM 包中的兼容清单，例如 `Compatibility/Acme.Cloud.Compatibility.psd1`。用同一包中的 `Connect-AcmeServer` 创建 `$oemConnection`。使用 OEM 原生命令时调用 `Get-AcmeVM -Server $oemConnection`，并通过 `Get-Help Get-AcmeVM -Full` 查看包信息。VM 对象来自 CSV 或旧会话时，按 UUID 重新查询。
+
+## VM 生命周期
+
+使用当前源码构建的模块包，并把占位符换成获准测试环境中的 UUID。管道使用实时 ZStack 对象，写命令均带 `-WhatIf`。创建预览不返回 VM，因此后续预览请指定另一台已获授权的测试 VM。
+
+```powershell
+$image = Get-ZStackImage -Id '<IMAGE_UUID>' -Server $server
+$network = Get-ZStackL3Network -Id '<L3_UUID>' -Server $server
+$offering = Get-ZStackInstanceOffering -Id '<OFFERING_UUID>' -Server $server
+New-ZStackVM -Name 'migration-qa' -Image $image -L3Network $network `
+    -InstanceOffering $offering -State Stopped -Server $server -WhatIf
+
+$vm = Get-ZStackVM -Id '<VM_UUID>' -Server $server
+$vm | Set-ZStackVM -NumCpu 4 -MemoryGB 8 -WhatIf
+$vm | Suspend-ZStackVM -WhatIf
+$vm | Resume-ZStackVM -WhatIf
+$vm | Restart-ZStackVM -WhatIf
+$vm | Stop-ZStackVM -WhatIf
+$vm | Remove-ZStackVM -WhatIf
+$vm | Restore-ZStackVM -WhatIf
+Wait-ZStackVM -Id $vm.Id -State Stopped -TimeoutSeconds 30 -Server $server
+```

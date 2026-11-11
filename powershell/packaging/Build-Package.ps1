@@ -48,14 +48,15 @@ $requirements = @{
     'Disconnect-CloudServer' = 'passwordStdin'
     'Get-CloudVM' = 'vmMemoryBytes'
     'Start-CloudVM' = @('vmMemoryBytes', 'startResultV1')
-    'Wait-CloudVM' = 'vmMemoryBytes'
+    'Wait-CloudVM' = @('vmMemoryBytes', 'vmLifecycleV1')
 }
 $privateFiles = @(
     'private/process/Invoke-CliProcess.ps1', 'branding/Resolve-Message.ps1',
     'private/process/Convert-CliResult.ps1', 'private/process/Test-CliContract.ps1', 'private/connections/ConnectionRegistry.ps1',
     'private/objects/Convert-CloudVM.ps1', 'private/objects/Resolve-CloudVMTarget.ps1',
     'private/queries/ResourceInventory.ps1',
-    'private/mutations/Invoke-CloudShouldProcess.ps1', 'private/mutations/Wait-CloudVMState.ps1'
+    'private/mutations/Invoke-CloudShouldProcess.ps1', 'private/mutations/Wait-CloudVMState.ps1',
+    'private/mutations/Invoke-CloudVMOperation.ps1'
 )
 $helpSummaries = @{
     'Connect-CloudServer' = 'Connects to the API with an account credential or an access key.'
@@ -63,6 +64,21 @@ $helpSummaries = @{
     'Get-CloudVM' = 'Returns virtual machines by name or ID from the selected connection.'
     'Start-CloudVM' = 'Starts selected virtual machines and waits for them to run.'
     'Wait-CloudVM' = 'Waits for a virtual machine to reach the requested state.'
+}
+$lifecycleHelp = [ordered]@{
+    'New-CloudVM' = 'Creates a VM from a root volume template and waits for the selected state.'
+    'Set-CloudVM' = 'Updates specified VM metadata or stopped VM CPU and memory.'
+    'Suspend-CloudVM' = 'Pauses a running VM in memory.'
+    'Resume-CloudVM' = 'Resumes a paused VM.'
+    'Stop-CloudVM' = 'Requests a graceful VM shutdown.'
+    'Restart-CloudVM' = 'Requests a VM reboot and verifies its running state.'
+    'Remove-CloudVM' = 'Deletes a stopped VM under a recoverable deletion policy.'
+    'Restore-CloudVM' = 'Recovers a deleted VM to Stopped.'
+}
+foreach ($command in $lifecycleHelp.GetEnumerator()) {
+    $entries[$command.Key] = $command.Key.Replace('-Cloud', '-') + '.ps1'
+    $requirements[$command.Key] = 'vmLifecycleV1'
+    $helpSummaries[$command.Key] = $command.Value
 }
 $inventoryHelp = [ordered]@{
     'Get-CloudHardDisk' = 'Returns disks attached to the supplied live VM objects.'

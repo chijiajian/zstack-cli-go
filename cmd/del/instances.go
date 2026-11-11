@@ -17,6 +17,7 @@ package del
 import (
 	"errors"
 	"fmt"
+	"github.com/chijiajian/zstack-cli-go/cmd/vmops"
 
 	"github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
@@ -41,6 +42,9 @@ Examples:
 Note: This is a dangerous operation. Confirm interactively or use --yes.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if vmops.Enabled(cmd) {
+			return vmops.Run(cmd, "delete", args[0], nil)
+		}
 		nameOrUUID := args[0]
 		return deleteVmInstance(cmd, nameOrUUID)
 	},
@@ -95,6 +99,7 @@ func deleteVmInstance(cmd *cobra.Command, nameOrUUID string) error {
 }
 
 func init() {
+	vmops.AddFlags(DeleteInstancesCmd)
 	DeleteInstancesCmd.Flags().BoolP("yes", "y", false, "Automatic yes to confirmation prompts")
 	DeleteCmd.AddCommand(DeleteInstancesCmd)
 

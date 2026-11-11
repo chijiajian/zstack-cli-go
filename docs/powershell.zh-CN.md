@@ -34,7 +34,7 @@ Import-Module $manifest
 
 从 0.1.2 起，使用已有 AK/SK 时可调用 `Connect-ZStackServer -Server HOST -AccessKeyId KEY_ID -AccessKeySecret (Read-Host 'SK' -AsSecureString)`。连接会发出一次 VM 查询来验证签名。签名依赖执行机时钟，若环境需要固定签名时区，可在该连接上指定 `-ApiTimeZone Asia/Shanghai`。模块在连接的私有临时目录中保存 AK/SK，断开连接时删除目录。
 
-需沿用有限的旧命令名时，在独立 PowerShell 会话中从同一包导入 `Compatibility/ZStack.PowerCLI.Compatibility.psd1`。如果已加载的 VMware、Hyper-V 或用户命令占用同名入口，导入会拒绝。未支持的 VMware 参数和对象需要改写。停止、客户机正常关机、快照、`-RunAsync`、`Get-View` 与 `.ExtensionData` 不在预览范围内。
+需沿用有限的旧命令名时，在独立 PowerShell 会话中从同一包导入 `Compatibility/ZStack.PowerCLI.Compatibility.psd1`。如果已加载的 VMware、Hyper-V 或用户命令占用同名入口，导入会拒绝。未支持的 VMware 参数和对象需要改写。客户机工具关机、快照、`-RunAsync`、`Get-View` 与 `.ExtensionData` 不在预览范围内。
 
 OEM 包使用提供方给定的模块名和命令前缀。不同品牌共用对象属性与脚本管道行为。
 
@@ -66,3 +66,19 @@ OEM 包使用提供方给定的模块名和命令前缀。不同品牌共用对�
 用 `Bytes` 字段做精确计算，`GB` 字段按 2³⁰ 字节换算，适用于展示。服务端报告的零会保留，未报告的容量为 `$null`。`SystemUsedCapacityBytes` 保留 API 返回的有符号字节值。L3 网络可查询时，`-IncludeNetworkName` 会在网卡所属连接中补充其名称。
 
 `Get-ZStackVM -Id VM_UUID -Detail` 接受一个精确的 ZStack UUID。详情保留普通 VM 属性，并补充主机、镜像和计算规格的 ID 与名称，以及 `L3NetworkIds` 和 `Warnings`。警告会指出受影响的关联资源，并提供 `not_found` 或 `authentication_failed` 等固定失败类别。
+
+## 当前源码中的 VM 生命周期
+
+写命令接受同一模块返回的实时 VM 对象或精确的 ZStack `-Id`，并逐目标支持 `-WhatIf` 和 `-Confirm`。有多个连接时，按 UUID 操作需显式指定 `-Server`。成功后返回刷新的 VM 对象。默认每台 VM 有 300 秒预算，覆盖目标解析、API 请求与状态确认。使用 `-ErrorAction Stop` 可在首个错误时终止批处理。
+
+| 命令 | 输入与结果 |
+| --- | --- |
+| `New-ZStackVM` | 通过 `-Image` 选择根卷模板，通过 `-L3Network` 选择至少一个网络。使用 `-InstanceOffering`，或同时指定 `-NumCpu` 和 `-MemoryGB`。显式选择 `-State Stopped` 或 `-State Running`。部署参数接受实时对象或 UUID。 |
+| `Set-ZStackVM` | 只修改显式传入的 `-Name`、`-Description`、`-NumCpu` 或 `-MemoryGB`。空描述可清除原值。CPU 和内存变更要求 `Stopped`。 |
+| `Suspend-ZStackVM` 与 `Resume-ZStackVM` | 将 `Running` 的 VM 暂停在内存中，并将 `Paused` 的 VM 恢复到 `Running`。已处于目标状态时只刷新对象。[ZStack VM 生命周期](https://docs.zstack.io/en/zcf/zstack-cloud/4.8.38/dev-guide?section=ZStack_2.1_Dev_Guide_0002&version=4.8.38) |
+| `Stop-ZStackVM` | 对 `Running` 的 VM 请求 ACPI 优雅关机并确认 `Stopped`。`-StopHA` 显式请求平台的 HA 停机行为。[StopVmInstance](https://docs.zstack.io/docs/api-explorer/zh-cn/zsphere/explorer/StopVmInstance) |
+| `Restart-ZStackVM` | 对 `Running` 的 VM 提交一次重启，等待 API 完成后确认 `Running`。工作流需要证明客户机已重启时，请比较操作前后的客户机启动时间或启动 ID。[RebootVmInstance](https://docs.zstack.io/en/zcf/zstack-cloud/5.5.30/dev-guide?section=ZStack_2.1_Dev_Guide_0046&version=5.5.30) |
+| `Remove-ZStackVM` 与 `Restore-ZStackVM` | 以高确认级别删除已停止的 VM 并确认 `Destroyed`。删除要求可读取并核实 VM 删除策略为 `Delay` 或 `Never`。通过 VM 恢复回收站内可恢复的实例及其根盘。恢复后的状态为 `Stopped`。保留期限与附着数据盘行为由平台策略决定。[删除策略](https://docs.zstack.io/zh/docs/zcf/zstack-cloud/user-guide?section=ZStack_User_Guide_0043_5) |
+| `Wait-ZStackVM` | 等待 `Running`（默认）、`Stopped`、`Paused` 或 `Destroyed`。等待其他状态时若观察到 `Destroyed`，立即返回冲突。 |
+
+生命周期判断使用 `RawState`。删除或恢复后，后续操作应使用返回的对象或按 UUID 重新查询。写操作报告 `OutcomeUnknown` 时，先查询 VM 再决定是否重试。创建流程可预先指定 `-ResourceId`，也可使用错误目标中的 UUID 核对结果。[生命周期示例](../examples/powershell/README.zh-CN.md#vm-生命周期) · [迁移映射](../powershell/contracts/compatibility.md#vm-lifecycle)

@@ -4597,6 +4597,7 @@ Usage:
 Flags:
   -h, --help                       help for resume
       --request-timeout duration   Deadline for resolution and action completion (default 2m0s)
+      --uuid-only                  Require exact UUID without name fallback
   -y, --yes                        Automatic yes to confirmation prompts
 
 Global Flags:
@@ -6383,6 +6384,7 @@ Flags:
   -o, --output string       Output format: text, table, json, or yaml (default "text")
       --progress            Print state changes to stderr
       --timeout duration    Maximum time to wait (default 10m0s)
+      --uuid-only           Require exact UUID and return the observed job on a terminal mismatch in JSON mode
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -6424,8 +6426,9 @@ Examples:
   zstack-cli zql "query vmInstance.uuid where name='web-01' limit 10" --context lab
 
 Flags:
-  -h, --help            help for zql
-  -o, --output string   Output format: json (preserves the server's results and returnWith data) (default "json")
+  -h, --help                       help for zql
+  -o, --output string              Output format: json (preserves the server's results and returnWith data) (default "json")
+      --request-timeout duration   Deadline for authentication and the ZQL request (default 2m0s)
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default

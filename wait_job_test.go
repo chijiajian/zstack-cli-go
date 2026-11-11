@@ -116,3 +116,43 @@ func TestWaitPollErrorIncludesLastState(t *testing.T) {
 		t.Fatalf("err=%v out=%s stderr=%s", err, out, stderr)
 	}
 }
+
+func TestWaitLongJobExactUUIDAndTerminalResult(t *testing.T) {
+	for _, tc := range []struct {
+		name, uuid, state, code string
+		exit                    int
+	}{
+		{"failed", "job-id", "Failed", "conflict", 5},
+		{"canceled", "job-id", "Canceled", "conflict", 5},
+		{"mismatched-uuid", "other-id", "Succeeded", "api_failed", 8},
+		{"no-name-fallback", "", "", "not_found", 4},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var calls atomic.Int32
+			cfg := mockConfig(t, func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				if r.Method != "GET" || r.URL.Query().Get("q") != "uuid=job-id" {
+					t.Errorf("unexpected request %s %s", r.Method, r.URL)
+				}
+				if tc.uuid == "" {
+					w.Write([]byte(`{"inventories":[]}`))
+					return
+				}
+				inventory(w, map[string]any{"uuid": tc.uuid, "name": "fixture", "state": tc.state, "jobResult": "private payload"})
+			})
+			out, stderr, err := invokeCLI(t, cfg, "", "wait", "long-job", "job-id", "--uuid-only", "-o", "json", "--error-format", "json")
+			assertDiagnostic(t, stderr, err, tc.code, tc.exit)
+			if calls.Load() != 1 || strings.Contains(stderr, "private payload") {
+				t.Fatalf("unexpected calls=%d diagnostic=%s", calls.Load(), stderr)
+			}
+			if tc.exit == 5 {
+				var result map[string]any
+				if err := json.Unmarshal([]byte(out), &result); err != nil || result["uuid"] != tc.uuid || result["state"] != tc.state {
+					t.Fatalf("invalid terminal observation: %s (%v)", out, err)
+				}
+			} else if out != "" {
+				t.Fatalf("unexpected result %s", out)
+			}
+		})
+	}
+}

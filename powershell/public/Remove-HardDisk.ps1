@@ -9,7 +9,7 @@ function Remove-CloudHardDisk {
     process {
         foreach ($item in $HardDisk) {
             try {
-                $target = Get-CloudDeviceSelection $item @('Volume', 'HardDisk') $Server RemoveHardDisk
+                $target = Get-CloudResourceSelection $item @('Volume', 'HardDisk') $Server RemoveHardDisk
                 $vmId = Get-CloudDeviceParentId $target VMId $VM VM RemoveHardDisk
                 $arguments = @('volume', 'detach', $target.Id, '--instance', $vmId)
                 Invoke-CloudDeviceWrite $PSCmdlet $target $arguments detach-volume RemoveHardDisk "Detach data volume from VM $vmId" $TimeoutSeconds Volume

@@ -58,3 +58,9 @@ These native cmdlets are available in packages built from the current source. Re
 | `Get-Snapshot`, `New-Snapshot`, `Remove-Snapshot` | Use the `*-ZStackVolumeSnapshot` commands on individual ZStack volumes. Each snapshot captures one ZStack volume. |
 | `New-NetworkAdapter`, `Remove-NetworkAdapter` | Use `New-ZStackNetworkAdapter -L3Network` and `Remove-ZStackNetworkAdapter`. Use the ZStack L3 network reference and retain the returned adapter identity. |
 | `Get-CDDrive`, `Set-CDDrive -IsoPath/-NoMedia` | Use `Get-ZStackCDDrive` and `Set-ZStackCDDrive -IsoImage/-NoMedia`. Select a registered ZStack ISO image and the exact virtual drive. |
+
+## Platform cmdlets
+
+Usage reports, ZQL, IAM, security group and load balancer inventories, and long jobs use the native module naming and connection conventions. A long job uses the UUID returned by ZStack's long-job inventory. Wait errors distinguish a backend Failed or Canceled state from a client deadline. Wait and resume return the same inventory projection as Get, read back by UUID within the caller's deadline. The module does not expose a percentage when the API only reports job state.
+
+A command may add `-RunAsync` when its successful submission returns a typed long-job UUID, a fresh connection can read the same job by UUID, and real acceptance verifies target ownership, permission, terminal states and retry behavior. An API callback location or a resource UUID alone does not satisfy that contract. Platform write candidates continue to use their documented CLI paths while those contracts are assessed.

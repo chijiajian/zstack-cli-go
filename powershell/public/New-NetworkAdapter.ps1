@@ -11,8 +11,8 @@ function New-CloudNetworkAdapter {
     process {
         foreach ($item in $VM) {
             try {
-                $target = Get-CloudDeviceSelection $item VM $Server NewNetworkAdapter
-                $network = Get-CloudDeviceSelection $L3Network L3Network $target.Connection.Public NewNetworkAdapter
+                $target = Get-CloudResourceSelection $item VM $Server NewNetworkAdapter
+                $network = Get-CloudResourceSelection $L3Network L3Network $target.Connection.Public NewNetworkAdapter
                 $arguments = @('instance', 'attach-l3', $target.Id, '--l3-network', $network.Id)
                 if ($PSBoundParameters.ContainsKey('MacAddress')) { $arguments += @('--mac', $MacAddress) }
                 if ($PSBoundParameters.ContainsKey('StaticIP')) { $arguments += @('--static-ip', $StaticIP) }

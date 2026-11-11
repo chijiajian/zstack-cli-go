@@ -24,10 +24,10 @@ PROFILES = {
         ("describe", "instance"): ("uuid-only", "output", "request-timeout"),
         ("get", "disks"): ("all-pages", "fields", "output", "request-timeout"),
     },
-    "zql": {("zql",): ("output",)},
+    "zql": {("zql",): ("output", "request-timeout")},
     "monitor": {("monitor", "usage"): ("section", "output")},
     "lifecycle": {
-        ("wait", "long-job"): ("for", "timeout"),
+        ("wait", "long-job"): ("for", "timeout", "uuid-only"),
         ("volume", "resize"): ("size", "dry-run", "uuid-only"),
         ("volume", "detach"): ("instance", "uuid-only"),
         ("instance", "detach-l3"): ("nic", "uuid-only"),
@@ -36,7 +36,7 @@ PROFILES = {
         ("instance", "pause"): ("uuid-only", "request-timeout", "dry-run"),
         ("wait", "instance"): ("uuid-only", "for", "timeout"),
         ("volume", "recover"): ("dry-run",),
-        ("job", "resume"): ("yes", "request-timeout"),
+        ("job", "resume"): ("yes", "request-timeout", "uuid-only"),
         ("job", "clean"): ("yes",),
     },
     "iam": {

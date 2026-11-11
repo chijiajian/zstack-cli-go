@@ -23,7 +23,7 @@ zstack-cli volume detach VOLUME_UUID --context lab
 zstack-cli snapshot create VOLUME_UUID --name TEST_SNAPSHOT --context lab -o json
 zstack-cli snapshot revert SNAPSHOT_UUID --context lab --yes
 zstack-cli delete snapshot SNAPSHOT_UUID --context lab --yes
-zstack-cli job resume JOB_UUID --context lab --yes -o json
+zstack-cli job resume JOB_UUID --uuid-only --context lab --yes -o json
 zstack-cli job clean JOB_UUID --context lab --yes -o json
 ```
 
@@ -41,3 +41,5 @@ zstack-cli instance detach-iso VM_UUID --cdrom DRIVE_UUID --context lab --uuid-o
 ```
 
 ISO 卸载保留光驱和 VM。确认同一 ISO 在 VM 上只关联目标光驱再卸载。卷快照删除只允许叶子快照。写操作结果未知时，先查询设备与父资源关系。
+
+精确 ID 的脚本可以使用 `wait long-job --uuid-only`。终态与目标不一致时，JSON 保留该任务的观测状态，退出码为冲突。

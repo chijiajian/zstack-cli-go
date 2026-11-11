@@ -45,6 +45,39 @@ RESOURCE_ROWS = {
     "l3-networks": [{"uuid": "l3-a", "name": "app-net", "l2NetworkUuid": "l2-a", "zoneUuid": "zone-a", "ipVersion": 4}],
     "l3-networks/ip-ranges": [{"uuid": "range-a", "name": "app-range", "l3NetworkUuid": "l3-a", "startIp": "10.255.255.27", "endIp": "10.255.255.30", "networkCidr": "10.255.255.0/24"}],
 }
+RESOURCE_ROWS.update({
+    "longjobs": [
+        {"uuid": f"job-{state.lower()}", "name": f"fixture {state}", "jobName": "Fixture", "state": state,
+         "targetResourceUuid": "vm-a", "jobResult": "synthetic-job-result",
+         "description": "fixture job metadata", "executeTime": 1234, "createDate": "2026-11-11T02:03:04Z"}
+        for state in ("Succeeded", "Failed", "Canceled", "Suspended", "Running")
+    ] + [{"uuid": "job-unnamed", "state": "Succeeded"},
+         {"uuid": "job-resume-stuck", "name": "stuck", "state": "Suspended"}],
+    "accounts": [
+        {"uuid": f"acct-{i:03}", "name": f"account-{i:03}", "type": "Normal", "password": "synthetic-field"}
+        for i in range(105)
+    ],
+    "accounts/users": [{"uuid": "user-a", "name": "alice", "accountUuid": "acct-000", "password": "synthetic-field"}],
+    "identities/roles": [{"uuid": "role-a", "name": "operator", "identity": "fixture-role"}],
+    "accounts/policies": [{"uuid": "policy-a", "name": "audit", "accountUuid": "acct-000"}],
+    "iam2/projects": [{"uuid": "project-a", "name": "project", "linkedAccountUuid": "acct-000"}],
+    "security-groups": [{"uuid": "sg-a", "name": "apps"}, {"uuid": "sg-b", "name": "other"}],
+    "security-groups/rules": [
+        {"uuid": "sgr-a", "securityGroupUuid": "sg-a", "type": "Ingress", "protocol": "TCP", "startPort": 443, "endPort": 443, "allowedCidr": "10.255.255.0/24"},
+        {"uuid": "sgr-b", "securityGroupUuid": "sg-b", "type": "Ingress", "protocol": "UDP", "startPort": 53, "endPort": 53},
+    ],
+    "vips": [{"uuid": "vip-a", "name": "front door", "l3NetworkUuid": "l3-a", "ip": "10.255.255.27"}],
+    "load-balancers": [{"uuid": "lb-a", "name": "edge", "vipUuid": "vip-a"}, {"uuid": "lb-b", "name": "other"}],
+    "load-balancers/listeners": [
+        {"uuid": "listener-a", "name": "https", "loadBalancerUuid": "lb-a", "loadBalancerPort": 443, "serverGroupUuid": "pool-a"},
+        {"uuid": "listener-b", "name": "other", "loadBalancerUuid": "lb-b"},
+    ],
+    "load-balancers/servergroups": [
+        {"uuid": "pool-a", "name": "apps", "loadBalancerUuid": "lb-a"},
+        {"uuid": "pool-b", "name": "other", "loadBalancerUuid": "lb-b"},
+    ],
+})
+
 LIFECYCLE_REQUESTS = {}
 LIFECYCLE_PAYLOADS = {}
 REBOOT_JOBS = {}
@@ -202,6 +235,16 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self.reply({"inventory": {"uuid": "test-session"}})
             return
+        if path.startswith("/zstack/v1/longjobs/") and path.endswith("/actions") and self.headers.get("Authorization") == "OAuth test-session":
+            job_id = path.split("/")[-2]
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            assert body == {"resumeLongJob": {}}
+            job = next(row for row in RESOURCE_ROWS["longjobs"] if row["uuid"] == job_id)
+            self.record_write("resume-long-job", {"uuid": job_id})
+            if job_id != "job-resume-stuck":
+                job["state"] = "Succeeded"
+            self.reply({"inventory": {"uuid": job_id, "state": "Running"}})
+            return
         if path == "/zstack/v1/vm-instances/vm-a/actions":
             START_REQUESTS += 1
             self.reply({"location": START_JOB}, 202)
@@ -272,6 +315,32 @@ class Handler(BaseHTTPRequestHandler):
         resource = url.path.removeprefix("/zstack/v1/")
         query = parse_qs(url.query)
         condition = query.get("q", [None])[0]
+        if resource == "zql":
+            RESOURCE_REQUESTS[resource] = RESOURCE_REQUESTS.get(resource, 0) + 1
+            statement = query.get("zql", [""])[0]
+            if statement == "query denied":
+                self.reply({"error": {"code": "TEST.ZQL", "details": "synthetic-zql-secret"}}, 403)
+            elif statement == "query invalid":
+                self.reply({"results": [{"inventories": []}, "invalid"]})
+            else:
+                assert statement == "query vmInstance.uuid where name='中文;quoted'; count vmInstance"
+                self.reply({"results": [
+                    {"inventories": [{"uuid": "vm-a", "dateText": "2026-11-11T02:03:04Z"}], "returnWith": {"cpu": [{"value": 0}]}},
+                    {"total": 0, "inventoryAggregateFunctions": {"max": 7}},
+                ]})
+            return
+        if resource == "hosts/capacities/cpu-memory":
+            self.reply({"totalCpu": 0, "availableCpu": 0, "totalMemory": 9007199254740993, "availableMemory": 1})
+            return
+        if resource == "primary-storage/capacities":
+            self.reply({"totalCapacity": 10, "availableCapacity": 5, "totalPhysicalCapacity": 20, "availablePhysicalCapacity": 10})
+            return
+        if resource == "zwatch/metrics":
+            self.reply({"data": []})
+            return
+        if resource == "accounts/policies" and condition == "uuid=denied":
+            self.reply({"error": {"code": "ID.1002", "details": "synthetic-policy-secret"}}, 503)
+            return
         if resource == "vm-instances":
             READS += 1
             LAST_CONDITION = condition

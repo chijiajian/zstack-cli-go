@@ -146,6 +146,7 @@ function Convert-CloudResource {
             $fields[$property.Key] = if ($null -ne $bytes) { [double] $bytes / 1GB }
         }
     }
+    if ($Type -ceq 'LongJob') { $fields['JobId'] = $fields.Id }
     if ($Type -ceq 'Volume') { $fields['Attached'] = -not [string]::IsNullOrEmpty($fields['VMId']) }
     if ($Type -ceq 'NetworkAdapter') {
         $networkName = $null
@@ -190,7 +191,8 @@ function Get-CloudInventory {
         $groups[$connection.Id] = @{ Connection = $connection; Ids = @() }
     }
     if ($groups.Count -eq 0) { return }
-    $null = Get-CloudCliPath 'resourceInventoryV1'
+    $capability = $script:InventoryQueries[$Type]['Capability'] ?? 'resourceInventoryV1'
+    $null = Get-CloudCliPath $capability
     foreach ($group in $groups.Values) {
         $networkNames = $null
         if ($IncludeNetworkName) {
@@ -209,4 +211,18 @@ function Get-CloudInventory {
             }
         }
     }
+}
+
+function Get-CloudResourceSelection {
+    param($Reference, [string[]] $Types, $Server, [string] $Operation)
+    if ($Reference -is [string]) {
+        if ($Reference -cnotmatch '\A[A-Za-z0-9-]{1,128}\z') { throw (New-CloudError -Operation $Operation -ExitCode 2) }
+        return @{ Connection = Get-CloudConnection $Server; Id = $Reference; Name = $Reference }
+    }
+    $type = @($Types | Where-Object { $Reference.PSObject.TypeNames -ccontains "Cloud.Automation.$_" })
+    if ($type.Count -ne 1) { throw (New-CloudError -Operation $Operation -ExitCode 5) }
+    $connection = Get-CloudObjectConnection $Reference $type[0] $Server $Operation
+    $identity = $null
+    $null = $connection.Objects.TryGetValue($Reference.PSObject, [ref] $identity)
+    return @{ Connection = $connection; Id = $identity.Id; Name = $Reference.Name; Identity = $identity }
 }

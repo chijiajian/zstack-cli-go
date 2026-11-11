@@ -9,7 +9,7 @@ function Remove-CloudNetworkAdapter {
     process {
         foreach ($item in $NetworkAdapter) {
             try {
-                $target = Get-CloudDeviceSelection $item NetworkAdapter $Server RemoveNetworkAdapter
+                $target = Get-CloudResourceSelection $item NetworkAdapter $Server RemoveNetworkAdapter
                 $vmId = Get-CloudDeviceParentId $target VMId $VM VM RemoveNetworkAdapter
                 $arguments = @('instance', 'detach-l3', $vmId, '--nic', $target.Id)
                 if ($target.ContainsKey('Identity')) { $arguments += @('--l3-network', $target.Identity.L3NetworkId) }

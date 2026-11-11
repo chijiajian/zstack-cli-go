@@ -9,8 +9,8 @@ function Add-CloudHardDisk {
     process {
         foreach ($item in $Volume) {
             try {
-                $target = Get-CloudDeviceSelection $item @('Volume', 'HardDisk') $Server AddHardDisk
-                $vmTarget = Get-CloudDeviceSelection $VM VM $target.Connection.Public AddHardDisk
+                $target = Get-CloudResourceSelection $item @('Volume', 'HardDisk') $Server AddHardDisk
+                $vmTarget = Get-CloudResourceSelection $VM VM $target.Connection.Public AddHardDisk
                 $arguments = @('volume', 'attach', $target.Id, '--instance', $vmTarget.Id)
                 Invoke-CloudDeviceWrite $PSCmdlet $target $arguments attach-volume AddHardDisk "Attach data volume to VM $($vmTarget.Id)" $TimeoutSeconds Volume HardDisk
             } catch { $PSCmdlet.WriteError($_) }

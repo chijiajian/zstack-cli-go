@@ -15,11 +15,11 @@ function New-CloudVolume {
     if ($PSCmdlet.ParameterSetName -ceq 'Capacity') {
         $arguments += @('--size', [string] (ConvertTo-CloudMemoryBytes $CapacityGB NewVolume))
     } else {
-        $offering = Get-CloudDeviceSelection $DiskOffering DiskOffering $connection.Public NewVolume
+        $offering = Get-CloudResourceSelection $DiskOffering DiskOffering $connection.Public NewVolume
         $arguments += @('--disk-offering', $offering.Id)
     }
     if ($null -ne $PrimaryStorage) {
-        $storage = Get-CloudDeviceSelection $PrimaryStorage PrimaryStorage $connection.Public NewVolume
+        $storage = Get-CloudResourceSelection $PrimaryStorage PrimaryStorage $connection.Public NewVolume
         $arguments += @('--primary-storage', $storage.Id)
     }
     if ($PSBoundParameters.ContainsKey('Description')) { $arguments += "--description=$Description" }

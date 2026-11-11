@@ -98,3 +98,19 @@ OEM 包使用提供方给定的模块名和命令前缀。不同品牌共用对�
 写命令逐目标支持 `-WhatIf`、`-Confirm` 和 `-TimeoutSeconds`。按命令帮助传入当前连接的资源对象或精确 UUID。用 UUID 操作时，按参数要求同时指定预期 VM 或父卷。结果未知时先查询目标再决定是否重试。见 [PowerShell 示例](../examples/powershell/README.zh-CN.md#云盘快照和-vm-设备)。
 
 创建独立数据盘会读回实际容量，以及请求中明确指定的云盘规格和主存储。接入网卡会读回显式指定的 MAC 和静态 IP。若无法核实这些值，命令返回 `OutcomeUnknown`。此时先查询目标资源，再决定下一步。快照回滚完成后可在客户机内检查文件或块数据，确认恢复了预期内容。
+
+## ZStack 专有运维能力
+
+| 工作流 | Cmdlet 与输出 |
+| --- | --- |
+| 容量与负载 | `Get-ZStackUsage [-Section All\|Capacity\|Load]` 返回指定连接的报表。`Capacity` 行包含 `Metric`、`Unit`、`Total`、`Used`、`Available` 和 `Percent`。CPU 容量单位为 vCPU，内存、主存储逻辑和物理容量单位为 bytes。`Load` 包含最近一次 CPU 和内存共同采样的时间、百分比、已采样和已连接的主机数量。缺失的采样和百分比为 `$null`，未请求的报表分区也为 `$null`。 |
+| ZQL | `Invoke-ZStackZql -Query <string>` 接收 ZQL 查询和计数，支持聚合与多个结果集。每个对象包含从 0 开始的 `Index`、保留所选列的 `Records`、`Total`、`Counts`、`Aggregates`、`ReturnWith`，以及 `Data` 中的完整结果集。云端 API 负责解析语句，并执行当前账号的权限检查。 |
+| 云端长任务 | `Get-ZStackLongJob [-Id <id>]`、`Wait-ZStackLongJob`、`Resume-ZStackLongJob` 使用真实云端任务 ID。查询对象包含 `JobId`、`Name`、`State`、`JobName`、`TargetResourceId`，以及平台返回的 `JobResult`。API 用状态报告任务进展。 |
+| IAM 审计 | `Get-ZStackAccount`、`Get-ZStackUser`、`Get-ZStackRole`、`Get-ZStackPolicy`、`Get-ZStackProject` 查询当前连接可见的资源。用户和策略对象包含 `AccountId`，IAM2 项目包含 `LinkedAccountId`，策略包含 `StatementCount`。 |
+| 网络审计 | `Get-ZStackSecurityGroup`、`Get-ZStackSecurityGroupRule`、`Get-ZStackVip`、`Get-ZStackLoadBalancer`、`Get-ZStackLoadBalancerListener`、`Get-ZStackLoadBalancerServerGroup` 返回通过资源 ID 关联的对象。管道支持从安全组查规则、从 VIP 查负载均衡器、从负载均衡器查监听器和后端服务器组。 |
+
+`Wait-ZStackLongJob` 默认等待 `Succeeded`。默认等待遇到失败或取消的云端任务时，分别返回 `JobFailed` 或 `JobCanceled`。显式指定 `-State Failed` 或 `-State Canceled` 可以读取相应终态。等待超时后可用同一个 ID 继续查询云端状态。换 PowerShell 会话后，重新连接同一环境，再用 `-Id` 传入保存的 ID。
+
+`Resume-ZStackLongJob` 仅恢复指定的已暂停任务，支持 `-WhatIf` 和确认。等待和恢复都在命令超时预算内按 UUID 读回长任务，返回与 `Get-ZStackLongJob` 相同的字段。恢复请求发出后若任务仍为 `Suspended` 或状态无法核实，命令返回 `OutcomeUnknown`，应先查询任务再决定是否重试。通用 `-RunAsync` 需要原操作返回能够跨连接重新查询的真实长任务 ID。普通 API 完成轮询和 VM 状态等待各自沿用原有契约。
+
+盘点命令在指定连接中分页。空结果不输出对象，权限拒绝返回 `AuthenticationFailed`。关联查询接收同一连接的实时父对象。见 [PowerShell 专有运维示例](../examples/powershell/README.zh-CN.md#zstack-专有运维能力)。

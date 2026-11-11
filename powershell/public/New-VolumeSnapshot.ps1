@@ -14,7 +14,7 @@ function New-CloudVolumeSnapshot {
             try {
                 $count++
                 if ($ResourceId -and $count -gt 1) { throw (New-CloudError -Operation NewVolumeSnapshot -ExitCode 2 -Target $ResourceId) }
-                $parent = Get-CloudDeviceSelection $item @('Volume', 'HardDisk') $Server NewVolumeSnapshot
+                $parent = Get-CloudResourceSelection $item @('Volume', 'HardDisk') $Server NewVolumeSnapshot
                 $id = if ($ResourceId) { $ResourceId } else { [guid]::NewGuid().ToString('N') }
                 $arguments = @('snapshot', 'create', $parent.Id, "--name=$Name", '--resource-uuid', $id)
                 if ($PSBoundParameters.ContainsKey('Description')) { $arguments += "--description=$Description" }

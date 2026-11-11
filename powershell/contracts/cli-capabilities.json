@@ -65,6 +65,12 @@
       "baseline": "some capacity fields only available as display strings",
       "sourceStatus": "verified-locally",
       "releaseStatus": "unpublished"
+    },
+    "vmLifecycleV1": {
+      "commands": ["create instance", "instance update", "instance pause", "instance resume", "instance stop", "instance restart", "delete instance", "instance recover", "wait instance"],
+      "baseline": "legacy writes can resolve by name and have separate human output",
+      "sourceStatus": "verified-locally",
+      "releaseStatus": "unpublished"
     }
   }
 }

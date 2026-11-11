@@ -3,7 +3,7 @@
 以下 UUID/context 是占位符，示例不是可以直接连续执行的脚本。先查询目标身份、关联和状态，并确认操作在用户授权范围内。
 
 ```sh
-zstack-cli wait instance VM_UUID --context lab --for Stopped --timeout 5m -o json --error-format json
+zstack-cli wait instance VM_UUID --uuid-only --context lab --for Stopped --timeout 5m -o json --error-format json
 zstack-cli wait job JOB_UUID --context lab --timeout 10m -o json --error-format json
 zstack-cli volume resize VOLUME_UUID --context lab --size 40G --dry-run -o json
 zstack-cli volume resize VOLUME_UUID --context lab --size 40G -o json --error-format json
@@ -12,6 +12,8 @@ zstack-cli volume recover VOLUME_UUID --context lab -o json --error-format json
 ```
 
 wait 不启动、恢复或取消资源。job 默认等待 Succeeded，其他资源需要 for；显式等待 Failed 时到达 Failed 是条件成功。等待成功遇到 Failed/Canceled 则非零。进度写 stderr，自动解析诊断时不要混用 progress。
+
+VM 写入可用精确 UUID 模式，例如 `zstack-cli instance pause VM_UUID --uuid-only --dry-run --context lab -o json`。正式执行需换成 `--yes`。检查 JSON 中的逐目标状态，并按 UUID 核对后续状态。
 
 实例恢复要求 Destroyed；数据盘恢复要求 Deleted；根盘随实例恢复，expunge 后不能恢复。扩容要求 Ready 且目标总容量大于当前值，G 按 1024³ 字节计算。扩容不调整 guest 分区/文件系统。先读取当前容量，不把 size 当增量。恢复/扩容预览是离线的，不能证明服务器会接受请求。
 

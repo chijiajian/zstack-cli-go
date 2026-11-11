@@ -34,7 +34,7 @@ Use `-ErrorAction Stop` when a failure should terminate the pipeline. After an u
 
 Starting with 0.1.2, run `Connect-ZStackServer -Server HOST -AccessKeyId KEY_ID -AccessKeySecret (Read-Host 'SK' -AsSecureString)` to use an existing key pair. The module checks the signature with a VM query. Signing depends on an accurate system clock. Use `-ApiTimeZone Asia/Shanghai` if the endpoint needs a specific signing time zone. The module saves the key pair in the connection's private temporary directory and deletes that directory on disconnect.
 
-For the limited legacy command names, import the `Compatibility/ZStack.PowerCLI.Compatibility.psd1` manifest from the same package in a separate PowerShell session. Loaded VMware, Hyper-V or user commands with those names cause import to fail. Unsupported VMware parameters and objects need script changes. Stop, guest shutdown, snapshots, `-RunAsync`, `Get-View` and `.ExtensionData` are outside the preview.
+For the limited legacy command names, import the `Compatibility/ZStack.PowerCLI.Compatibility.psd1` manifest from the same package in a separate PowerShell session. Loaded VMware, Hyper-V or user commands with those names cause import to fail. Unsupported VMware parameters and objects need script changes. Guest-tools shutdown, snapshots, `-RunAsync`, `Get-View` and `.ExtensionData` are outside the preview.
 
 For an OEM package, use the module name and command prefix supplied by the provider. Object properties and script pipeline behavior are shared across brands.
 
@@ -66,3 +66,19 @@ Use `-Server` to select a connection when multiple connections are active. Queri
 Use `Bytes` fields for exact arithmetic and `GB` fields for display in units of 2³⁰ bytes. Reported zero stays zero. An unreported capacity is `$null`. `SystemUsedCapacityBytes` retains the API's signed value. `-IncludeNetworkName` resolves the adapter's L3 name within its connection when the network is available.
 
 `Get-ZStackVM -Id VM_UUID -Detail` accepts one exact ZStack UUID. It keeps the ordinary VM properties and adds host, image and instance-offering IDs and names, `L3NetworkIds`, and `Warnings`. A warning identifies the affected relation and gives a fixed failure category such as `not_found` or `authentication_failed`.
+
+## VM lifecycle in the current source
+
+The native write cmdlets accept a live VM from the same module or an exact ZStack `-Id`. They support `-WhatIf` and `-Confirm` per target. Select `-Server` for UUIDs when multiple connections are active. A successful write returns a refreshed VM object. The default budget is 300 seconds per target for lookup, the API request and observation. Use `-ErrorAction Stop` to terminate a batch on the first failure.
+
+| Cmdlet | Input and observed result |
+| --- | --- |
+| `New-ZStackVM` | Supply a root volume template with `-Image` and at least one `-L3Network`. Use `-InstanceOffering` or both `-NumCpu` and `-MemoryGB`. Choose `-State Stopped` or `-State Running` explicitly. Deployment references accept live objects or UUIDs. |
+| `Set-ZStackVM` | Changes only the supplied `-Name`, `-Description`, `-NumCpu` or `-MemoryGB`. An empty description clears it. CPU and memory changes require `Stopped`. |
+| `Suspend-ZStackVM` and `Resume-ZStackVM` | Pause `Running` in memory and resume `Paused` to `Running`. Repeating an operation in its target state returns a fresh object without a write. [ZStack VM lifecycle](https://docs.zstack.io/en/zcf/zstack-cloud/4.8.38/dev-guide?section=ZStack_2.1_Dev_Guide_0002&version=4.8.38) |
+| `Stop-ZStackVM` | Request a graceful ACPI shutdown from `Running` and observe `Stopped`. `-StopHA` explicitly requests the platform's HA shutdown behavior. [StopVmInstance](https://docs.zstack.io/docs/api-explorer/zh-cn/zsphere/explorer/StopVmInstance) |
+| `Restart-ZStackVM` | Submit one reboot from `Running`, await API completion, then observe `Running`. If the workflow needs guest restart proof, compare the guest boot time or boot ID before and after. [RebootVmInstance](https://docs.zstack.io/en/zcf/zstack-cloud/5.5.30/dev-guide?section=ZStack_2.1_Dev_Guide_0046&version=5.5.30) |
+| `Remove-ZStackVM` and `Restore-ZStackVM` | Remove a stopped VM with high confirmation impact and observe `Destroyed`. Removal requires access to verify the `Delay` or `Never` VM deletion policy. Restore a recoverable VM and its root disk through the VM. The result is `Stopped`. The platform policy controls retention and attached data disks. [Deletion policy](https://docs.zstack.io/zh/docs/zcf/zstack-cloud/user-guide?section=ZStack_User_Guide_0043_5) |
+| `Wait-ZStackVM` | Wait for `Running` (default), `Stopped`, `Paused` or `Destroyed`. For other requested states, observing `Destroyed` ends the wait with a conflict. |
+
+Use `RawState` for lifecycle conditions. After a remove or restore, use the returned VM or query by UUID to obtain an object for subsequent operations. If a write reports `OutcomeUnknown`, query the VM before retrying. For creation, use the UUID from the error target or supply a known `-ResourceId` when starting a workflow that needs to reconcile by UUID. [Lifecycle examples](../examples/powershell/README.md#vm-lifecycle) · [Migration mappings](../powershell/contracts/compatibility.md#vm-lifecycle)

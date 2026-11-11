@@ -3,6 +3,7 @@ package resources
 import (
 	"bufio"
 	"fmt"
+	"github.com/chijiajian/zstack-cli-go/cmd/vmops"
 	"os"
 	"strings"
 
@@ -25,11 +26,15 @@ Example:
   zstack-cli instance pause my-vm`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if vmops.Enabled(cmd) {
+			return vmops.Run(cmd, "pause", args[0], param.PauseVmInstanceParam{})
+		}
 		return runPauseInstance(cmd, args[0])
 	},
 }
 
 func init() {
+	vmops.AddFlags(PauseInstanceCmd)
 	InstanceCmd.AddCommand(PauseInstanceCmd)
 }
 

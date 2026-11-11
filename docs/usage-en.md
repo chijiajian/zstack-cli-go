@@ -103,6 +103,8 @@ Wait polls the state of a resource. A job defaults to the Succeeded target. Fail
 
 VM recovery requires Destroyed and data-volume recovery requires Deleted. Recover root volumes through their VM. Expunged resources cannot be recovered. Resize uses the new total capacity and only accepts growth. G means 1024³ bytes. Guest partitions and filesystems need their own expansion. Recover/resize dry-run is offline and does not establish current resource state.
 
+For exact UUID lifecycle automation, use `--uuid-only -o json` with `--yes` or `--dry-run`. This mode applies to VM create, update, pause, resume, stop, restart, delete and recover. The JSON result uses `operation` and `items`. The deadline covers lookup and mutation. Exact creation requires `--resource-uuid` and an explicit `--strategy`. Exact stop sends `--stop-ha` only when supplied. Wait for an exact VM state with `wait instance VM_UUID --uuid-only --for Stopped -o json`. [PowerShell lifecycle examples](../examples/powershell/README.md#vm-lifecycle)
+
 ## 5. IAM management
 
 | Resource | Create | Update | Delete | Additional behavior |

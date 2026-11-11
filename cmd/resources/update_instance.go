@@ -16,7 +16,9 @@ package resources
 
 import (
 	"fmt"
+	"github.com/chijiajian/zstack-cli-go/cmd/vmops"
 	"reflect"
+	"strings"
 
 	zstackclient "github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
@@ -42,6 +44,19 @@ var updateInstanceCmd = &cobra.Command{
 			return fmt.Errorf("at least one update field must be specified")
 		}
 
+		if vmops.Enabled(cmd) {
+			for _, flag := range []string{"state", "default-l3-network", "platform", "reserved-memory", "guest-os-type"} {
+				if cmd.Flags().Changed(flag) {
+					return vmops.Invalid("exact UUID mode supports only --name, --description, --cpu and --memory")
+				}
+			}
+			if cmd.Flags().Changed("name") && strings.TrimSpace(updateParam.Params.Name) == "" ||
+				cmd.Flags().Changed("cpu") && (updateParam.Params.CpuNum == nil || *updateParam.Params.CpuNum <= 0) ||
+				cmd.Flags().Changed("memory") && (updateParam.Params.MemorySize == nil || *updateParam.Params.MemorySize <= 0) {
+				return vmops.Invalid("name must be nonempty and CPU and memory must be positive when specified")
+			}
+			return vmops.Run(cmd, "update", args[0], updateParam)
+		}
 		if isInstanceDryRun(cmd) {
 			return printInstanceDryRun(cmd, instanceUpdateRequest{Instance: args[0], Params: updateParam})
 		}
@@ -73,6 +88,7 @@ var updateInstanceCmd = &cobra.Command{
 }
 
 func init() {
+	vmops.AddFlags(updateInstanceCmd)
 	updateInstanceCmd.Flags().String("name", "", "New VM name")
 	updateInstanceCmd.Flags().StringP("description", "d", "", "New VM description")
 	updateInstanceCmd.Flags().String("state", "", "VM state")

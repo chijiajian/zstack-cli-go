@@ -13,7 +13,7 @@ The independent compatibility module will expose only this subset. Native names 
 
 | Requires review or rewrite | Why |
 | --- | --- |
-| `Stop-VM`, `-Kill`, or `Shutdown-VMGuest` | Existing CLI stop requests graceful stop. The guest and force semantics need separate verification. |
+| `Stop-VM`, `-Kill`, or `Shutdown-VMGuest` | Use the native graceful stop workflow below. Force and guest-tools behavior require separate migration work. |
 | `-RunAsync` and VMware tasks | The planned module exposes VM state waiting and has no VMware task object. |
 | `Get-View`, `.ExtensionData`, VMware types | These depend on the VMware object and API model. |
 | Module-qualified VMware commands or conflicting commands | Compatibility requires a deliberate import in a separate session. Qualified calls still refer to the named module. |
@@ -34,3 +34,18 @@ The following mappings apply to packages built from the current source. The nati
 | `Get-VirtualPortGroup` inventory | `Get-ZStackL2Network`, `Get-ZStackL3Network`, `Get-ZStackIPRange` | Traverse native network relationships. `VirtualNetworkId` is the reported L2 ID, with its meaning determined by the network type. |
 
 VMware references: [Get-HardDisk](https://developer.broadcom.com/powercli/latest/vmware.vimautomation.core/commands/get-harddisk), [Get-VMHost](https://developer.broadcom.com/powercli/latest/vmware.vimautomation.core/commands/get-vmhost), [Get-VirtualPortGroup](https://developer.broadcom.com/powercli/latest/vmware.vimautomation.core/commands/get-virtualportgroup).
+
+## VM lifecycle
+
+These native cmdlets are available in packages built from the current source. Replace VMware references and identifiers with live objects or UUIDs from the selected ZStack connection. [PowerShell lifecycle examples](../../examples/powershell/README.md#vm-lifecycle) · [生命周期示例](../../examples/powershell/README.zh-CN.md#vm-生命周期)
+
+| VMware workflow | Native ZStack cmdlet | Migration detail |
+| --- | --- | --- |
+| `New-VM` | `New-ZStackVM` | Select a ZStack root volume template, L3 network, sizing and explicit initial state. |
+| `Set-VM` | `Set-ZStackVM` | Update the supplied metadata or change CPU and memory on a stopped VM. |
+| `Suspend-VM` | `Suspend-ZStackVM`, `Resume-ZStackVM` | Use ZStack's in-memory pause and resume states. |
+| `Stop-VM` or `Stop-VMGuest` | `Stop-ZStackVM` | Review the workflow for graceful ACPI shutdown and explicit HA behavior. |
+| `Restart-VM` | `Restart-ZStackVM` | Wait for the platform reboot request and observe VM state. Verify guest startup separately when required. |
+| `Remove-VM` | `Remove-ZStackVM`, `Restore-ZStackVM` | Use a recoverable VM deletion policy and confirm deletion. Recovery is a separate operation. |
+
+[VMware VM cmdlet reference](https://developer.broadcom.com/powercli/latest/products/vmwarevsphereandvsan/categories/vm)

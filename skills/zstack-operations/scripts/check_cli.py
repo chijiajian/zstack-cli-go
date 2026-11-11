@@ -29,7 +29,9 @@ PROFILES = {
     "lifecycle": {
         ("wait", "long-job"): ("for", "timeout"),
         ("volume", "resize"): ("size", "dry-run"),
-        ("instance", "recover"): ("dry-run",),
+        ("instance", "recover"): ("uuid-only", "request-timeout", "dry-run"),
+        ("instance", "pause"): ("uuid-only", "request-timeout", "dry-run"),
+        ("wait", "instance"): ("uuid-only", "for", "timeout"),
         ("volume", "recover"): ("dry-run",),
         ("job", "resume"): ("yes", "request-timeout"),
         ("job", "clean"): ("yes",),

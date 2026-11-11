@@ -4,6 +4,13 @@
 
 以下是独立操作示例，不是连续执行脚本；UUID 必须指向已授权的测试资源。状态不满足时先调查，不强行推进。
 
+VM 自动化可使用精确 UUID 模式，写操作先预览。
+
+```sh
+zstack-cli instance pause VM_UUID --uuid-only --dry-run --context lab -o json
+zstack-cli wait instance VM_UUID --uuid-only --for Paused --context lab -o json
+```
+
 ```sh
 zstack-cli wait instance VM_UUID --context lab --for Stopped --timeout 5m
 zstack-cli volume attach VOLUME_UUID --context lab --instance VM_UUID

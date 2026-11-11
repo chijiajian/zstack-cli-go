@@ -35,3 +35,25 @@ In the VMware column, `$vi` is the connection returned by `Connect-VIServer`. In
 | Opt into legacy names in an OEM session | `Import-Module VCF.PowerCLI` followed by `Get-VM -Name 'web*' -Server $vi` | In a separate session, `Import-Module $oemCompatibilityManifest` followed by `Get-VM -Name 'web*' -Server $oemConnection` |
 
 Set `$oemCompatibilityManifest` to the manifest in the installed OEM package, such as `Compatibility/Acme.Cloud.Compatibility.psd1`. Create `$oemConnection` using the same package's `Connect-AcmeServer`. When using the native OEM commands, call `Get-AcmeVM -Server $oemConnection` and run `Get-Help Get-AcmeVM -Full` for package details. Requery by UUID when a VM object came from CSV or an earlier session.
+
+## VM lifecycle
+
+Use a package built from current source and UUIDs for an authorized test environment. The pipeline uses live ZStack objects and applies `-WhatIf` to each write. The create preview emits no VM, so use the UUID of a separately approved VM for the remaining previews.
+
+```powershell
+$image = Get-ZStackImage -Id '<IMAGE_UUID>' -Server $server
+$network = Get-ZStackL3Network -Id '<L3_UUID>' -Server $server
+$offering = Get-ZStackInstanceOffering -Id '<OFFERING_UUID>' -Server $server
+New-ZStackVM -Name 'migration-qa' -Image $image -L3Network $network `
+    -InstanceOffering $offering -State Stopped -Server $server -WhatIf
+
+$vm = Get-ZStackVM -Id '<VM_UUID>' -Server $server
+$vm | Set-ZStackVM -NumCpu 4 -MemoryGB 8 -WhatIf
+$vm | Suspend-ZStackVM -WhatIf
+$vm | Resume-ZStackVM -WhatIf
+$vm | Restart-ZStackVM -WhatIf
+$vm | Stop-ZStackVM -WhatIf
+$vm | Remove-ZStackVM -WhatIf
+$vm | Restore-ZStackVM -WhatIf
+Wait-ZStackVM -Id $vm.Id -State Stopped -TimeoutSeconds 30 -Server $server
+```

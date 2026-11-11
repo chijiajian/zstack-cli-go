@@ -3,7 +3,9 @@ package resources
 import (
 	"bufio"
 	"fmt"
+	"github.com/chijiajian/zstack-cli-go/cmd/vmops"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/chijiajian/zstack-cli-go/pkg/client"
@@ -25,11 +27,22 @@ Example:
   zstack-cli instance stop my-vm`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if vmops.Enabled(cmd) {
+			grace := "grace"
+			var ha *string
+			if cmd.Flags().Changed("stop-ha") {
+				stopHA, _ := cmd.Flags().GetBool("stop-ha")
+				value := strconv.FormatBool(stopHA)
+				ha = &value
+			}
+			return vmops.Run(cmd, "stop", args[0], param.StopVmInstanceParam{Params: param.StopVmInstanceParamDetail{Type: &grace, StopHA: ha}})
+		}
 		return runStopInstance(cmd, args[0])
 	},
 }
 
 func init() {
+	vmops.AddFlags(StopInstanceCmd)
 	InstanceCmd.AddCommand(StopInstanceCmd)
 	StopInstanceCmd.Flags().Bool("stop-ha", true, "Completely shut down HA VM if applicable")
 	//StopInstanceCmd.Flags().String("stop-type", "grace", "grace stop or not")

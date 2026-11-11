@@ -31,13 +31,17 @@ RESOURCE_ROWS = {
     ],
     "primary-storage": [{"uuid": "primary-a", "name": "primary", "zoneUuid": "zone-a", "totalCapacity": 4294967296, "availableCapacity": 0, "totalPhysicalCapacity": 2147483648, "systemUsedCapacity": -4294967297}],
     "backup-storage": [{"uuid": "storage-a", "name": "backup", "totalCapacity": 1073741824}],
-    "images": [{"uuid": "image-a", "name": "installer", "mediaType": "ISO", "size": 1073741824, "actualSize": 161061273}],
+    "images": [{"uuid": "image-a", "name": "installer", "mediaType": "ISO", "size": 1073741824, "actualSize": 161061273},
+               {"uuid": "image-root", "name": "root template", "mediaType": "RootVolumeTemplate", "size": 1073741824}],
     "instance-offerings": [{"uuid": "offering-a", "name": "small", "memorySize": 2147483648, "cpuNum": 2}],
     "disk-offerings": [{"uuid": "offering-disk", "name": "one-gib", "diskSize": 1073741824}],
     "l2-networks": [{"uuid": "l2-a", "name": "transport", "zoneUuid": "zone-a", "type": "L2VlanNetwork", "virtualNetworkId": 0}],
     "l3-networks": [{"uuid": "l3-a", "name": "app-net", "l2NetworkUuid": "l2-a", "zoneUuid": "zone-a", "ipVersion": 4}],
     "l3-networks/ip-ranges": [{"uuid": "range-a", "name": "app-range", "l3NetworkUuid": "l3-a", "startIp": "192.0.2.20", "endIp": "192.0.2.30", "networkCidr": "192.0.2.0/24"}],
 }
+LIFECYCLE_REQUESTS = {}
+LIFECYCLE_PAYLOADS = {}
+REBOOT_JOBS = {}
 RESOURCE_REQUESTS = {}
 RESOURCE_CONDITIONS = {}
 READS = 0
@@ -64,6 +68,31 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(body).encode())
 
+    def record_write(self, action, payload):
+        LIFECYCLE_REQUESTS[action] = LIFECYCLE_REQUESTS.get(action, 0) + 1
+        LIFECYCLE_PAYLOADS[action] = payload
+
+    def do_POST(self):
+        if self.path != "/zstack/v1/vm-instances" or self.headers.get("Authorization") != "OAuth test-session":
+            self.reply({}, 404)
+            return
+        params = json.loads(self.rfile.read(int(self.headers["Content-Length"])))["params"]
+        self.record_write("create", params)
+        if params["name"] == "reject-vm":
+            self.reply({"error": {"code": "TEST.5", "details": "synthetic secret"}}, 403)
+            return
+        uuid = params["resourceUuid"]
+        assert uuid not in VMS
+        state = {"CreateStopped": "Stopped", "InstantStart": "Running"}[params["strategy"]]
+        vm = {"uuid": uuid, "name": params["name"], "state": state, "bootId": 0,
+              "description": params.get("description", ""), "cpuNum": params.get("cpuNum", 2),
+              "memorySize": params.get("memorySize", 2147483648)}
+        VMS[uuid] = vm
+        RESOURCE_ROWS["volumes"].append({"uuid": f"{uuid}-root", "name": "fixture root", "type": "Root",
+                                          "vmInstanceUuid": uuid, "status": "Ready", "size": 1073741824})
+        response = {**vm, "uuid": "wrong-response"} if params["name"] == "unknown-vm" else vm
+        self.reply({"inventory": response})
+
     def do_PUT(self):
         global START_REQUESTS
         path = urlsplit(self.path).path
@@ -79,6 +108,28 @@ class Handler(BaseHTTPRequestHandler):
             START_REQUESTS += 1
             self.reply({"location": START_JOB}, 202)
             return
+        if path.startswith("/zstack/v1/vm-instances/") and path.endswith("/actions") and self.headers.get("Authorization") == "OAuth test-session":
+            uuid = path.split("/")[-2]
+            vm = VMS[uuid]
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            action, payload = next(iter(body.items()))
+            self.record_write(action, payload)
+            if action == "rebootVmInstance":
+                location = f"/zstack/v1/api-jobs/reboot-{uuid}"
+                REBOOT_JOBS[location] = uuid
+                self.reply({"location": location}, 202)
+                return
+            if action == "updateVmInstance":
+                vm.update(payload)
+            else:
+                vm["state"] = {"pauseVmInstance": "Paused", "resumeVmInstance": "Running",
+                               "stopVmInstance": "Stopped", "recoverVmInstance": "Stopped"}[action]
+            if action == "recoverVmInstance":
+                for disk in RESOURCE_ROWS["volumes"]:
+                    if disk.get("vmInstanceUuid") == uuid and disk["type"] == "Root":
+                        disk["status"] = "Ready"
+            self.reply({"inventory": vm})
+            return
         self.reply({"error": {"code": "TEST.2"}}, 409)
 
     def do_GET(self):
@@ -88,6 +139,15 @@ class Handler(BaseHTTPRequestHandler):
             self.reply({"inventoryReads": READS, "lastInventoryCondition": LAST_CONDITION,
                         "startRequests": START_REQUESTS, "startJobPolls": START_JOB_POLLS,
                         "resourceRequests": RESOURCE_REQUESTS, "resourceConditions": RESOURCE_CONDITIONS})
+            return
+        if url.path == "/test/lifecycle":
+            self.reply({"requests": LIFECYCLE_REQUESTS, "payloads": LIFECYCLE_PAYLOADS,
+                        "bootIds": {uuid: vm["bootId"] for uuid, vm in VMS.items() if "bootId" in vm}})
+            return
+        if url.path in REBOOT_JOBS and self.headers.get("Authorization") == "OAuth test-session":
+            vm = VMS[REBOOT_JOBS.pop(url.path)]
+            vm["bootId"] += 1
+            self.reply({"inventory": vm})
             return
         if url.path == START_JOB and START_REQUESTS and self.headers.get("Authorization") == "OAuth test-session":
             START_JOB_POLLS += 1
@@ -118,6 +178,8 @@ class Handler(BaseHTTPRequestHandler):
             READS += 1
             LAST_CONDITION = condition
             rows = list(VMS.values())
+        elif resource == "global-configurations":
+            rows = [{"category": "vm", "name": "deletionPolicy", "value": "Delay"}]
         elif resource in RESOURCE_ROWS:
             RESOURCE_REQUESTS[resource] = RESOURCE_REQUESTS.get(resource, 0) + 1
             RESOURCE_CONDITIONS[resource] = condition
@@ -147,6 +209,17 @@ class Handler(BaseHTTPRequestHandler):
         self.reply({"inventories": rows[start:start + limit], "total": len(rows)})
 
     def do_DELETE(self):
+        url = urlsplit(self.path)
+        if url.path.startswith("/zstack/v1/vm-instances/") and self.headers.get("Authorization") == "OAuth test-session":
+            uuid = url.path.rsplit("/", 1)[1]
+            assert parse_qs(url.query) == {"deleteMode": ["Permissive"]}
+            self.record_write("delete", {"mode": "Permissive"})
+            VMS[uuid]["state"] = "Destroyed"
+            for disk in RESOURCE_ROWS["volumes"]:
+                if disk.get("vmInstanceUuid") == uuid and disk["type"] == "Root":
+                    disk["status"] = "Deleted"
+            self.reply({})
+            return
         if self.path == "/zstack/v1/accounts/sessions/test-session":
             self.reply({})
             return

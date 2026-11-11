@@ -30,3 +30,14 @@ zstack-cli job clean JOB_UUID --context lab --yes -o json
 snapshot revert 会改变盘内容。job resume 仅接受 Suspended，clean 仅接受 Succeeded/Failed/Canceled；resume 返回不等于作业完成，必要时继续 wait。不要把 get 查询出的失败任务自动 clean。
 
 写后查询核对 UUID 和目标属性：挂载的 vmInstanceUuid、扩容后的 size、恢复后的 state/status。缺少字段不能算验证成功。服务器可能直接彻底清理删除对象，此时报告无法验证 recover，不擅自创建替代对象。
+
+设备写入使用 `--uuid-only -o json`，并传入 `--yes` 或 `--dry-run`。独立数据盘卸载要求指定预期 VM UUID，快照恢复和删除要求指定预期父卷 UUID。选择网卡和光驱时优先使用精确设备 UUID。
+
+```sh
+zstack-cli volume detach VOLUME_UUID --instance VM_UUID --context lab --uuid-only --yes -o json
+zstack-cli snapshot revert SNAPSHOT_UUID --volume VOLUME_UUID --context lab --uuid-only --yes -o json
+zstack-cli instance detach-l3 VM_UUID --nic NIC_UUID --context lab --uuid-only --yes -o json
+zstack-cli instance detach-iso VM_UUID --cdrom DRIVE_UUID --context lab --uuid-only --yes -o json
+```
+
+ISO 卸载保留光驱和 VM。确认同一 ISO 在 VM 上只关联目标光驱再卸载。卷快照删除只允许叶子快照。写操作结果未知时，先查询设备与父资源关系。

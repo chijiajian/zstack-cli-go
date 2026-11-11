@@ -44,6 +44,11 @@ func (cli *MutationClient) Delete(ctx context.Context, path, mode string) error 
 	return cli.mutate(ctx, http.MethodDelete, path, url.Values{"deleteMode": {mode}}, nil, nil)
 }
 
+// DeleteWithQuery performs a bounded DELETE for API routes with typed query selectors.
+func (cli *MutationClient) DeleteWithQuery(ctx context.Context, path string, query url.Values) error {
+	return cli.mutate(ctx, http.MethodDelete, path, query, nil, nil)
+}
+
 func (cli *MutationClient) mutate(ctx context.Context, method, path string, query url.Values, body, result any) error {
 	if method != http.MethodPost && method != http.MethodPut && method != http.MethodDelete {
 		return clierr.Wrap(clierr.Usage, fmt.Errorf("unsupported mutation method"))
@@ -66,7 +71,7 @@ func (cli *MutationClient) mutate(ctx context.Context, method, path string, quer
 		}
 		status := resp.StatusCode
 		var envelope struct {
-			Success   *bool           `json:"success"`
+			Success   json.RawMessage `json:"success"`
 			Location  string          `json:"location"`
 			Inventory json.RawMessage `json:"inventory"`
 			Error     json.RawMessage `json:"error"`
@@ -87,7 +92,9 @@ func (cli *MutationClient) mutate(ctx context.Context, method, path string, quer
 			}
 			return clierr.Wrap(clierr.Remote, fmt.Errorf("invalid mutation response (HTTP %d)", status))
 		}
-		if status < 200 || status >= 300 || envelope.Success != nil && !*envelope.Success || len(envelope.Error) > 0 && string(envelope.Error) != "null" {
+		// Some management nodes serialize the flag as a JSON string.
+		success := string(envelope.Success)
+		if status < 200 || status >= 300 || success == "false" || success == `"false"` || len(envelope.Error) > 0 && string(envelope.Error) != "null" {
 			var api struct {
 				Code string `json:"code"`
 			}
@@ -98,6 +105,9 @@ func (cli *MutationClient) mutate(ctx context.Context, method, path string, quer
 			}
 			// No response/request contents are exposed: identity operations may echo passwords.
 			return &clierr.HTTPError{Status: errorStatus, Code: api.Code, Message: fmt.Sprintf("API mutation failed (HTTP %d, code %s); inspect resource state before retrying", status, clierr.SafeAPICode(api.Code))}
+		}
+		if success != "" && success != "null" && success != "true" && success != `"true"` {
+			return clierr.Wrap(clierr.Remote, fmt.Errorf("invalid mutation success flag"))
 		}
 		if envelope.Location != "" {
 			connectedPeer, _ := peer.Load().(string)

@@ -56,7 +56,7 @@ $privateFiles = @(
     'private/objects/Convert-CloudVM.ps1', 'private/objects/Resolve-CloudVMTarget.ps1',
     'private/queries/ResourceInventory.ps1',
     'private/mutations/Invoke-CloudShouldProcess.ps1', 'private/mutations/Wait-CloudVMState.ps1',
-    'private/mutations/Invoke-CloudVMOperation.ps1'
+    'private/mutations/Invoke-CloudVMOperation.ps1', 'private/mutations/Invoke-CloudDeviceWrite.ps1'
 )
 $helpSummaries = @{
     'Connect-CloudServer' = 'Connects to the API with an account credential or an access key.'
@@ -99,6 +99,27 @@ $inventoryHelp = [ordered]@{
 foreach ($command in $inventoryHelp.GetEnumerator()) {
     $entries[$command.Key] = $command.Key.Replace('Get-Cloud', 'Get-') + '.ps1'
     $requirements[$command.Key] = 'resourceInventoryV1'
+    $helpSummaries[$command.Key] = $command.Value
+}
+$deviceHelp = [ordered]@{
+    'New-CloudVolume' = 'Creates an independent data volume.'
+    'Remove-CloudVolume' = 'Deletes a detached data volume under a recoverable deletion policy.'
+    'Restore-CloudVolume' = 'Recovers a deleted data volume.'
+    'Add-CloudHardDisk' = 'Attaches an existing data volume to a VM.'
+    'Remove-CloudHardDisk' = 'Detaches a data volume and keeps the underlying volume.'
+    'Set-CloudHardDisk' = 'Expands a virtual disk to the requested total capacity.'
+    'Get-CloudVolumeSnapshot' = 'Returns individual volume snapshots.'
+    'New-CloudVolumeSnapshot' = 'Creates a snapshot of a single volume.'
+    'Restore-CloudVolumeSnapshot' = 'Reverts a single volume to a snapshot.'
+    'Remove-CloudVolumeSnapshot' = 'Deletes a leaf volume snapshot.'
+    'New-CloudNetworkAdapter' = 'Attaches an adapter on the selected L3 network.'
+    'Remove-CloudNetworkAdapter' = 'Removes the selected VM adapter by exact UUID.'
+    'Get-CloudCDDrive' = 'Returns the virtual drives and attached ISO IDs for a VM.'
+    'Set-CloudCDDrive' = 'Inserts or ejects ISO media on the selected virtual drive.'
+}
+foreach ($command in $deviceHelp.GetEnumerator()) {
+    $entries[$command.Key] = $command.Key.Replace('-Cloud', '-') + '.ps1'
+    $requirements[$command.Key] = 'deviceLifecycleV1'
     $helpSummaries[$command.Key] = $command.Value
 }
 $messages = @('branding/messages.en.json', 'branding/messages.zh-CN.json')

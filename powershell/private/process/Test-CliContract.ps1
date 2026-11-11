@@ -1,7 +1,7 @@
 function Get-CloudCliIdentity {
     param([string] $Path)
 
-    $result = Invoke-CliProcess -Path $Path -ArgumentList @('--version') -TimeoutSeconds 5 -StdoutLimit 64KB -StderrLimit 64KB
+    $result = Invoke-CliProcess -Path $Path -ArgumentList @('--version') -TimeoutSeconds 20 -StdoutLimit 64KB -StderrLimit 64KB
     if ($result.ExitCode -ne 0 -or $result.Stdout.Trim() -cnotmatch '\Azstack-cli version: ([A-Za-z0-9._+-]+), commit: ([A-Za-z0-9._+-]+)\z') {
         throw 'CloudAutomation.CliVersionMismatch: Unable to verify the CLI version and commit.'
     }
@@ -11,7 +11,7 @@ function Get-CloudCliIdentity {
 function Assert-CloudCliHelp {
     param([string] $Path, [string] $Capability, [string[]] $Command, [string[]] $Flags, [string[]] $Fields)
 
-    $help = Invoke-CliProcess -Path $Path -ArgumentList ($Command + '--help') -TimeoutSeconds 5 -StdoutLimit 64KB -StderrLimit 64KB
+    $help = Invoke-CliProcess -Path $Path -ArgumentList ($Command + '--help') -TimeoutSeconds 20 -StdoutLimit 64KB -StderrLimit 64KB
     $missing = @($Flags | Where-Object { $help.Stdout -cnotmatch ('(?m)^\s+(?:-\w,\s+)?--' + $_ + '(?:\s|$)') })
     $missingFields = @($Fields | Where-Object { $help.Stdout -cnotmatch ('\b' + $_ + '\b') })
     if ($help.ExitCode -ne 0 -or $missing.Count -or $missingFields.Count) {
@@ -54,6 +54,30 @@ function Assert-CloudCliCapability {
             Assert-CloudCliHelp $Path $Capability @('delete', 'instance') $writeFlags
             Assert-CloudCliHelp $Path $Capability @('create', 'instance') ($writeFlags + @('resource-uuid', 'strategy', 'image', 'l3-network'))
             Assert-CloudCliHelp $Path $Capability @('wait', 'instance') @('uuid-only', 'for', 'timeout', 'interval')
+        }
+        'deviceLifecycleV1' {
+            $writeFlags = @('uuid-only', 'request-timeout', 'output', 'yes', 'dry-run')
+            $devices = [ordered]@{
+                'create volume' = @('resource-uuid', 'size', 'disk-offering')
+                'delete volume' = @()
+                'volume attach' = @('instance')
+                'volume detach' = @('instance')
+                'volume recover' = @()
+                'volume resize' = @('size')
+                'snapshot create' = @('resource-uuid', 'name')
+                'snapshot revert' = @('volume')
+                'delete snapshot' = @('volume')
+                'instance attach-l3' = @('l3-network')
+                'instance detach-l3' = @('nic')
+                'instance attach-iso' = @('cdrom', 'iso')
+                'instance detach-iso' = @('cdrom')
+            }
+            foreach ($device in $devices.GetEnumerator()) {
+                Assert-CloudCliHelp $Path $Capability ($device.Key -split ' ') ($writeFlags + $device.Value)
+            }
+            foreach ($inventory in 'snapshots', 'cdroms') {
+                Assert-CloudCliHelp $Path $Capability @('get', $inventory) @('all-pages', 'fields', 'request-timeout', 'output')
+            }
         }
         default { throw 'CloudAutomation.UnsupportedCapability: Unknown package capability.' }
     }

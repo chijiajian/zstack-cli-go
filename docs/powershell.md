@@ -34,7 +34,7 @@ Use `-ErrorAction Stop` when a failure should terminate the pipeline. After an u
 
 Starting with 0.1.2, run `Connect-ZStackServer -Server HOST -AccessKeyId KEY_ID -AccessKeySecret (Read-Host 'SK' -AsSecureString)` to use an existing key pair. The module checks the signature with a VM query. Signing depends on an accurate system clock. Use `-ApiTimeZone Asia/Shanghai` if the endpoint needs a specific signing time zone. The module saves the key pair in the connection's private temporary directory and deletes that directory on disconnect.
 
-For the limited legacy command names, import the `Compatibility/ZStack.PowerCLI.Compatibility.psd1` manifest from the same package in a separate PowerShell session. Loaded VMware, Hyper-V or user commands with those names cause import to fail. Unsupported VMware parameters and objects need script changes. Guest-tools shutdown, snapshots, `-RunAsync`, `Get-View` and `.ExtensionData` are outside the preview.
+For the limited legacy command names, import the `Compatibility/ZStack.PowerCLI.Compatibility.psd1` manifest from the same package in a separate PowerShell session. Loaded VMware, Hyper-V or user commands with those names cause import to fail. Unsupported VMware parameters and objects need script changes. Guest-tools shutdown, VM-wide snapshots, `-RunAsync`, `Get-View` and `.ExtensionData` are outside the preview.
 
 For an OEM package, use the module name and command prefix supplied by the provider. Object properties and script pipeline behavior are shared across brands.
 
@@ -82,3 +82,19 @@ The native write cmdlets accept a live VM from the same module or an exact ZStac
 | `Wait-ZStackVM` | Wait for `Running` (default), `Stopped`, `Paused` or `Destroyed`. For other requested states, observing `Destroyed` ends the wait with a conflict. |
 
 Use `RawState` for lifecycle conditions. After a remove or restore, use the returned VM or query by UUID to obtain an object for subsequent operations. If a write reports `OutcomeUnknown`, query the VM before retrying. For creation, use the UUID from the error target or supply a known `-ResourceId` when starting a workflow that needs to reconcile by UUID. [Lifecycle examples](../examples/powershell/README.md#vm-lifecycle) · [Migration mappings](../powershell/contracts/compatibility.md#vm-lifecycle)
+
+## Disks, volume snapshots, and VM devices
+
+Use a package built from this source with its matching CLI. Ejection requires that the selected ISO be associated with exactly one drive on the VM.
+
+| Cmdlets | Behavior |
+| --- | --- |
+| `New-ZStackVolume`, `Remove-ZStackVolume`, `Restore-ZStackVolume` | Create an independent data volume with a capacity or disk offering. Delete a detached data volume to the recycle bin under a Delay or Never policy, and recover it by the same ID. |
+| `Add-ZStackHardDisk`, `Remove-ZStackHardDisk`, `Set-ZStackHardDisk` | Attach an existing data volume, detach it while retaining the volume, or grow a virtual disk to a total `-CapacityGB`. Resizing an attached disk requires a stopped VM and leaves guest partitions untouched. |
+| `Get-ZStackVolumeSnapshot`, `New-ZStackVolumeSnapshot`, `Restore-ZStackVolumeSnapshot`, `Remove-ZStackVolumeSnapshot` | Query, create, revert to, or remove a snapshot of an individual volume. Revert requires a stopped VM when the volume is attached. Removal requires a leaf snapshot. |
+| `New-ZStackNetworkAdapter`, `Remove-ZStackNetworkAdapter` | Attach an adapter to a selected L3 network and remove an exact adapter. A VM can retain other adapters on the same L3. |
+| `Get-ZStackCDDrive`, `Set-ZStackCDDrive` | List drives with their ISO IDs. Insert an existing ISO with `-IsoImage` or eject it with `-NoMedia` on a selected drive. |
+
+Write commands support per-target `-WhatIf`, `-Confirm`, and `-TimeoutSeconds`. Supply live module objects or exact UUIDs as documented. When operating by UUID, include the expected VM or parent volume where the command requires it. After an unknown result, query the target before retrying. See the [PowerShell examples](../examples/powershell/README.md#disks-snapshots-and-vm-devices).
+
+Independent volume creation reads back capacity and any specified disk offering or primary storage. NIC attachment reads back any supplied MAC address and static IP. If the requested values cannot be verified, the cmdlet raises `OutcomeUnknown`. Query the target before deciding whether to retry. After a snapshot revert, verify the expected file or block data in the guest.

@@ -16,6 +16,8 @@ package create
 
 import (
 	"fmt"
+	"github.com/chijiajian/zstack-cli-go/cmd/deviceops"
+	"github.com/chijiajian/zstack-cli-go/cmd/vmops"
 
 	zstackclient "github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
@@ -36,6 +38,10 @@ Examples:
 		volumeParam, err := buildCreateVolumeParam(cmd, args[0])
 		if err != nil {
 			return err
+		}
+
+		if vmops.Enabled(cmd) {
+			return deviceops.CreateVolume(cmd, volumeParam)
 		}
 
 		if dryRunFlag {
@@ -79,6 +85,8 @@ Examples:
 }
 
 func init() {
+	vmops.AddFlags(volumeCmd)
+	volumeCmd.Flags().BoolP("yes", "y", false, "Confirm volume creation in exact UUID mode")
 	CreateCmd.AddCommand(volumeCmd)
 	volumeCmd.Flags().StringP("description", "d", "", "Detailed description of the volume")
 	volumeCmd.Flags().String("size", "", "Volume size, for example 10G")

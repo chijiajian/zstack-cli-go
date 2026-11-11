@@ -6,6 +6,13 @@ $script:InventoryQueries = @{
         Format = 'format'; State = 'state'; Status = 'status'; CapacityBytes = 'sizeBytes'
         ActualSizeBytes = 'actualSizeBytes'
     }; GiB = @{ CapacityGB = 'CapacityBytes' } }
+    VolumeSnapshot = @{ Command = 'snapshots'; Properties = [ordered]@{
+        Name = 'name'; VolumeId = 'volumeUuid'; ParentId = 'parentUuid'; TreeId = 'treeUuid'
+        Status = 'status'; State = 'state'; Latest = 'latest'; CreateDate = 'createDate'
+    } }
+    CDDrive = @{ Command = 'cdroms'; Properties = [ordered]@{
+        Name = 'name'; VMId = 'vmInstanceUuid'; IsoImageId = 'isoUuid'; DeviceId = 'deviceId'
+    } }
     VMHost = @{ Command = 'hosts'; Properties = [ordered]@{
         Name = 'name'; ClusterId = 'clusterUuid'; ZoneId = 'zoneUuid'; ManagementIP = 'managementIp'
         HypervisorType = 'hypervisorType'; State = 'state'; ConnectionState = 'status'
@@ -64,7 +71,8 @@ $script:InventoryQueries = @{
 }
 
 function Read-CloudResourceRows {
-    param($Connection, [string] $Type, [string[]] $Name, [string[]] $Id, [string] $ParentField, [string[]] $ParentIds)
+    param($Connection, [string] $Type, [string[]] $Name, [string[]] $Id, [string] $ParentField, [string[]] $ParentIds,
+        [Diagnostics.Stopwatch] $Clock, [int] $Budget, [string] $Operation)
 
     $spec = $script:InventoryQueries[$Type]
     $fields = @('uuid') + @($spec.Properties.Values)
@@ -77,7 +85,7 @@ function Read-CloudResourceRows {
     if (@($queryIds | Where-Object { $_ -cnotmatch '\A[A-Za-z0-9-]{1,128}\z' }).Count) {
         throw (New-CloudError -Operation "Query$Type" -Failure InvalidInventory -Target $Connection.Id)
     }
-    $base = @('get', $spec.Command, '--all-pages', '--sort', '+uuid', '--request-timeout', '25s', '--fields', ($fields -join ','), '-o', 'json')
+    $base = @('get', $spec.Command, '--all-pages', '--sort', '+uuid', '--fields', ($fields -join ','), '-o', 'json')
     $seen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     # Limit query-string length without starting a CLI process for each object.
     $batchSize = 32
@@ -90,7 +98,9 @@ function Read-CloudResourceRows {
             if ($batch.Count -eq 1) { $arguments += @('-q', "$queryField=$($batch[0])") }
             else { $arguments += @('-q', "${queryField}?=$($batch -join ',')") }
         }
-        $result = Invoke-CloudConnectedCli $Connection $arguments 30
+        $remaining = if ($Clock) { [Math]::Min(25, (Get-CloudRemainingTime $Clock $Budget $Operation $Id[0])) } else { 25 }
+        $milliseconds = [long] [Math]::Floor($remaining * 1000)
+        $result = Invoke-CloudConnectedCli $Connection ($arguments + @('--request-timeout', "${milliseconds}ms")) $remaining
         $rows = Convert-CliResult $result "Query$Type" -Shape Array -Target $Connection.Id
         foreach ($row in $rows) {
             if ($row -isnot [System.Collections.IDictionary] -or $row['uuid'] -isnot [string] -or
@@ -146,7 +156,11 @@ function Convert-CloudResource {
     $fields['BrandId'] = $Connection.BrandId
     $fields['Generation'] = $Connection.Generation
     $resource = [pscustomobject] $fields
-    $Connection.Objects.Add($resource.PSObject, @{ Id = $resource.Id; Type = $OutputType })
+    $identity = @{ Id = $resource.Id; Type = $OutputType }
+    if ($fields.Contains('VMId')) { $identity.VMId = $fields['VMId'] }
+    if ($fields.Contains('VolumeId')) { $identity.VolumeId = $fields['VolumeId'] }
+    if ($fields.Contains('L3NetworkId')) { $identity.L3NetworkId = $fields['L3NetworkId'] }
+    $Connection.Objects.Add($resource.PSObject, $identity)
     return $resource
 }
 
@@ -154,7 +168,7 @@ function Get-CloudInventory {
     param(
         [string] $Type, [string[]] $Name,
         [string[]] $Id,
-        [object] $Server, [string] $ParentField, [string] $ParentType, [object[]] $Parent,
+        [object] $Server, [string] $ParentField, [string[]] $ParentType, [object[]] $Parent,
         [string] $OutputType = $Type, [switch] $IncludeNetworkName
     )
 
@@ -162,7 +176,9 @@ function Get-CloudInventory {
     if ($ParentField) {
         # Validate the complete pipeline before any reads, including explicit -Server.
         foreach ($item in $Parent) {
-            $connection = Get-CloudObjectConnection $item $ParentType $Server "Query$Type"
+            $matchingType = @($ParentType | Where-Object { $item.PSObject.TypeNames -ccontains "Cloud.Automation.$_" })
+            if ($matchingType.Count -ne 1) { throw (New-CloudError -Operation "Query$Type" -ExitCode 5) }
+            $connection = Get-CloudObjectConnection $item $matchingType[0] $Server "Query$Type"
             if (-not $groups.Contains($connection.Id)) {
         $groups[$connection.Id] = @{ Connection = $connection
         Ids = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal) }

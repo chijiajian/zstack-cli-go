@@ -16,6 +16,8 @@ package resources
 
 import (
 	"fmt"
+	"github.com/chijiajian/zstack-cli-go/cmd/deviceops"
+	"github.com/chijiajian/zstack-cli-go/cmd/vmops"
 
 	zstackclient "github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/common"
@@ -68,6 +70,9 @@ var snapshotCreateCmd = &cobra.Command{
 			},
 		}
 
+		if vmops.Enabled(cmd) {
+			return deviceops.CreateSnapshot(cmd, args[0], snapshotParam)
+		}
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 		if dryRun {
 			return printSnapshotDryRun(cmd, snapshotCreateRequest{Volume: args[0], Params: snapshotParam})
@@ -97,6 +102,10 @@ var snapshotRevertCmd = &cobra.Command{
 	Short: "Revert a volume from a snapshot",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if vmops.Enabled(cmd) {
+			volume, _ := cmd.Flags().GetString("volume")
+			return deviceops.Snapshot(cmd, "revert", args[0], volume)
+		}
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 		if dryRun {
 			return printSnapshotDryRun(cmd, snapshotRevertRequest{Snapshot: args[0]})
@@ -130,6 +139,10 @@ var snapshotRevertCmd = &cobra.Command{
 }
 
 func init() {
+	vmops.AddFlags(snapshotCreateCmd)
+	vmops.AddFlags(snapshotRevertCmd)
+	snapshotCreateCmd.Flags().BoolP("yes", "y", false, "Confirm snapshot creation in exact UUID mode")
+	snapshotRevertCmd.Flags().String("volume", "", "Expected parent volume UUID in exact UUID mode")
 	snapshotRevertCmd.Flags().BoolP("yes", "y", false, "Automatic yes to confirmation prompts")
 	SnapshotCmd.PersistentFlags().Bool("dry-run", false, "Preview the API request without sending it")
 	SnapshotCmd.PersistentFlags().StringP("output", "o", "text", "Output format: text, table, json, yaml, or name")

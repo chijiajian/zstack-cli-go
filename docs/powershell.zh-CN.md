@@ -34,7 +34,7 @@ Import-Module $manifest
 
 从 0.1.2 起，使用已有 AK/SK 时可调用 `Connect-ZStackServer -Server HOST -AccessKeyId KEY_ID -AccessKeySecret (Read-Host 'SK' -AsSecureString)`。连接会发出一次 VM 查询来验证签名。签名依赖执行机时钟，若环境需要固定签名时区，可在该连接上指定 `-ApiTimeZone Asia/Shanghai`。模块在连接的私有临时目录中保存 AK/SK，断开连接时删除目录。
 
-需沿用有限的旧命令名时，在独立 PowerShell 会话中从同一包导入 `Compatibility/ZStack.PowerCLI.Compatibility.psd1`。如果已加载的 VMware、Hyper-V 或用户命令占用同名入口，导入会拒绝。未支持的 VMware 参数和对象需要改写。客户机工具关机、快照、`-RunAsync`、`Get-View` 与 `.ExtensionData` 不在预览范围内。
+需沿用有限的旧命令名时，在独立 PowerShell 会话中从同一包导入 `Compatibility/ZStack.PowerCLI.Compatibility.psd1`。如果已加载的 VMware、Hyper-V 或用户命令占用同名入口，导入会拒绝。未支持的 VMware 参数和对象需要改写。客户机工具关机、整机快照、`-RunAsync`、`Get-View` 与 `.ExtensionData` 不在预览范围内。
 
 OEM 包使用提供方给定的模块名和命令前缀。不同品牌共用对象属性与脚本管道行为。
 
@@ -82,3 +82,19 @@ OEM 包使用提供方给定的模块名和命令前缀。不同品牌共用对�
 | `Wait-ZStackVM` | 等待 `Running`（默认）、`Stopped`、`Paused` 或 `Destroyed`。等待其他状态时若观察到 `Destroyed`，立即返回冲突。 |
 
 生命周期判断使用 `RawState`。删除或恢复后，后续操作应使用返回的对象或按 UUID 重新查询。写操作报告 `OutcomeUnknown` 时，先查询 VM 再决定是否重试。创建流程可预先指定 `-ResourceId`，也可使用错误目标中的 UUID 核对结果。[生命周期示例](../examples/powershell/README.zh-CN.md#vm-生命周期) · [迁移映射](../powershell/contracts/compatibility.md#vm-lifecycle)
+
+## 云盘、卷快照与 VM 设备
+
+使用从当前源码构建且包含匹配 CLI 的包。弹出介质要求该 ISO 在 VM 上只关联选定的一台光驱。
+
+| 命令 | 行为 |
+| --- | --- |
+| `New-ZStackVolume`、`Remove-ZStackVolume`、`Restore-ZStackVolume` | 按容量或云盘规格创建独立数据盘。在 Delay 或 Never 策略下把未挂载的数据盘删除至回收站，并按原 UUID 恢复。 |
+| `Add-ZStackHardDisk`、`Remove-ZStackHardDisk`、`Set-ZStackHardDisk` | 挂载现有数据盘，卸载并保留底层数据盘，或将虚拟盘扩至指定总容量 `-CapacityGB`。已挂载的盘要求 VM 停机后扩容，客户机分区由客户机自行处理。 |
+| `Get-ZStackVolumeSnapshot`、`New-ZStackVolumeSnapshot`、`Restore-ZStackVolumeSnapshot`、`Remove-ZStackVolumeSnapshot` | 查询、创建、回滚和删除单个云盘的快照。已挂载卷要求 VM 停机后回滚。仅允许删除叶子快照。 |
+| `New-ZStackNetworkAdapter`、`Remove-ZStackNetworkAdapter` | 在选定 L3 接入网卡，按网卡 UUID 移除。保留同一 L3 上的其他网卡。 |
+| `Get-ZStackCDDrive`、`Set-ZStackCDDrive` | 查询虚拟光驱及其 ISO UUID。用 `-IsoImage` 插入已有 ISO，用 `-NoMedia` 弹出所选光驱的介质。 |
+
+写命令逐目标支持 `-WhatIf`、`-Confirm` 和 `-TimeoutSeconds`。按命令帮助传入当前连接的资源对象或精确 UUID。用 UUID 操作时，按参数要求同时指定预期 VM 或父卷。结果未知时先查询目标再决定是否重试。见 [PowerShell 示例](../examples/powershell/README.zh-CN.md#云盘快照和-vm-设备)。
+
+创建独立数据盘会读回实际容量，以及请求中明确指定的云盘规格和主存储。接入网卡会读回显式指定的 MAC 和静态 IP。若无法核实这些值，命令返回 `OutcomeUnknown`。此时先查询目标资源，再决定下一步。快照回滚完成后可在客户机内检查文件或块数据，确认恢复了预期内容。

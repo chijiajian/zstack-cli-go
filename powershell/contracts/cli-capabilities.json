@@ -71,6 +71,12 @@
       "baseline": "legacy writes can resolve by name and have separate human output",
       "sourceStatus": "verified-locally",
       "releaseStatus": "unpublished"
+    },
+    "deviceLifecycleV1": {
+      "sourceStatus": "verified-locally",
+      "commands": ["create volume", "delete volume", "volume attach", "volume detach", "volume resize", "volume recover", "get snapshots", "snapshot create", "snapshot revert", "delete snapshot", "instance attach-l3", "instance detach-l3", "get cdroms", "instance attach-iso", "instance detach-iso"],
+      "baseline": "legacy device writes do not expose the exact-UUID result contract",
+      "releaseStatus": "unpublished"
     }
   }
 }

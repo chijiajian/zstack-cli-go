@@ -105,6 +105,8 @@ VM recovery requires Destroyed and data-volume recovery requires Deleted. Recove
 
 For exact UUID lifecycle automation, use `--uuid-only -o json` with `--yes` or `--dry-run`. This mode applies to VM create, update, pause, resume, stop, restart, delete and recover. The JSON result uses `operation` and `items`. The deadline covers lookup and mutation. Exact creation requires `--resource-uuid` and an explicit `--strategy`. Exact stop sends `--stop-ha` only when supplied. Wait for an exact VM state with `wait instance VM_UUID --uuid-only --for Stopped -o json`. [PowerShell lifecycle examples](../examples/powershell/README.md#vm-lifecycle)
 
+Device writes support `--uuid-only -o json` with `--yes` or `--dry-run`. The response identifies the `operation`, `targetUuid`, resulting `uuid`, and `status`. Exact detach commands take the expected owner. For example, `instance detach-l3 VM_UUID --nic NIC_UUID` removes only that adapter, and `instance detach-iso VM_UUID --cdrom DRIVE_UUID` ejects media from that drive. Include the exact-mode flags for both examples. See the [PowerShell device workflow](powershell.md#disks-volume-snapshots-and-vm-devices).
+
 ## 5. IAM management
 
 | Resource | Create | Update | Delete | Additional behavior |

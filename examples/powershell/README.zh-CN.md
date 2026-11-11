@@ -57,3 +57,25 @@ $vm | Remove-ZStackVM -WhatIf
 $vm | Restore-ZStackVM -WhatIf
 Wait-ZStackVM -Id $vm.Id -State Stopped -TimeoutSeconds 30 -Server $server
 ```
+
+## 云盘、快照和 VM 设备
+
+使用当前连接中的临时停机 VM 和已有 ISO。确认回滚或删除前先核对卷和快照。尚未实例化的数据盘需等到状态为 Ready 后才能扩容或建快照。
+
+```powershell
+$vm = Get-ZStackVM -Id $vmId -Server $server
+$volume = New-ZStackVolume -Name 'test-data' -CapacityGB 1 -Server $server
+$disk = $volume | Add-ZStackHardDisk -VM $vm
+$disk = $disk | Set-ZStackHardDisk -CapacityGB 2
+$snapshot = $disk | New-ZStackVolumeSnapshot -Name 'before-change'
+$disk | Get-ZStackVolumeSnapshot
+$snapshot | Restore-ZStackVolumeSnapshot -WhatIf
+$snapshot | Remove-ZStackVolumeSnapshot -WhatIf
+$disk | Remove-ZStackHardDisk -WhatIf
+
+$nic = $vm | New-ZStackNetworkAdapter -L3Network $l3NetworkId
+$nic | Remove-ZStackNetworkAdapter -WhatIf
+$drive = $vm | Get-ZStackCDDrive -Id $driveId
+$drive = $drive | Set-ZStackCDDrive -IsoImage $isoImageId
+$drive | Set-ZStackCDDrive -NoMedia
+```

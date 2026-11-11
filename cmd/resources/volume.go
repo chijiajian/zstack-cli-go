@@ -16,6 +16,8 @@ package resources
 
 import (
 	"fmt"
+	"github.com/chijiajian/zstack-cli-go/cmd/deviceops"
+	"github.com/chijiajian/zstack-cli-go/cmd/vmops"
 
 	zstackclient "github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
@@ -44,6 +46,9 @@ var volumeAttachCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		instance, _ := cmd.Flags().GetString("instance")
+		if vmops.Enabled(cmd) {
+			return deviceops.Volume(cmd, "attach", args[0], instance, 0)
+		}
 		if instance == "" {
 			return fmt.Errorf("required flag --instance not set")
 		}
@@ -81,6 +86,10 @@ var volumeDetachCmd = &cobra.Command{
 	Short: "Detach a data volume from its VM instance",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if vmops.Enabled(cmd) {
+			vm, _ := cmd.Flags().GetString("instance")
+			return deviceops.Volume(cmd, "detach", args[0], vm, 0)
+		}
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 		if dryRun {
 			return printVolumeDryRun(cmd, volumeDetachRequest{Volume: args[0]})
@@ -111,6 +120,11 @@ func init() {
 	VolumeCmd.PersistentFlags().StringSlice("fields", nil, "Custom fields to display in table output")
 
 	volumeAttachCmd.Flags().String("instance", "", "VM instance name or UUID")
+	volumeDetachCmd.Flags().String("instance", "", "Expected VM UUID in exact UUID mode")
+	for _, command := range []*cobra.Command{volumeAttachCmd, volumeDetachCmd} {
+		vmops.AddFlags(command)
+		command.Flags().BoolP("yes", "y", false, "Confirm the operation in exact UUID mode")
+	}
 
 	VolumeCmd.AddCommand(volumeAttachCmd, volumeDetachCmd)
 }

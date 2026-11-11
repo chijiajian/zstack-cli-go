@@ -57,3 +57,25 @@ $vm | Remove-ZStackVM -WhatIf
 $vm | Restore-ZStackVM -WhatIf
 Wait-ZStackVM -Id $vm.Id -State Stopped -TimeoutSeconds 30 -Server $server
 ```
+
+## Disks, snapshots, and VM devices
+
+Use a disposable stopped VM and an existing ISO in the selected connection. Inspect the disk and the snapshot before approving a restore or deletion. Wait until the data volume is Ready before resizing it or creating a snapshot.
+
+```powershell
+$vm = Get-ZStackVM -Id $vmId -Server $server
+$volume = New-ZStackVolume -Name 'test-data' -CapacityGB 1 -Server $server
+$disk = $volume | Add-ZStackHardDisk -VM $vm
+$disk = $disk | Set-ZStackHardDisk -CapacityGB 2
+$snapshot = $disk | New-ZStackVolumeSnapshot -Name 'before-change'
+$disk | Get-ZStackVolumeSnapshot
+$snapshot | Restore-ZStackVolumeSnapshot -WhatIf
+$snapshot | Remove-ZStackVolumeSnapshot -WhatIf
+$disk | Remove-ZStackHardDisk -WhatIf
+
+$nic = $vm | New-ZStackNetworkAdapter -L3Network $l3NetworkId
+$nic | Remove-ZStackNetworkAdapter -WhatIf
+$drive = $vm | Get-ZStackCDDrive -Id $driveId
+$drive = $drive | Set-ZStackCDDrive -IsoImage $isoImageId
+$drive | Set-ZStackCDDrive -NoMedia
+```

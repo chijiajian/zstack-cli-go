@@ -3,6 +3,7 @@ import base64
 import hashlib
 import hmac
 import json
+import re
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -22,6 +23,11 @@ RESOURCE_ROWS = {
         {"uuid": "disk-b", "name": "data", "vmInstanceUuid": "vm-b", "type": "Data", "size": 1610612737},
         {"uuid": "disk-c", "name": "spare", "lastVmInstanceUuid": "vm-a", "type": "Data"},
     ],
+    "volume-snapshots": [],
+    "vm-instances/cdroms": [
+        {"uuid": "cdrom-a", "name": "primary drive", "vmInstanceUuid": "vm-a", "isoUuid": "", "deviceId": 0},
+        {"uuid": "cdrom-b", "name": "secondary drive", "vmInstanceUuid": "vm-a", "isoUuid": "image-other", "deviceId": 1},
+    ],
     "hosts": [{"uuid": "host-a", "name": "esx-like", "clusterUuid": "cluster-a", "zoneUuid": "zone-a", "status": "Connected", "totalCpuCapacity": 3000000000, "cpuNum": 8, "totalMemoryCapacity": 8589934592, "availableMemoryCapacity": 0}],
     "clusters": [{"uuid": "cluster-a", "name": "cluster", "zoneUuid": "zone-a", "hypervisorType": "KVM"}],
     "zones": [{"uuid": "zone-a", "name": "zone", "state": "Enabled"}],
@@ -31,7 +37,7 @@ RESOURCE_ROWS = {
     ],
     "primary-storage": [{"uuid": "primary-a", "name": "primary", "zoneUuid": "zone-a", "totalCapacity": 4294967296, "availableCapacity": 0, "totalPhysicalCapacity": 2147483648, "systemUsedCapacity": -4294967297}],
     "backup-storage": [{"uuid": "storage-a", "name": "backup", "totalCapacity": 1073741824}],
-    "images": [{"uuid": "image-a", "name": "installer", "mediaType": "ISO", "size": 1073741824, "actualSize": 161061273},
+    "images": [{"uuid": "image-a", "name": "installer", "mediaType": "ISO", "state": "Enabled", "status": "Ready", "size": 1073741824, "actualSize": 161061273},
                {"uuid": "image-root", "name": "root template", "mediaType": "RootVolumeTemplate", "size": 1073741824}],
     "instance-offerings": [{"uuid": "offering-a", "name": "small", "memorySize": 2147483648, "cpuNum": 2}],
     "disk-offerings": [{"uuid": "offering-disk", "name": "one-gib", "diskSize": 1073741824}],
@@ -72,7 +78,97 @@ class Handler(BaseHTTPRequestHandler):
         LIFECYCLE_REQUESTS[action] = LIFECYCLE_REQUESTS.get(action, 0) + 1
         LIFECYCLE_PAYLOADS[action] = payload
 
+    def device_write(self, method):
+        url = urlsplit(self.path)
+        path = url.path.removeprefix("/zstack/v1/")
+        routes = (
+            ("POST", r"volumes/data", "create-volume"),
+            ("DELETE", r"volumes/([^/]+)", "delete-volume"),
+            ("PUT", r"volumes/([^/]+)/actions", "recover-volume"),
+            ("POST", r"volumes/([^/]+)/vm-instances/([^/]+)", "attach-volume"),
+            ("DELETE", r"volumes/([^/]+)/vm-instances", "detach-volume"),
+            ("PUT", r"volumes/(?:data/)?resize/([^/]+)/actions", "resize-volume"),
+            ("POST", r"volumes/([^/]+)/volume-snapshots", "create-snapshot"),
+            ("PUT", r"volume-snapshots/([^/]+)/actions", "revert-snapshot"),
+            ("DELETE", r"volume-snapshots/([^/]+)", "delete-snapshot"),
+            ("POST", r"vm-instances/([^/]+)/l3-networks/([^/]+)", "attach-nic"),
+            ("DELETE", r"vm-instances/nics/([^/]+)", "detach-nic"),
+            ("POST", r"vm-instances/([^/]+)/iso/([^/]+)", "attach-iso"),
+            ("DELETE", r"vm-instances/([^/]+)/iso", "detach-iso"),
+        )
+        for verb, pattern, action in routes:
+            match = re.fullmatch(pattern, path)
+            if verb == method and match:
+                break
+        else:
+            return False
+        if self.headers.get("Authorization") != "OAuth test-session":
+            self.reply({}, 403)
+            return True
+        size = int(self.headers.get("Content-Length", 0))
+        body = json.loads(self.rfile.read(size)) if size else {}
+        query = parse_qs(url.query)
+        self.record_write(action, {"path": path, "query": query, "body": body})
+        ids = match.groups()
+        identifier = ids[0] if ids else ""
+        disks = RESOURCE_ROWS["volumes"]
+        snaps = RESOURCE_ROWS["volume-snapshots"]
+        nics = RESOURCE_ROWS["vm-instances/nics"]
+        drives = RESOURCE_ROWS["vm-instances/cdroms"]
+        volume = next((row for row in disks if row["uuid"] == identifier), None)
+        if action == "create-volume":
+            detail = body["params"]
+            if detail["name"] == "reject-volume":
+                self.reply({"error": {"code": "TEST.5", "details": "synthetic-device-secret"}}, 403)
+                return True
+            requested_size = detail.get("diskSize", 1073741824)
+            disks.append({"uuid": detail["resourceUuid"], "name": detail["name"], "type": "Data",
+                          "status": "Ready", "size": requested_size + (detail["name"] == "misreported-volume"),
+                          "vmInstanceUuid": "", "diskOfferingUuid": detail.get("diskOfferingUuid", ""),
+                          "primaryStorageUuid": detail.get("primaryStorageUuid", "")})
+        elif action == "delete-volume":
+            volume["status"] = "Deleted"
+        elif action == "recover-volume":
+            assert body == {"recoverDataVolume": {}}
+            volume["status"] = "Ready"
+        elif action == "attach-volume":
+            volume["vmInstanceUuid"] = ids[1]
+        elif action == "detach-volume":
+            assert query == {"vmUuid": [volume["vmInstanceUuid"]]}
+            volume["vmInstanceUuid"] = ""
+        elif action == "resize-volume":
+            volume["size"] = next(iter(body.values()))["size"]
+        elif action == "create-snapshot":
+            detail = body["params"]
+            snaps.append({"uuid": detail["resourceUuid"], "name": detail["name"], "volumeUuid": identifier,
+                          "status": "Ready", "state": "Enabled", "latest": True})
+        elif action == "revert-snapshot":
+            assert body == {"revertVolumeFromSnapshot": {}}
+        elif action == "delete-snapshot":
+            snaps.remove(next(row for row in snaps if row["uuid"] == identifier))
+        elif action == "attach-nic":
+            params = body["params"]
+            nic = {"uuid": "nic-new", "vmInstanceUuid": identifier, "l3NetworkUuid": ids[1], "deviceId": 1,
+                   "mac": params.get("customMac", "").lower(), "ip": params.get("staticIp", "")}
+            if nic["ip"] == "10.255.255.202":
+                nic["ip"] = "10.255.255.203"
+            nics.append(nic)
+            self.reply({"inventory": {"uuid": identifier, "vmNics": [row for row in nics if row["vmInstanceUuid"] == identifier]}})
+            return True
+        elif action == "detach-nic":
+            nics.remove(next(row for row in nics if row["uuid"] == identifier))
+        elif action == "attach-iso":
+            drive_id = body["systemTags"][0].removeprefix("cdromUuid::")
+            next(row for row in drives if row["uuid"] == drive_id)["isoUuid"] = ids[1]
+        elif action == "detach-iso":
+            iso = query["isoUuid"][0]
+            next(row for row in drives if row["vmInstanceUuid"] == identifier and row["isoUuid"] == iso)["isoUuid"] = ""
+        self.reply({})
+        return True
+
     def do_POST(self):
+        if self.device_write("POST"):
+            return
         if self.path != "/zstack/v1/vm-instances" or self.headers.get("Authorization") != "OAuth test-session":
             self.reply({}, 404)
             return
@@ -95,6 +191,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         global START_REQUESTS
+        if self.device_write("PUT"):
+            return
         path = urlsplit(self.path).path
         if path == "/zstack/v1/accounts/login":
             request = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
@@ -179,7 +277,7 @@ class Handler(BaseHTTPRequestHandler):
             LAST_CONDITION = condition
             rows = list(VMS.values())
         elif resource == "global-configurations":
-            rows = [{"category": "vm", "name": "deletionPolicy", "value": "Delay"}]
+            rows = [{"category": category, "name": "deletionPolicy", "value": "Delay"} for category in ("vm", "volume")]
         elif resource in RESOURCE_ROWS:
             RESOURCE_REQUESTS[resource] = RESOURCE_REQUESTS.get(resource, 0) + 1
             RESOURCE_CONDITIONS[resource] = condition
@@ -209,6 +307,8 @@ class Handler(BaseHTTPRequestHandler):
         self.reply({"inventories": rows[start:start + limit], "total": len(rows)})
 
     def do_DELETE(self):
+        if self.device_write("DELETE"):
+            return
         url = urlsplit(self.path)
         if url.path.startswith("/zstack/v1/vm-instances/") and self.headers.get("Authorization") == "OAuth test-session":
             uuid = url.path.rsplit("/", 1)[1]

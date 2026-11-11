@@ -1,0 +1,14 @@
+function Remove-CloudVM {
+    [CmdletBinding(DefaultParameterSetName = 'VM', SupportsShouldProcess, ConfirmImpact = 'High')]
+    param(
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ParameterSetName = 'VM')] [ValidateNotNullOrEmpty()] [object[]] $VM,
+        [Parameter(Mandatory, ParameterSetName = 'Id')] [ValidateNotNullOrEmpty()] [ValidatePattern('\A[A-Za-z0-9-]{1,128}\z')] [string[]] $Id,
+        [ValidateRange(1, 3600)] [int] $TimeoutSeconds = 300,
+        [ValidateRange(1, 60)] [int] $PollSeconds = 2,
+        [object] $Server
+    )
+    process {
+        $parameter = $PSCmdlet.ParameterSetName
+        Invoke-CloudVMLifecycle -Caller $PSCmdlet -ParameterSet $parameter -Selectors $PSBoundParameters[$parameter] -Server $Server -Command delete -Operation RemoveVM -Description 'Delete stopped VM using the recycle bin policy' -State Destroyed -TimeoutSeconds $TimeoutSeconds -PollSeconds $PollSeconds
+    }
+}

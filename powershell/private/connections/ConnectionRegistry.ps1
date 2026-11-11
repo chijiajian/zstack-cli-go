@@ -60,8 +60,10 @@ function Get-CloudObjectConnection {
     if (-not $connection.Objects.TryGetValue($InputObject.PSObject, [ref] $identity)) {
         throw (New-CloudError -Operation $Operation -ExitCode 5)
     }
-    $originalId = if ($Type -ceq 'VM' -and $identity -is [string]) { $identity }
-        elseif ($identity -is [hashtable] -and $identity.Type -ceq $Type) { $identity.Id }
+    $originalId = if ($identity -is [hashtable] -and $identity.Type -ceq $Type) { $identity.Id }
+    if ($Type -ceq 'VM' -and $originalId -and $identity.Epoch -ne [int] $connection.VMEpochs[$originalId]) {
+        throw (New-CloudError -Operation $Operation -ExitCode 5 -Target $originalId)
+    }
     if (-not $originalId -or $InputObject.Id -cne $originalId -or
         $InputObject.BrandId -cne $connection.BrandId -or $InputObject.Generation -cne $connection.Generation) {
         throw (New-CloudError -Operation $Operation -ExitCode 5)
@@ -76,7 +78,9 @@ function Invoke-CloudConnectedCli {
     param($Connection, [string[]] $Arguments, [double] $TimeoutSeconds = 120)
 
     $clock = [System.Diagnostics.Stopwatch]::StartNew()
-    $result = Invoke-CliProcess -Path $Connection.CliPath -ArgumentList ($Arguments + @('--context', $Connection.ContextName, '--error-format', 'json')) -ConfigPath $Connection.ConfigPath -ApiTimeZone $Connection.ApiTimeZone -TimeoutSeconds $TimeoutSeconds
+    $contextArguments = @('--context', $Connection.ContextName, '--error-format', 'json')
+    $commandLine = if ($Arguments -ccontains '--') { $contextArguments + $Arguments } else { $Arguments + $contextArguments }
+    $result = Invoke-CliProcess -Path $Connection.CliPath -ArgumentList $commandLine -ConfigPath $Connection.ConfigPath -ApiTimeZone $Connection.ApiTimeZone -TimeoutSeconds $TimeoutSeconds
     $probeTime = [Math]::Min($TimeoutSeconds - $clock.Elapsed.TotalSeconds, 5)
     if ($result.ExitCode -eq 3 -and $probeTime -ge 0.001) {
         # Permission errors and expired sessions share an exit code. Ask the

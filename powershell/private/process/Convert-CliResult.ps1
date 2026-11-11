@@ -40,19 +40,62 @@ function Get-CloudProcessError {
     }
 }
 
+# PowerShell 7.4 has no ConvertFrom-Json -DateKind String. Parse these
+# responses without coercing JSON strings to dates or rounding integer counters.
+function Convert-CloudJsonElement {
+    param([System.Text.Json.JsonElement] $Element)
+
+    switch ($Element.ValueKind) {
+        'Object' {
+            $map = [System.Collections.Specialized.OrderedDictionary]::new([StringComparer]::Ordinal)
+            foreach ($property in $Element.EnumerateObject()) {
+                $map[$property.Name] = Convert-CloudJsonElement $property.Value
+            }
+            return $map
+        }
+        'Array' {
+            $items = [System.Collections.Generic.List[object]]::new()
+            foreach ($value in $Element.EnumerateArray()) {
+                $items.Add((Convert-CloudJsonElement $value))
+            }
+            return ,($items.ToArray())
+        }
+        'String' { return $Element.GetString() }
+        'Number' {
+            $integer = 0L
+            if ($Element.TryGetInt64([ref] $integer)) { return $integer }
+            $raw = $Element.GetRawText()
+            if ($raw -cmatch '\A-?[0-9]+\z') { return [System.Numerics.BigInteger]::Parse($raw, [Globalization.CultureInfo]::InvariantCulture) }
+            return $Element.GetDouble()
+        }
+        'True' { return $true }
+        'False' { return $false }
+        'Null' { return $null }
+    }
+}
+
 function Convert-CliResult {
     param(
         [Parameter(Mandatory)] $Result,
         [Parameter(Mandatory)] [string] $Operation,
         [ValidateSet('Array', 'Object')] [string] $Shape = 'Object',
         [switch] $Mutation,
+        [switch] $PreserveDates,
         [object] $Target
     )
 
     $failure = Get-CloudProcessError $Result $Operation -Mutation:$Mutation -Target $Target
     if ($failure) { throw $failure }
     try {
-        $parsed = ConvertFrom-Json -InputObject $Result.Stdout -AsHashtable -NoEnumerate -ErrorAction Stop
+        if ($PreserveDates -and $PSVersionTable.PSVersion -lt [version] '7.5') {
+            $document = [System.Text.Json.JsonDocument]::Parse([string] $Result.Stdout)
+            try { $parsed = Convert-CloudJsonElement $document.RootElement }
+            finally { $document.Dispose() }
+        } else {
+            $options = @{}
+            if ($PreserveDates) { $options.DateKind = 'String' }
+            $parsed = ConvertFrom-Json -InputObject $Result.Stdout -AsHashtable -NoEnumerate -ErrorAction Stop @options
+        }
     } catch {
         throw (New-CloudError -Operation $Operation -Failure 'InvalidJson' -Mutation:$Mutation -Target $Target)
     }

@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -186,6 +187,13 @@ func (cli *ReadClient) request(ctx context.Context, method, path string, query u
 	return ctx.Err()
 }
 
+// ZQL submits a single read-only statement string and preserves the response envelope.
+func (cli *ReadClient) ZQL(ctx context.Context, statement string) (json.RawMessage, error) {
+	var reply json.RawMessage
+	err := cli.request(ctx, http.MethodGet, "v1/zql", url.Values{"zql": {statement}}, nil, &reply)
+	return reply, err
+}
+
 func (cli *ReadClient) query(ctx context.Context, path string, params *param.QueryParam, result any) error {
 	var response struct {
 		Inventories json.RawMessage `json:"inventories"`
@@ -205,6 +213,20 @@ func (cli *ReadClient) Resolve(ctx context.Context, resourceType, identifier str
 		return ResolvedResource{}, err
 	}
 	return matches[0], nil
+}
+
+var exactUUIDPattern = regexp.MustCompile(`^[A-Za-z0-9-]{1,128}$`)
+
+// ResolveExactUUID never falls back to a name and rejects a mismatched reply.
+func (cli *ReadClient) ResolveExactUUID(ctx context.Context, resourceType, id string) (ResolvedResource, error) {
+	if !exactUUIDPattern.MatchString(id) {
+		return ResolvedResource{}, clierr.Wrap(clierr.Usage, fmt.Errorf("a valid UUID is required"))
+	}
+	resource, err := cli.Resolve(ctx, resourceType, id, ResolveUUID)
+	if err == nil && resource.UUID != id {
+		return ResolvedResource{}, clierr.Wrap(clierr.Remote, fmt.Errorf("UUID query returned a different resource"))
+	}
+	return resource, err
 }
 
 func (cli *ReadClient) ResolveMatches(ctx context.Context, resourceType, identifier string, options ResolveOptions) ([]ResolvedResource, error) {

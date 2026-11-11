@@ -34,7 +34,7 @@ Import-Module $manifest
 
 从 0.1.2 起，使用已有 AK/SK 时可调用 `Connect-ZStackServer -Server HOST -AccessKeyId KEY_ID -AccessKeySecret (Read-Host 'SK' -AsSecureString)`。连接会发出一次 VM 查询来验证签名。签名依赖执行机时钟，若环境需要固定签名时区，可在该连接上指定 `-ApiTimeZone Asia/Shanghai`。模块在连接的私有临时目录中保存 AK/SK，断开连接时删除目录。
 
-需沿用有限的旧命令名时，在独立 PowerShell 会话中从同一包导入 `Compatibility/ZStack.PowerCLI.Compatibility.psd1`。如果已加载的 VMware、Hyper-V 或用户命令占用同名入口，导入会拒绝。未支持的 VMware 参数和对象需要改写。停止、客户机正常关机、快照、`-RunAsync`、`Get-View` 与 `.ExtensionData` 不在预览范围内。
+需沿用有限的旧命令名时，在独立 PowerShell 会话中从同一包导入 `Compatibility/ZStack.PowerCLI.Compatibility.psd1`。如果已加载的 VMware、Hyper-V 或用户命令占用同名入口，导入会拒绝。未支持的 VMware 参数和对象需要改写。客户机工具关机、整机快照、`-RunAsync`、`Get-View` 与 `.ExtensionData` 不在预览范围内。
 
 OEM 包使用提供方给定的模块名和命令前缀。不同品牌共用对象属性与脚本管道行为。
 
@@ -66,3 +66,51 @@ OEM 包使用提供方给定的模块名和命令前缀。不同品牌共用对�
 用 `Bytes` 字段做精确计算，`GB` 字段按 2³⁰ 字节换算，适用于展示。服务端报告的零会保留，未报告的容量为 `$null`。`SystemUsedCapacityBytes` 保留 API 返回的有符号字节值。L3 网络可查询时，`-IncludeNetworkName` 会在网卡所属连接中补充其名称。
 
 `Get-ZStackVM -Id VM_UUID -Detail` 接受一个精确的 ZStack UUID。详情保留普通 VM 属性，并补充主机、镜像和计算规格的 ID 与名称，以及 `L3NetworkIds` 和 `Warnings`。警告会指出受影响的关联资源，并提供 `not_found` 或 `authentication_failed` 等固定失败类别。
+
+## 当前源码中的 VM 生命周期
+
+写命令接受同一模块返回的实时 VM 对象或精确的 ZStack `-Id`，并逐目标支持 `-WhatIf` 和 `-Confirm`。有多个连接时，按 UUID 操作需显式指定 `-Server`。成功后返回刷新的 VM 对象。默认每台 VM 有 300 秒预算，覆盖目标解析、API 请求与状态确认。使用 `-ErrorAction Stop` 可在首个错误时终止批处理。
+
+| 命令 | 输入与结果 |
+| --- | --- |
+| `New-ZStackVM` | 通过 `-Image` 选择根卷模板，通过 `-L3Network` 选择至少一个网络。使用 `-InstanceOffering`，或同时指定 `-NumCpu` 和 `-MemoryGB`。显式选择 `-State Stopped` 或 `-State Running`。部署参数接受实时对象或 UUID。 |
+| `Set-ZStackVM` | 只修改显式传入的 `-Name`、`-Description`、`-NumCpu` 或 `-MemoryGB`。空描述可清除原值。CPU 和内存变更要求 `Stopped`。 |
+| `Suspend-ZStackVM` 与 `Resume-ZStackVM` | 将 `Running` 的 VM 暂停在内存中，并将 `Paused` 的 VM 恢复到 `Running`。已处于目标状态时只刷新对象。[ZStack VM 生命周期](https://docs.zstack.io/en/zcf/zstack-cloud/4.8.38/dev-guide?section=ZStack_2.1_Dev_Guide_0002&version=4.8.38) |
+| `Stop-ZStackVM` | 对 `Running` 的 VM 请求 ACPI 优雅关机并确认 `Stopped`。`-StopHA` 显式请求平台的 HA 停机行为。[StopVmInstance](https://docs.zstack.io/docs/api-explorer/zh-cn/zsphere/explorer/StopVmInstance) |
+| `Restart-ZStackVM` | 对 `Running` 的 VM 提交一次重启，等待 API 完成后确认 `Running`。工作流需要证明客户机已重启时，请比较操作前后的客户机启动时间或启动 ID。[RebootVmInstance](https://docs.zstack.io/en/zcf/zstack-cloud/5.5.30/dev-guide?section=ZStack_2.1_Dev_Guide_0046&version=5.5.30) |
+| `Remove-ZStackVM` 与 `Restore-ZStackVM` | 以高确认级别删除已停止的 VM 并确认 `Destroyed`。删除要求可读取并核实 VM 删除策略为 `Delay` 或 `Never`。通过 VM 恢复回收站内可恢复的实例及其根盘。恢复后的状态为 `Stopped`。保留期限与附着数据盘行为由平台策略决定。[删除策略](https://docs.zstack.io/zh/docs/zcf/zstack-cloud/user-guide?section=ZStack_User_Guide_0043_5) |
+| `Wait-ZStackVM` | 等待 `Running`（默认）、`Stopped`、`Paused` 或 `Destroyed`。等待其他状态时若观察到 `Destroyed`，立即返回冲突。 |
+
+生命周期判断使用 `RawState`。删除或恢复后，后续操作应使用返回的对象或按 UUID 重新查询。写操作报告 `OutcomeUnknown` 时，先查询 VM 再决定是否重试。创建流程可预先指定 `-ResourceId`，也可使用错误目标中的 UUID 核对结果。[生命周期示例](../examples/powershell/README.zh-CN.md#vm-生命周期) · [迁移映射](../powershell/contracts/compatibility.md#vm-lifecycle)
+
+## 云盘、卷快照与 VM 设备
+
+使用从当前源码构建且包含匹配 CLI 的包。弹出介质要求该 ISO 在 VM 上只关联选定的一台光驱。
+
+| 命令 | 行为 |
+| --- | --- |
+| `New-ZStackVolume`、`Remove-ZStackVolume`、`Restore-ZStackVolume` | 按容量或云盘规格创建独立数据盘。在 Delay 或 Never 策略下把未挂载的数据盘删除至回收站，并按原 UUID 恢复。 |
+| `Add-ZStackHardDisk`、`Remove-ZStackHardDisk`、`Set-ZStackHardDisk` | 挂载现有数据盘，卸载并保留底层数据盘，或将虚拟盘扩至指定总容量 `-CapacityGB`。已挂载的盘要求 VM 停机后扩容，客户机分区由客户机自行处理。 |
+| `Get-ZStackVolumeSnapshot`、`New-ZStackVolumeSnapshot`、`Restore-ZStackVolumeSnapshot`、`Remove-ZStackVolumeSnapshot` | 查询、创建、回滚和删除单个云盘的快照。已挂载卷要求 VM 停机后回滚。仅允许删除叶子快照。 |
+| `New-ZStackNetworkAdapter`、`Remove-ZStackNetworkAdapter` | 在选定 L3 接入网卡，按网卡 UUID 移除。保留同一 L3 上的其他网卡。 |
+| `Get-ZStackCDDrive`、`Set-ZStackCDDrive` | 查询虚拟光驱及其 ISO UUID。用 `-IsoImage` 插入已有 ISO，用 `-NoMedia` 弹出所选光驱的介质。 |
+
+写命令逐目标支持 `-WhatIf`、`-Confirm` 和 `-TimeoutSeconds`。按命令帮助传入当前连接的资源对象或精确 UUID。用 UUID 操作时，按参数要求同时指定预期 VM 或父卷。结果未知时先查询目标再决定是否重试。见 [PowerShell 示例](../examples/powershell/README.zh-CN.md#云盘快照和-vm-设备)。
+
+创建独立数据盘会读回实际容量，以及请求中明确指定的云盘规格和主存储。接入网卡会读回显式指定的 MAC 和静态 IP。若无法核实这些值，命令返回 `OutcomeUnknown`。此时先查询目标资源，再决定下一步。快照回滚完成后可在客户机内检查文件或块数据，确认恢复了预期内容。
+
+## ZStack 专有运维能力
+
+| 工作流 | Cmdlet 与输出 |
+| --- | --- |
+| 容量与负载 | `Get-ZStackUsage [-Section All\|Capacity\|Load]` 返回指定连接的报表。`Capacity` 行包含 `Metric`、`Unit`、`Total`、`Used`、`Available` 和 `Percent`。CPU 容量单位为 vCPU，内存、主存储逻辑和物理容量单位为 bytes。`Load` 包含最近一次 CPU 和内存共同采样的时间、百分比、已采样和已连接的主机数量。缺失的采样和百分比为 `$null`，未请求的报表分区也为 `$null`。 |
+| ZQL | `Invoke-ZStackZql -Query <string>` 接收 ZQL 查询和计数，支持聚合与多个结果集。每个对象包含从 0 开始的 `Index`、保留所选列的 `Records`、`Total`、`Counts`、`Aggregates`、`ReturnWith`，以及 `Data` 中的完整结果集。云端 API 负责解析语句，并执行当前账号的权限检查。 |
+| 云端长任务 | `Get-ZStackLongJob [-Id <id>]`、`Wait-ZStackLongJob`、`Resume-ZStackLongJob` 使用真实云端任务 ID。查询对象包含 `JobId`、`Name`、`State`、`JobName`、`TargetResourceId`，以及平台返回的 `JobResult`。API 用状态报告任务进展。 |
+| IAM 审计 | `Get-ZStackAccount`、`Get-ZStackUser`、`Get-ZStackRole`、`Get-ZStackPolicy`、`Get-ZStackProject` 查询当前连接可见的资源。用户和策略对象包含 `AccountId`，IAM2 项目包含 `LinkedAccountId`，策略包含 `StatementCount`。 |
+| 网络审计 | `Get-ZStackSecurityGroup`、`Get-ZStackSecurityGroupRule`、`Get-ZStackVip`、`Get-ZStackLoadBalancer`、`Get-ZStackLoadBalancerListener`、`Get-ZStackLoadBalancerServerGroup` 返回通过资源 ID 关联的对象。管道支持从安全组查规则、从 VIP 查负载均衡器、从负载均衡器查监听器和后端服务器组。 |
+
+`Wait-ZStackLongJob` 默认等待 `Succeeded`。默认等待遇到失败或取消的云端任务时，分别返回 `JobFailed` 或 `JobCanceled`。显式指定 `-State Failed` 或 `-State Canceled` 可以读取相应终态。等待超时后可用同一个 ID 继续查询云端状态。换 PowerShell 会话后，重新连接同一环境，再用 `-Id` 传入保存的 ID。
+
+`Resume-ZStackLongJob` 仅恢复指定的已暂停任务，支持 `-WhatIf` 和确认。等待和恢复都在命令超时预算内按 UUID 读回长任务，返回与 `Get-ZStackLongJob` 相同的字段。恢复请求发出后若任务仍为 `Suspended` 或状态无法核实，命令返回 `OutcomeUnknown`，应先查询任务再决定是否重试。通用 `-RunAsync` 需要原操作返回能够跨连接重新查询的真实长任务 ID。普通 API 完成轮询和 VM 状态等待各自沿用原有契约。
+
+盘点命令在指定连接中分页。空结果不输出对象，权限拒绝返回 `AuthenticationFailed`。关联查询接收同一连接的实时父对象。见 [PowerShell 专有运维示例](../examples/powershell/README.zh-CN.md#zstack-专有运维能力)。

@@ -26,6 +26,9 @@ func init() {
 }
 func newAction(action string) *cobra.Command {
 	cmd := &cobra.Command{Use: action + " <name-or-uuid>", Short: action + " a long job", Args: cobra.ExactArgs(1)}
+	if action == "resume" {
+		cmd.Flags().Bool("uuid-only", false, "Require exact UUID without name fallback")
+	}
 	cmd.Flags().BoolP("yes", "y", false, "Automatic yes to confirmation prompts")
 	cmd.Flags().Duration("request-timeout", 2*time.Minute, "Deadline for resolution and action completion")
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
@@ -52,7 +55,13 @@ func newAction(action string) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		job, err := cli.Reader().Resolve(ctx, "long-job", args[0], client.ResolveAuto)
+		exact, _ := cmd.Flags().GetBool("uuid-only")
+		var job client.ResolvedResource
+		if exact {
+			job, err = cli.Reader().ResolveExactUUID(ctx, "long-job", args[0])
+		} else {
+			job, err = cli.Reader().Resolve(ctx, "long-job", args[0], client.ResolveAuto)
+		}
 		if err != nil {
 			return err
 		}
@@ -78,6 +87,21 @@ func newAction(action string) *cobra.Command {
 		}
 		if result.UUID != job.UUID {
 			return clierr.Wrap(clierr.Remote, fmt.Errorf("job response identity mismatch"))
+		}
+		if action == "resume" {
+			current, err := cli.Reader().ResolveExactUUID(ctx, "long-job", job.UUID)
+			if err != nil {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				return clierr.Wrap(clierr.Remote, fmt.Errorf("could not verify job state after resume"))
+			}
+			switch current.State {
+			case "Waiting", "Running", "Succeeded", "Failed", "Canceling", "Canceled":
+				result.Name, result.State = current.Name, current.State
+			default:
+				return clierr.Wrap(clierr.Remote, fmt.Errorf("could not verify a state transition after resume"))
+			}
 		}
 		if format == "text" || format == "name" {
 			_, err = fmt.Fprintf(cmd.OutOrStdout(), "job/%s %s requested\n", job.UUID, action)

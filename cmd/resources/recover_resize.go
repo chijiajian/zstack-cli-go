@@ -2,6 +2,8 @@ package resources
 
 import (
 	"fmt"
+	"github.com/chijiajian/zstack-cli-go/cmd/deviceops"
+	"github.com/chijiajian/zstack-cli-go/cmd/vmops"
 	"strings"
 
 	"github.com/chijiajian/zstack-cli-go/pkg/client"
@@ -22,11 +24,18 @@ type resourceActionPreview struct {
 // Shared command plumbing keeps validation and dry-run ahead of authentication.
 func newRecoveryResizeCommand(kind, action string) *cobra.Command {
 	command := &cobra.Command{Use: action + " <name-or-uuid>", Short: action + " a " + kind, Args: cobra.ExactArgs(1)}
+	vmops.AddFlags(command)
+	if kind == "volume" {
+		command.Flags().BoolP("yes", "y", false, "Confirm the operation in exact UUID mode")
+	}
 	if action == "resize" {
 		command.Flags().String("size", "", "New total volume size, for example 20G (growth only)")
 		_ = command.MarkFlagRequired("size")
 	}
 	command.RunE = func(cmd *cobra.Command, args []string) error {
+		if kind == "instance" && vmops.Enabled(cmd) {
+			return vmops.Run(cmd, "recover", args[0], param.RecoverVmInstanceParam{})
+		}
 		if strings.TrimSpace(args[0]) == "" {
 			return fmt.Errorf("resource name or UUID must not be empty")
 		}
@@ -57,6 +66,9 @@ func newRecoveryResizeCommand(kind, action string) *cobra.Command {
 			if size <= 0 {
 				return fmt.Errorf("--size must be positive")
 			}
+		}
+		if kind == "volume" && vmops.Enabled(cmd) {
+			return deviceops.Volume(cmd, action, args[0], "", size)
 		}
 		dryRun, _ := cmd.Flags().GetBool("dry-run")
 		if dryRun {

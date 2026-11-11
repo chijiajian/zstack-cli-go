@@ -17,6 +17,8 @@ package del
 import (
 	"bufio"
 	"fmt"
+	"github.com/chijiajian/zstack-cli-go/cmd/deviceops"
+	"github.com/chijiajian/zstack-cli-go/cmd/vmops"
 	"os"
 	"strings"
 
@@ -36,6 +38,9 @@ var DeleteVolumesCmd = &cobra.Command{
 	Short:   "Delete a data volume",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if vmops.Enabled(cmd) {
+			return deviceops.Volume(cmd, "delete", args[0], "", 0)
+		}
 		if dryRunFlag {
 			format := outputFlag
 			if format == "" {
@@ -69,6 +74,7 @@ var DeleteVolumesCmd = &cobra.Command{
 }
 
 func init() {
+	vmops.AddFlags(DeleteVolumesCmd)
 	DeleteCmd.AddCommand(DeleteVolumesCmd)
 	DeleteVolumesCmd.Flags().BoolP("yes", "y", false, "Automatic yes to confirmation prompts")
 }

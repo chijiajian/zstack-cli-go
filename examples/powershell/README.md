@@ -35,3 +35,76 @@ In the VMware column, `$vi` is the connection returned by `Connect-VIServer`. In
 | Opt into legacy names in an OEM session | `Import-Module VCF.PowerCLI` followed by `Get-VM -Name 'web*' -Server $vi` | In a separate session, `Import-Module $oemCompatibilityManifest` followed by `Get-VM -Name 'web*' -Server $oemConnection` |
 
 Set `$oemCompatibilityManifest` to the manifest in the installed OEM package, such as `Compatibility/Acme.Cloud.Compatibility.psd1`. Create `$oemConnection` using the same package's `Connect-AcmeServer`. When using the native OEM commands, call `Get-AcmeVM -Server $oemConnection` and run `Get-Help Get-AcmeVM -Full` for package details. Requery by UUID when a VM object came from CSV or an earlier session.
+
+## VM lifecycle
+
+Use a package built from current source and UUIDs for an authorized test environment. The pipeline uses live ZStack objects and applies `-WhatIf` to each write. The create preview emits no VM, so use the UUID of a separately approved VM for the remaining previews.
+
+```powershell
+$image = Get-ZStackImage -Id '<IMAGE_UUID>' -Server $server
+$network = Get-ZStackL3Network -Id '<L3_UUID>' -Server $server
+$offering = Get-ZStackInstanceOffering -Id '<OFFERING_UUID>' -Server $server
+New-ZStackVM -Name 'migration-qa' -Image $image -L3Network $network `
+    -InstanceOffering $offering -State Stopped -Server $server -WhatIf
+
+$vm = Get-ZStackVM -Id '<VM_UUID>' -Server $server
+$vm | Set-ZStackVM -NumCpu 4 -MemoryGB 8 -WhatIf
+$vm | Suspend-ZStackVM -WhatIf
+$vm | Resume-ZStackVM -WhatIf
+$vm | Restart-ZStackVM -WhatIf
+$vm | Stop-ZStackVM -WhatIf
+$vm | Remove-ZStackVM -WhatIf
+$vm | Restore-ZStackVM -WhatIf
+Wait-ZStackVM -Id $vm.Id -State Stopped -TimeoutSeconds 30 -Server $server
+```
+
+## Disks, snapshots, and VM devices
+
+Use a disposable stopped VM and an existing ISO in the selected connection. Inspect the disk and the snapshot before approving a restore or deletion. Wait until the data volume is Ready before resizing it or creating a snapshot.
+
+```powershell
+$vm = Get-ZStackVM -Id $vmId -Server $server
+$volume = New-ZStackVolume -Name 'test-data' -CapacityGB 1 -Server $server
+$disk = $volume | Add-ZStackHardDisk -VM $vm
+$disk = $disk | Set-ZStackHardDisk -CapacityGB 2
+$snapshot = $disk | New-ZStackVolumeSnapshot -Name 'before-change'
+$disk | Get-ZStackVolumeSnapshot
+$snapshot | Restore-ZStackVolumeSnapshot -WhatIf
+$snapshot | Remove-ZStackVolumeSnapshot -WhatIf
+$disk | Remove-ZStackHardDisk -WhatIf
+
+$nic = $vm | New-ZStackNetworkAdapter -L3Network $l3NetworkId
+$nic | Remove-ZStackNetworkAdapter -WhatIf
+$drive = $vm | Get-ZStackCDDrive -Id $driveId
+$drive = $drive | Set-ZStackCDDrive -IsoImage $isoImageId
+$drive | Set-ZStackCDDrive -NoMedia
+```
+
+## ZStack platform operations
+
+Run these examples after connecting to the authorized cloud with `Connect-ZStackServer`. Save that connection in `$server`.
+
+```powershell
+$report = Get-ZStackUsage -Server $server
+$report.Capacity | Select-Object Metric, Unit, Total, Used, Available, Percent |
+    Export-Csv ./zstack-capacity.csv -NoTypeInformation
+$report.Load | Select-Object SampleTime, ConnectedHosts, SampledHosts, CpuPercent, MemoryPercent
+
+$sets = @(Invoke-ZStackZql -Server $server -Query 'query vmInstance.uuid,name limit 5; count vmInstance')
+$sets[0].Records | ForEach-Object { [pscustomobject] $_ } | Select-Object uuid, name
+$sets[1].Total
+
+Get-ZStackSecurityGroup -Server $server -Name 'app*' | Get-ZStackSecurityGroupRule |
+    Select-Object SecurityGroupId, Direction, Protocol, StartPort, EndPort, AllowedCidr
+Get-ZStackVip -Server $server -Name 'app*' | Get-ZStackLoadBalancer | Get-ZStackLoadBalancerListener |
+    Select-Object Name, LoadBalancerId, LoadBalancerPort, ServerGroupId
+Get-ZStackProject -Server $server | Select-Object Id, Name, LinkedAccountId, State
+```
+
+Set `$jobId` to the UUID of a suspended long job you are authorized to resume. Review the preview before submitting the action.
+
+```powershell
+$job = Get-ZStackLongJob -Server $server -Id $jobId
+$job | Resume-ZStackLongJob -WhatIf
+$job | Resume-ZStackLongJob -Confirm | Wait-ZStackLongJob -TimeoutSeconds 600
+```

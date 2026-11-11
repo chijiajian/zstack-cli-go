@@ -34,7 +34,7 @@ Use `-ErrorAction Stop` when a failure should terminate the pipeline. After an u
 
 Starting with 0.1.2, run `Connect-ZStackServer -Server HOST -AccessKeyId KEY_ID -AccessKeySecret (Read-Host 'SK' -AsSecureString)` to use an existing key pair. The module checks the signature with a VM query. Signing depends on an accurate system clock. Use `-ApiTimeZone Asia/Shanghai` if the endpoint needs a specific signing time zone. The module saves the key pair in the connection's private temporary directory and deletes that directory on disconnect.
 
-For the limited legacy command names, import the `Compatibility/ZStack.PowerCLI.Compatibility.psd1` manifest from the same package in a separate PowerShell session. Loaded VMware, Hyper-V or user commands with those names cause import to fail. Unsupported VMware parameters and objects need script changes. Stop, guest shutdown, snapshots, `-RunAsync`, `Get-View` and `.ExtensionData` are outside the preview.
+For the limited legacy command names, import the `Compatibility/ZStack.PowerCLI.Compatibility.psd1` manifest from the same package in a separate PowerShell session. Loaded VMware, Hyper-V or user commands with those names cause import to fail. Unsupported VMware parameters and objects need script changes. Guest-tools shutdown, VM-wide snapshots, `-RunAsync`, `Get-View` and `.ExtensionData` are outside the preview.
 
 For an OEM package, use the module name and command prefix supplied by the provider. Object properties and script pipeline behavior are shared across brands.
 
@@ -66,3 +66,51 @@ Use `-Server` to select a connection when multiple connections are active. Queri
 Use `Bytes` fields for exact arithmetic and `GB` fields for display in units of 2³⁰ bytes. Reported zero stays zero. An unreported capacity is `$null`. `SystemUsedCapacityBytes` retains the API's signed value. `-IncludeNetworkName` resolves the adapter's L3 name within its connection when the network is available.
 
 `Get-ZStackVM -Id VM_UUID -Detail` accepts one exact ZStack UUID. It keeps the ordinary VM properties and adds host, image and instance-offering IDs and names, `L3NetworkIds`, and `Warnings`. A warning identifies the affected relation and gives a fixed failure category such as `not_found` or `authentication_failed`.
+
+## VM lifecycle in the current source
+
+The native write cmdlets accept a live VM from the same module or an exact ZStack `-Id`. They support `-WhatIf` and `-Confirm` per target. Select `-Server` for UUIDs when multiple connections are active. A successful write returns a refreshed VM object. The default budget is 300 seconds per target for lookup, the API request and observation. Use `-ErrorAction Stop` to terminate a batch on the first failure.
+
+| Cmdlet | Input and observed result |
+| --- | --- |
+| `New-ZStackVM` | Supply a root volume template with `-Image` and at least one `-L3Network`. Use `-InstanceOffering` or both `-NumCpu` and `-MemoryGB`. Choose `-State Stopped` or `-State Running` explicitly. Deployment references accept live objects or UUIDs. |
+| `Set-ZStackVM` | Changes only the supplied `-Name`, `-Description`, `-NumCpu` or `-MemoryGB`. An empty description clears it. CPU and memory changes require `Stopped`. |
+| `Suspend-ZStackVM` and `Resume-ZStackVM` | Pause `Running` in memory and resume `Paused` to `Running`. Repeating an operation in its target state returns a fresh object without a write. [ZStack VM lifecycle](https://docs.zstack.io/en/zcf/zstack-cloud/4.8.38/dev-guide?section=ZStack_2.1_Dev_Guide_0002&version=4.8.38) |
+| `Stop-ZStackVM` | Request a graceful ACPI shutdown from `Running` and observe `Stopped`. `-StopHA` explicitly requests the platform's HA shutdown behavior. [StopVmInstance](https://docs.zstack.io/docs/api-explorer/zh-cn/zsphere/explorer/StopVmInstance) |
+| `Restart-ZStackVM` | Submit one reboot from `Running`, await API completion, then observe `Running`. If the workflow needs guest restart proof, compare the guest boot time or boot ID before and after. [RebootVmInstance](https://docs.zstack.io/en/zcf/zstack-cloud/5.5.30/dev-guide?section=ZStack_2.1_Dev_Guide_0046&version=5.5.30) |
+| `Remove-ZStackVM` and `Restore-ZStackVM` | Remove a stopped VM with high confirmation impact and observe `Destroyed`. Removal requires access to verify the `Delay` or `Never` VM deletion policy. Restore a recoverable VM and its root disk through the VM. The result is `Stopped`. The platform policy controls retention and attached data disks. [Deletion policy](https://docs.zstack.io/zh/docs/zcf/zstack-cloud/user-guide?section=ZStack_User_Guide_0043_5) |
+| `Wait-ZStackVM` | Wait for `Running` (default), `Stopped`, `Paused` or `Destroyed`. For other requested states, observing `Destroyed` ends the wait with a conflict. |
+
+Use `RawState` for lifecycle conditions. After a remove or restore, use the returned VM or query by UUID to obtain an object for subsequent operations. If a write reports `OutcomeUnknown`, query the VM before retrying. For creation, use the UUID from the error target or supply a known `-ResourceId` when starting a workflow that needs to reconcile by UUID. [Lifecycle examples](../examples/powershell/README.md#vm-lifecycle) · [Migration mappings](../powershell/contracts/compatibility.md#vm-lifecycle)
+
+## Disks, volume snapshots, and VM devices
+
+Use a package built from this source with its matching CLI. Ejection requires that the selected ISO be associated with exactly one drive on the VM.
+
+| Cmdlets | Behavior |
+| --- | --- |
+| `New-ZStackVolume`, `Remove-ZStackVolume`, `Restore-ZStackVolume` | Create an independent data volume with a capacity or disk offering. Delete a detached data volume to the recycle bin under a Delay or Never policy, and recover it by the same ID. |
+| `Add-ZStackHardDisk`, `Remove-ZStackHardDisk`, `Set-ZStackHardDisk` | Attach an existing data volume, detach it while retaining the volume, or grow a virtual disk to a total `-CapacityGB`. Resizing an attached disk requires a stopped VM and leaves guest partitions untouched. |
+| `Get-ZStackVolumeSnapshot`, `New-ZStackVolumeSnapshot`, `Restore-ZStackVolumeSnapshot`, `Remove-ZStackVolumeSnapshot` | Query, create, revert to, or remove a snapshot of an individual volume. Revert requires a stopped VM when the volume is attached. Removal requires a leaf snapshot. |
+| `New-ZStackNetworkAdapter`, `Remove-ZStackNetworkAdapter` | Attach an adapter to a selected L3 network and remove an exact adapter. A VM can retain other adapters on the same L3. |
+| `Get-ZStackCDDrive`, `Set-ZStackCDDrive` | List drives with their ISO IDs. Insert an existing ISO with `-IsoImage` or eject it with `-NoMedia` on a selected drive. |
+
+Write commands support per-target `-WhatIf`, `-Confirm`, and `-TimeoutSeconds`. Supply live module objects or exact UUIDs as documented. When operating by UUID, include the expected VM or parent volume where the command requires it. After an unknown result, query the target before retrying. See the [PowerShell examples](../examples/powershell/README.md#disks-snapshots-and-vm-devices).
+
+Independent volume creation reads back capacity and any specified disk offering or primary storage. NIC attachment reads back any supplied MAC address and static IP. If the requested values cannot be verified, the cmdlet raises `OutcomeUnknown`. Query the target before deciding whether to retry. After a snapshot revert, verify the expected file or block data in the guest.
+
+## ZStack platform operations
+
+| Workflow | Cmdlets and output |
+| --- | --- |
+| Capacity and load | `Get-ZStackUsage [-Section All\|Capacity\|Load]` returns a report for one connection. Its `Capacity` rows have `Metric`, `Unit`, `Total`, `Used`, `Available`, and `Percent`. CPU capacity uses vCPU. Memory and logical and physical primary storage use bytes. `Load` contains the latest common CPU and memory sample time, the percentages and the sampled and connected host counts. Missing samples and percentages are `$null`. An unrequested section is also `$null`. |
+| ZQL | `Invoke-ZStackZql -Query <string>` accepts ZQL query and count statements, including aggregates and multiple result sets. Each output object has a zero-based `Index`, `Records` with the selected columns, `Total`, `Counts`, `Aggregates`, `ReturnWith`, and the full result set in `Data`. The cloud API parses the statement and enforces the selected account's permissions. |
+| Long jobs | `Get-ZStackLongJob [-Id <id>]`, `Wait-ZStackLongJob`, and `Resume-ZStackLongJob` use real cloud job IDs. Query objects include `JobId`, `Name`, `State`, `JobName`, `TargetResourceId`, and any reported `JobResult`. The API reports progress through states. |
+| IAM audit | `Get-ZStackAccount`, `Get-ZStackUser`, `Get-ZStackRole`, `Get-ZStackPolicy`, and `Get-ZStackProject` list the resources visible to the connection. User and policy objects expose `AccountId`. IAM2 projects expose `LinkedAccountId`. Policy output includes `StatementCount`. |
+| Network audit | `Get-ZStackSecurityGroup`, `Get-ZStackSecurityGroupRule`, `Get-ZStackVip`, `Get-ZStackLoadBalancer`, `Get-ZStackLoadBalancerListener`, and `Get-ZStackLoadBalancerServerGroup` return objects linked by resource IDs. A security group can feed its rules through the pipeline. A VIP can feed its load balancers, and a load balancer can feed its listeners and server groups. |
+
+`Wait-ZStackLongJob` defaults to `Succeeded`. For a default wait, a failed or canceled cloud job raises `JobFailed` or `JobCanceled`. You can explicitly wait for `-State Failed` or `-State Canceled` to read that terminal result. A local timeout leaves the cloud job running according to its own state. To continue in a fresh session, reconnect to the same cloud and pass the saved ID with `-Id`.
+
+`Resume-ZStackLongJob` targets a suspended job and supports `-WhatIf` and confirmation. Wait and resume read the job by UUID within the command deadline and return the same object fields as `Get-ZStackLongJob`. If the job is still `Suspended` or its state cannot be verified after the resume request, the cmdlet raises `OutcomeUnknown`. Check the job before retrying. General `-RunAsync` support requires the initiating operation to return a real long job ID that can be queried on a new connection. Ordinary API completion polling and VM state waiting have their own contracts.
+
+The inventory cmdlets page within the selected connection. An empty result emits no objects, and a permission denial raises `AuthenticationFailed`. Use a live object from the same connection in a parent pipeline. See the [PowerShell platform examples](../examples/powershell/README.md#zstack-platform-operations).

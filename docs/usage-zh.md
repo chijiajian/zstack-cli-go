@@ -97,9 +97,13 @@ zstack-cli volume resize VOLUME_UUID --size 40G -o json
 
 确认已获授权的目标后，脚本可用 `zstack-cli instance start VM_UUID --uuid-only --yes -o json --error-format json`。`--uuid-only` 禁止回退到名称匹配。结果为 `{operation, items}`，每项状态是 `succeeded`、`failed` 或 `skipped`。启动 JSON 结构固定，不能使用 `--fields`。部分失败仍输出各项结果，并返回非零退出码。dry-run 可查询目标，但不会启动，目标记为 `skipped`。
 
-wait 只查询，不启动实例或恢复任务。job 默认等待 Succeeded；等待成功时遇到 Failed/Canceled 会失败，显式 `--for Failed` 则表示等待该条件。`--progress` 写 stderr，最终结果写 stdout。
+wait 只查询，不启动实例或恢复任务。job 默认等待 Succeeded；等待成功时遇到 Failed/Canceled 会失败，显式 `--for Failed` 则表示等待该条件。`--progress` 写 stderr，最终结果写 stdout。`wait long-job --uuid-only` 和 `job resume --uuid-only` 禁止回退到任务名称。按 UUID 等待时若任务到达与目标不同的终态，JSON 结果保留该任务的观测状态，并返回冲突退出码。
 
 实例恢复要求 Destroyed，数据盘恢复要求 Deleted；根盘随实例恢复，彻底删除后不能恢复。扩容的 `--size` 是目标总容量，只能增大；G 按 1024³ 字节计算，不自动扩展客户机分区或文件系统。recover/resize 的 dry-run 是离线预览，不验证实时状态。
+
+VM 创建、更新、暂停、恢复运行、停机、重启、删除和回收站恢复支持 `--uuid-only -o json` 精确模式，同时传入 `--yes` 或 `--dry-run`。结果使用 `operation` 和 `items`，请求预算覆盖目标查询与写入。精确创建要求指定 `--resource-uuid` 和 `--strategy`。精确停机仅在显式传入 `--stop-ha` 时发送该字段。可使用 `wait instance VM_UUID --uuid-only --for Stopped -o json` 等待精确 VM 状态。 [PowerShell 生命周期示例](../examples/powershell/README.zh-CN.md#vm-生命周期)
+
+设备写入支持 `--uuid-only -o json` 与 `--yes` 或 `--dry-run`。返回包含 `operation`、`targetUuid`、结果 `uuid` 和 `status`。精确卸载要求传入预期归属。使用精确模式标志后，`instance detach-l3 VM_UUID --nic NIC_UUID` 仅移除选定网卡，`instance detach-iso VM_UUID --cdrom DRIVE_UUID` 仅弹出选定光驱介质。见 [PowerShell 设备操作](powershell.zh-CN.md#云盘卷快照与-vm-设备)。
 
 ## 5. IAM 管理
 
@@ -153,11 +157,11 @@ zstack-cli expunge project test-project --yes
 zstack-cli get jobs -o json
 zstack-cli describe job JOB_UUID -o json
 zstack-cli job resume JOB_UUID --dry-run -o json
-zstack-cli job resume JOB_UUID --yes --request-timeout 2m -o json
+zstack-cli job resume JOB_UUID --uuid-only --yes --request-timeout 2m -o json
 zstack-cli job clean JOB_UUID --yes -o json
 ```
 
-resume 仅接受 Suspended；clean 仅接受 Succeeded、Failed、Canceled。dry-run 不核验实时状态，实际执行会解析并检查状态。resume 返回不代表任务已经成功，可继续 `wait job`。本项目已用本地测试验证状态保护和请求契约，未在真实环境操作既有 long job。
+resume 仅接受 Suspended。请求完成后会在同一超时预算内按 UUID 读回，确认任务已进入可识别的非暂停状态才报告成功。clean 仅接受 Succeeded、Failed、Canceled。dry-run 不核验实时状态，实际执行会解析并检查状态。resume 返回不代表任务已经成功，可继续 `wait long-job JOB_UUID --uuid-only -o json`。
 
 ## 7. 自动化错误处理
 
@@ -242,7 +246,7 @@ cleanup-only 从 journal 读取资源，不需要重新传 image/network。必�
 按精确名称列出云主机使用 `get instances web-01`，按 UUID 过滤使用 `get instances -q 'uuid=VM_UUID'`。单台详情使用 `describe instance VM_UUID`。需要投影、计数、关联查询或按 VM 读取 ZWatch 指标时，使用顶层 `zql` 命令，并将完整语句作为一个带引号的参数传入。
 
 ```sh
-zstack-cli zql "query vmInstance.name where uuid='VM_UUID' limit 1" --context lab
+zstack-cli zql --request-timeout 30s "query vmInstance.name where uuid='VM_UUID' limit 1" --context lab
 ```
 
 ZQL 由所选环境解析，支持的语法和可见资源取决于服务器版本与账户权限。命令输出 JSON，保留服务端的 results、聚合字段与 returnWith。单台 VM 的 CPU 时序示例见[查询示例](../examples/queries.md)。

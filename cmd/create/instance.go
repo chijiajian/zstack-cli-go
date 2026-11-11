@@ -17,6 +17,7 @@ package create
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/chijiajian/zstack-cli-go/cmd/vmops"
 	"os"
 	"strings"
 
@@ -80,6 +81,9 @@ Examples:
 			name = args[0]
 		}
 
+		if vmops.Enabled(cmd) {
+			return createInstanceByUUID(cmd, name)
+		}
 		if filePath != "" {
 			return createVmInstanceFromFile(cmd, name, filePath)
 		} else {
@@ -511,6 +515,8 @@ func createVmInstanceFromFlags(cmd *cobra.Command, name string) error {
 }
 
 func init() {
+	vmops.AddFlags(instanceCmd)
+	instanceCmd.Flags().BoolP("yes", "y", false, "Confirm creation in exact UUID mode")
 	CreateCmd.AddCommand(instanceCmd)
 
 	instanceCmd.Flags().StringP("file", "f", "", "Path to YAML or JSON file containing VM instance specification")

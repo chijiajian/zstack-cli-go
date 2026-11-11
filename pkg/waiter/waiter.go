@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/chijiajian/zstack-cli-go/pkg/clierr"
 )
 
 type Observation struct {
@@ -38,6 +40,27 @@ func Match(o Observation, target string) (bool, error) {
 	return strings.EqualFold(o.State, target) || strings.EqualFold(o.Status, target), nil
 }
 
+// VM observes state only. Destroyed is terminal until an explicit recovery.
+func VM(o Observation, target string) (bool, error) {
+	if strings.EqualFold(o.State, target) {
+		return true, nil
+	}
+	if strings.EqualFold(o.State, "Destroyed") {
+		return false, clierr.Wrap(clierr.Conflict, fmt.Errorf("VM reached Destroyed"))
+	}
+	return false, nil
+}
+
+// JobTerminalError identifies an observed terminal state other than the target.
+type JobTerminalError struct {
+	State  string
+	Result string
+}
+
+func (err *JobTerminalError) Error() string {
+	return fmt.Sprintf("job reached terminal state %s; jobResult=%s", err.State, err.Result)
+}
+
 // Long-job terminal states follow ZStack's LongJobState contract. An explicitly
 // requested terminal state is a successful wait, even when that state is Failed.
 func Job(o Observation, target string) (bool, error) {
@@ -46,7 +69,7 @@ func Job(o Observation, target string) (bool, error) {
 	}
 	switch strings.ToLower(o.State) {
 	case "succeeded", "failed", "canceled":
-		return false, fmt.Errorf("job reached terminal state %s; jobResult=%s", o.State, o.JobResult)
+		return false, &JobTerminalError{State: o.State, Result: o.JobResult}
 	}
 	return false, nil
 }

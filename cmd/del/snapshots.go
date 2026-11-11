@@ -17,6 +17,8 @@ package del
 import (
 	"bufio"
 	"fmt"
+	"github.com/chijiajian/zstack-cli-go/cmd/deviceops"
+	"github.com/chijiajian/zstack-cli-go/cmd/vmops"
 	"os"
 	"strings"
 
@@ -36,6 +38,10 @@ var DeleteSnapshotsCmd = &cobra.Command{
 	Short:   "Delete a volume snapshot",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if vmops.Enabled(cmd) {
+			volume, _ := cmd.Flags().GetString("volume")
+			return deviceops.Snapshot(cmd, "delete", args[0], volume)
+		}
 		if dryRunFlag {
 			format := outputFlag
 			if format == "" {
@@ -69,6 +75,8 @@ var DeleteSnapshotsCmd = &cobra.Command{
 }
 
 func init() {
+	vmops.AddFlags(DeleteSnapshotsCmd)
+	DeleteSnapshotsCmd.Flags().String("volume", "", "Expected parent volume UUID in exact UUID mode")
 	DeleteCmd.AddCommand(DeleteSnapshotsCmd)
 	DeleteSnapshotsCmd.Flags().BoolP("yes", "y", false, "Automatic yes to confirmation prompts")
 }

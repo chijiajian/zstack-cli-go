@@ -49,3 +49,12 @@ These native cmdlets are available in packages built from the current source. Re
 | `Remove-VM` | `Remove-ZStackVM`, `Restore-ZStackVM` | Use a recoverable VM deletion policy and confirm deletion. Recovery is a separate operation. |
 
 [VMware VM cmdlet reference](https://developer.broadcom.com/powercli/latest/products/vmwarevsphereandvsan/categories/vm)
+
+## Disk and device operations
+
+| VMware PowerCLI pattern | ZStack cmdlets and migration scope |
+| --- | --- |
+| `New-HardDisk`, `Remove-HardDisk`, `Set-HardDisk -CapacityGB` | Use `New-ZStackVolume` and `Add-ZStackHardDisk` for provisioning and attachment. `Remove-ZStackHardDisk` detaches the data volume. Use `Remove-ZStackVolume` separately for recoverable deletion. `Set-ZStackHardDisk` grows the virtual disk to its requested total capacity. |
+| `Get-Snapshot`, `New-Snapshot`, `Remove-Snapshot` | Use the `*-ZStackVolumeSnapshot` commands on individual ZStack volumes. Each snapshot captures one ZStack volume. |
+| `New-NetworkAdapter`, `Remove-NetworkAdapter` | Use `New-ZStackNetworkAdapter -L3Network` and `Remove-ZStackNetworkAdapter`. Use the ZStack L3 network reference and retain the returned adapter identity. |
+| `Get-CDDrive`, `Set-CDDrive -IsoPath/-NoMedia` | Use `Get-ZStackCDDrive` and `Set-ZStackCDDrive -IsoImage/-NoMedia`. Select a registered ZStack ISO image and the exact virtual drive. |

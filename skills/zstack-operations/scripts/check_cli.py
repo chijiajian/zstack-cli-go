@@ -28,7 +28,10 @@ PROFILES = {
     "monitor": {("monitor", "usage"): ("section", "output")},
     "lifecycle": {
         ("wait", "long-job"): ("for", "timeout"),
-        ("volume", "resize"): ("size", "dry-run"),
+        ("volume", "resize"): ("size", "dry-run", "uuid-only"),
+        ("volume", "detach"): ("instance", "uuid-only"),
+        ("instance", "detach-l3"): ("nic", "uuid-only"),
+        ("instance", "detach-iso"): ("cdrom", "uuid-only"),
         ("instance", "recover"): ("uuid-only", "request-timeout", "dry-run"),
         ("instance", "pause"): ("uuid-only", "request-timeout", "dry-run"),
         ("wait", "instance"): ("uuid-only", "for", "timeout"),

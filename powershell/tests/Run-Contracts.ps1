@@ -13,6 +13,7 @@ Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'ContractSupport.ps1')
 . (Join-Path $PSScriptRoot 'InventoryContracts.ps1')
 . (Join-Path $PSScriptRoot 'LifecycleContracts.ps1')
+. (Join-Path $PSScriptRoot 'DeviceContracts.ps1')
 $source = Split-Path -Parent $PSScriptRoot
 $work = [System.IO.Directory]::CreateTempSubdirectory('cloud-contracts-').FullName
 $service = $null
@@ -131,7 +132,7 @@ else:
     Assert-CloudContract (Test-CloudRejected { & $installer -Archive $packages[0].Archive -SHA256 $packages[0].SHA256 -ModuleDirectory $installRoot } 'already installed') 'installed version not overwritten'
     $module = Import-Module -Name $manifest -PassThru
     $acme = Import-Module -Name (Join-Path $packages[1].Directory 'Acme.Cloud.psd1') -PassThru
-    Assert-CloudContract ($module.ExportedFunctions.Count -eq 27 -and $acme.ExportedFunctions.Count -eq 27 -and $acme.ExportedFunctions.ContainsKey('New-AcmeVM') -and $acme.ExportedFunctions.ContainsKey('Get-AcmeHardDisk') -and -not $module.ExportedFunctions.ContainsKey('Get-VM')) 'OEM export scopes'
+    Assert-CloudContract ($module.ExportedFunctions.Count -eq 41 -and $acme.ExportedFunctions.Count -eq 41 -and $acme.ExportedFunctions.ContainsKey('New-AcmeVM') -and $acme.ExportedFunctions.ContainsKey('Get-AcmeHardDisk') -and $acme.ExportedFunctions.ContainsKey('Set-AcmeCDDrive') -and -not $module.ExportedFunctions.ContainsKey('Get-VM')) 'OEM export scopes'
     foreach ($case in @(
         @{ Command = 'Get-ZStackVM'; Name = 'ZStack PowerCLI'; Namespace = 'zstack-powershell'; Uri = 'https://example.invalid/zstack/powershell' }
         @{ Command = 'Get-AcmeVM'; Name = 'Acme Cloud Automation'; Namespace = 'acme-powershell'; Uri = 'https://example.invalid/acme/powershell' }
@@ -300,6 +301,7 @@ else:
     Assert-CloudContract ((Get-VM -Id vm-a -Server $connection).PowerState -eq 'PoweredOn') 'opt-in legacy Get-VM reuses core'
     Assert-CloudContract (Test-CloudRejected { Start-VM -VM $started -RunAsync } 'NamedParameterNotFound') 'unsupported legacy parameter rejected'
     Assert-CloudLifecycleContracts $connection $endpoint $credential
+    Assert-CloudDeviceContracts $connection $endpoint $credential
     Disconnect-ZStackServer -Server $connection
     $connection = $null
     Assert-CloudContract (-not (Test-Path -LiteralPath $sessionDir)) 'session cleanup'

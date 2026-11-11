@@ -103,6 +103,8 @@ wait 只查询，不启动实例或恢复任务。job 默认等待 Succeeded；�
 
 VM 创建、更新、暂停、恢复运行、停机、重启、删除和回收站恢复支持 `--uuid-only -o json` 精确模式，同时传入 `--yes` 或 `--dry-run`。结果使用 `operation` 和 `items`，请求预算覆盖目标查询与写入。精确创建要求指定 `--resource-uuid` 和 `--strategy`。精确停机仅在显式传入 `--stop-ha` 时发送该字段。可使用 `wait instance VM_UUID --uuid-only --for Stopped -o json` 等待精确 VM 状态。 [PowerShell 生命周期示例](../examples/powershell/README.zh-CN.md#vm-生命周期)
 
+设备写入支持 `--uuid-only -o json` 与 `--yes` 或 `--dry-run`。返回包含 `operation`、`targetUuid`、结果 `uuid` 和 `status`。精确卸载要求传入预期归属。使用精确模式标志后，`instance detach-l3 VM_UUID --nic NIC_UUID` 仅移除选定网卡，`instance detach-iso VM_UUID --cdrom DRIVE_UUID` 仅弹出选定光驱介质。见 [PowerShell 设备操作](powershell.zh-CN.md#云盘卷快照与-vm-设备)。
+
 ## 5. IAM 管理
 
 | 资源 | 创建 | 更新 | 删除 | 额外操作 |

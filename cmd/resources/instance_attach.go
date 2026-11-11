@@ -16,6 +16,8 @@ package resources
 
 import (
 	"fmt"
+	"github.com/chijiajian/zstack-cli-go/cmd/deviceops"
+	"github.com/chijiajian/zstack-cli-go/cmd/vmops"
 
 	zstackclient "github.com/chijiajian/zstack-cli-go/pkg/client"
 	"github.com/chijiajian/zstack-cli-go/pkg/utils"
@@ -47,6 +49,9 @@ var attachL3Cmd = &cobra.Command{
 			},
 		}
 
+		if vmops.Enabled(cmd) {
+			return deviceops.AttachNIC(cmd, args[0], l3Network, params)
+		}
 		if isInstanceDryRun(cmd) {
 			return printInstanceDryRun(cmd, instanceTargetRequest{Instance: args[0], Target: l3Network, Params: params})
 		}
@@ -79,6 +84,13 @@ var detachL3Cmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		l3Network, _ := cmd.Flags().GetString("l3-network")
+		nic, _ := cmd.Flags().GetString("nic")
+		if vmops.Enabled(cmd) {
+			return deviceops.DetachNIC(cmd, args[0], nic, l3Network)
+		}
+		if cmd.Flags().Changed("nic") {
+			return vmops.Invalid("--nic requires --uuid-only")
+		}
 		if l3Network == "" {
 			return fmt.Errorf("required flag --l3-network not set")
 		}
@@ -129,6 +141,13 @@ var attachIsoCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		iso, _ := cmd.Flags().GetString("iso")
+		drive, _ := cmd.Flags().GetString("cdrom")
+		if vmops.Enabled(cmd) {
+			return deviceops.SetMedia(cmd, args[0], drive, iso, false)
+		}
+		if cmd.Flags().Changed("cdrom") {
+			return vmops.Invalid("--cdrom requires --uuid-only")
+		}
 		if iso == "" {
 			return fmt.Errorf("required flag --iso not set")
 		}
@@ -164,6 +183,13 @@ var detachIsoCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		iso, _ := cmd.Flags().GetString("iso")
+		drive, _ := cmd.Flags().GetString("cdrom")
+		if vmops.Enabled(cmd) {
+			return deviceops.SetMedia(cmd, args[0], drive, iso, true)
+		}
+		if cmd.Flags().Changed("cdrom") {
+			return vmops.Invalid("--cdrom requires --uuid-only")
+		}
 		if iso == "" {
 			return fmt.Errorf("required flag --iso not set")
 		}
@@ -200,7 +226,7 @@ var detachIsoCmd = &cobra.Command{
 			return fmt.Errorf("instance %q has no cdrom using iso %q", vm.Name, image.Name)
 		}
 
-		if err := cli.DetachIsoFromVmInstance(vm.UUID, param.DeleteModePermissive); err != nil {
+		if err := deviceops.LegacyDetachISO(cmd.Context(), vm.UUID, image.UUID); err != nil {
 			return err
 		}
 		fmt.Printf("instance/%s detached iso/%s\n", vm.Name, image.Name)
@@ -214,6 +240,9 @@ var attachVolumeCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		volumeName, _ := cmd.Flags().GetString("volume")
+		if vmops.Enabled(cmd) {
+			return deviceops.Volume(cmd, "attach", volumeName, args[0], 0)
+		}
 		if volumeName == "" {
 			return fmt.Errorf("required flag --volume not set")
 		}
@@ -249,6 +278,9 @@ var detachVolumeCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		volumeName, _ := cmd.Flags().GetString("volume")
+		if vmops.Enabled(cmd) {
+			return deviceops.Volume(cmd, "detach", volumeName, args[0], 0)
+		}
 		if volumeName == "" {
 			return fmt.Errorf("required flag --volume not set")
 		}
@@ -279,6 +311,12 @@ var detachVolumeCmd = &cobra.Command{
 }
 
 func init() {
+	for _, command := range []*cobra.Command{attachL3Cmd, detachL3Cmd, attachIsoCmd, detachIsoCmd, attachVolumeCmd, detachVolumeCmd} {
+		vmops.AddFlags(command)
+	}
+	detachL3Cmd.Flags().String("nic", "", "Exact NIC UUID in exact UUID mode")
+	attachIsoCmd.Flags().String("cdrom", "", "Exact CD-ROM UUID in exact UUID mode")
+	detachIsoCmd.Flags().String("cdrom", "", "Exact CD-ROM UUID in exact UUID mode")
 	attachL3Cmd.Flags().String("l3-network", "", "L3 network name or UUID")
 	attachL3Cmd.Flags().String("static-ip", "", "Static IP address for the new NIC")
 	attachL3Cmd.Flags().String("driver-type", "", "NIC driver type")

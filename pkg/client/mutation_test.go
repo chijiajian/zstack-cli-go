@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chijiajian/zstack-cli-go/pkg/clierr"
 	"github.com/chijiajian/zstack-cli-go/pkg/config"
 )
 
@@ -119,6 +120,20 @@ func TestMutationCancellationAndRedaction(t *testing.T) {
 		err := cli.Mutate(context.Background(), "POST", "v1/accounts", nil, nil)
 		if err == nil || strings.Contains(err.Error(), "secret") {
 			t.Fatal("failure ignored or secrets exposed")
+		}
+	}
+}
+
+func TestMutationStringSuccessPreservesSafeErrorCode(t *testing.T) {
+	for _, status := range []int{http.StatusOK, http.StatusServiceUnavailable} {
+		cli := mutationTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(status)
+			fmt.Fprint(w, `{"success":"false","error":{"code":"SYS.1006","details":"private response"}}`)
+		})
+		err := cli.Mutate(context.Background(), http.MethodPost, "v1/volumes/data", nil, nil)
+		if diagnostic := clierr.Describe(err); err == nil || diagnostic.APICode != "SYS.1006" ||
+			strings.Contains(err.Error(), "private response") {
+			t.Fatalf("mutation error did not preserve only the safe API diagnostic: %+v", diagnostic)
 		}
 	}
 }

@@ -35,3 +35,76 @@ VMware 示例中的 `$vi` 来自 `Connect-VIServer`，ZStack 示例中的 `$serv
 | 在 OEM 会话启用旧命令名 | `Import-Module VCF.PowerCLI`，再运行 `Get-VM -Name 'web*' -Server $vi` | 在独立会话中 `Import-Module $oemCompatibilityManifest`，再运行 `Get-VM -Name 'web*' -Server $oemConnection` |
 
 `$oemCompatibilityManifest` 指向已安装 OEM 包中的兼容清单，例如 `Compatibility/Acme.Cloud.Compatibility.psd1`。用同一包中的 `Connect-AcmeServer` 创建 `$oemConnection`。使用 OEM 原生命令时调用 `Get-AcmeVM -Server $oemConnection`，并通过 `Get-Help Get-AcmeVM -Full` 查看包信息。VM 对象来自 CSV 或旧会话时，按 UUID 重新查询。
+
+## VM 生命周期
+
+使用当前源码构建的模块包，并把占位符换成获准测试环境中的 UUID。管道使用实时 ZStack 对象，写命令均带 `-WhatIf`。创建预览不返回 VM，因此后续预览请指定另一台已获授权的测试 VM。
+
+```powershell
+$image = Get-ZStackImage -Id '<IMAGE_UUID>' -Server $server
+$network = Get-ZStackL3Network -Id '<L3_UUID>' -Server $server
+$offering = Get-ZStackInstanceOffering -Id '<OFFERING_UUID>' -Server $server
+New-ZStackVM -Name 'migration-qa' -Image $image -L3Network $network `
+    -InstanceOffering $offering -State Stopped -Server $server -WhatIf
+
+$vm = Get-ZStackVM -Id '<VM_UUID>' -Server $server
+$vm | Set-ZStackVM -NumCpu 4 -MemoryGB 8 -WhatIf
+$vm | Suspend-ZStackVM -WhatIf
+$vm | Resume-ZStackVM -WhatIf
+$vm | Restart-ZStackVM -WhatIf
+$vm | Stop-ZStackVM -WhatIf
+$vm | Remove-ZStackVM -WhatIf
+$vm | Restore-ZStackVM -WhatIf
+Wait-ZStackVM -Id $vm.Id -State Stopped -TimeoutSeconds 30 -Server $server
+```
+
+## 云盘、快照和 VM 设备
+
+使用当前连接中的临时停机 VM 和已有 ISO。确认回滚或删除前先核对卷和快照。尚未实例化的数据盘需等到状态为 Ready 后才能扩容或建快照。
+
+```powershell
+$vm = Get-ZStackVM -Id $vmId -Server $server
+$volume = New-ZStackVolume -Name 'test-data' -CapacityGB 1 -Server $server
+$disk = $volume | Add-ZStackHardDisk -VM $vm
+$disk = $disk | Set-ZStackHardDisk -CapacityGB 2
+$snapshot = $disk | New-ZStackVolumeSnapshot -Name 'before-change'
+$disk | Get-ZStackVolumeSnapshot
+$snapshot | Restore-ZStackVolumeSnapshot -WhatIf
+$snapshot | Remove-ZStackVolumeSnapshot -WhatIf
+$disk | Remove-ZStackHardDisk -WhatIf
+
+$nic = $vm | New-ZStackNetworkAdapter -L3Network $l3NetworkId
+$nic | Remove-ZStackNetworkAdapter -WhatIf
+$drive = $vm | Get-ZStackCDDrive -Id $driveId
+$drive = $drive | Set-ZStackCDDrive -IsoImage $isoImageId
+$drive | Set-ZStackCDDrive -NoMedia
+```
+
+## ZStack 专有运维能力
+
+先通过 `Connect-ZStackServer` 连接已获授权的云环境，并将连接对象保存为 `$server`。
+
+```powershell
+$report = Get-ZStackUsage -Server $server
+$report.Capacity | Select-Object Metric, Unit, Total, Used, Available, Percent |
+    Export-Csv ./zstack-capacity.csv -NoTypeInformation
+$report.Load | Select-Object SampleTime, ConnectedHosts, SampledHosts, CpuPercent, MemoryPercent
+
+$sets = @(Invoke-ZStackZql -Server $server -Query 'query vmInstance.uuid,name limit 5; count vmInstance')
+$sets[0].Records | ForEach-Object { [pscustomobject] $_ } | Select-Object uuid, name
+$sets[1].Total
+
+Get-ZStackSecurityGroup -Server $server -Name 'app*' | Get-ZStackSecurityGroupRule |
+    Select-Object SecurityGroupId, Direction, Protocol, StartPort, EndPort, AllowedCidr
+Get-ZStackVip -Server $server -Name 'app*' | Get-ZStackLoadBalancer | Get-ZStackLoadBalancerListener |
+    Select-Object Name, LoadBalancerId, LoadBalancerPort, ServerGroupId
+Get-ZStackProject -Server $server | Select-Object Id, Name, LinkedAccountId, State
+```
+
+把 `$jobId` 设为已获授权恢复的暂停长任务 UUID。先查看预览，再确认操作。
+
+```powershell
+$job = Get-ZStackLongJob -Server $server -Id $jobId
+$job | Resume-ZStackLongJob -WhatIf
+$job | Resume-ZStackLongJob -Confirm | Wait-ZStackLongJob -TimeoutSeconds 600
+```

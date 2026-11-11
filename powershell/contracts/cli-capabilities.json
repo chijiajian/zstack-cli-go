@@ -65,6 +65,38 @@
       "baseline": "some capacity fields only available as display strings",
       "sourceStatus": "verified-locally",
       "releaseStatus": "unpublished"
+    },
+    "vmLifecycleV1": {
+      "commands": ["create instance", "instance update", "instance pause", "instance resume", "instance stop", "instance restart", "delete instance", "instance recover", "wait instance"],
+      "baseline": "legacy writes can resolve by name and have separate human output",
+      "sourceStatus": "verified-locally",
+      "releaseStatus": "unpublished"
+    },
+    "deviceLifecycleV1": {
+      "sourceStatus": "verified-locally",
+      "commands": ["create volume", "delete volume", "volume attach", "volume detach", "volume resize", "volume recover", "get snapshots", "snapshot create", "snapshot revert", "delete snapshot", "instance attach-l3", "instance detach-l3", "get cdroms", "instance attach-iso", "instance detach-iso"],
+      "baseline": "legacy device writes do not expose the exact-UUID result contract",
+      "releaseStatus": "unpublished"
+    },
+    "usageV1": {
+      "sourceStatus": "verified-locally",
+      "commands": ["monitor usage"],
+      "releaseStatus": "unpublished"
+    },
+    "zqlV1": {
+      "sourceStatus": "verified-locally",
+      "commands": ["zql"],
+      "releaseStatus": "unpublished"
+    },
+    "longJobV1": {
+      "sourceStatus": "verified-locally",
+      "commands": ["get long-jobs", "wait long-job", "job resume"],
+      "releaseStatus": "unpublished"
+    },
+    "platformInventoryV1": {
+      "sourceStatus": "verified-locally",
+      "commands": ["get accounts", "get users", "get roles", "get policies", "get projects", "get security-groups", "get security-group-rules", "get vips", "get load-balancers", "get load-balancer-listeners", "get load-balancer-server-groups"],
+      "releaseStatus": "unpublished"
     }
   }
 }

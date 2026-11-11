@@ -13,7 +13,7 @@ The independent compatibility module will expose only this subset. Native names 
 
 | Requires review or rewrite | Why |
 | --- | --- |
-| `Stop-VM`, `-Kill`, or `Shutdown-VMGuest` | Existing CLI stop requests graceful stop. The guest and force semantics need separate verification. |
+| `Stop-VM`, `-Kill`, or `Shutdown-VMGuest` | Use the native graceful stop workflow below. Force and guest-tools behavior require separate migration work. |
 | `-RunAsync` and VMware tasks | The planned module exposes VM state waiting and has no VMware task object. |
 | `Get-View`, `.ExtensionData`, VMware types | These depend on the VMware object and API model. |
 | Module-qualified VMware commands or conflicting commands | Compatibility requires a deliberate import in a separate session. Qualified calls still refer to the named module. |
@@ -34,3 +34,33 @@ The following mappings apply to packages built from the current source. The nati
 | `Get-VirtualPortGroup` inventory | `Get-ZStackL2Network`, `Get-ZStackL3Network`, `Get-ZStackIPRange` | Traverse native network relationships. `VirtualNetworkId` is the reported L2 ID, with its meaning determined by the network type. |
 
 VMware references: [Get-HardDisk](https://developer.broadcom.com/powercli/latest/vmware.vimautomation.core/commands/get-harddisk), [Get-VMHost](https://developer.broadcom.com/powercli/latest/vmware.vimautomation.core/commands/get-vmhost), [Get-VirtualPortGroup](https://developer.broadcom.com/powercli/latest/vmware.vimautomation.core/commands/get-virtualportgroup).
+
+## VM lifecycle
+
+These native cmdlets are available in packages built from the current source. Replace VMware references and identifiers with live objects or UUIDs from the selected ZStack connection. [PowerShell lifecycle examples](../../examples/powershell/README.md#vm-lifecycle) · [生命周期示例](../../examples/powershell/README.zh-CN.md#vm-生命周期)
+
+| VMware workflow | Native ZStack cmdlet | Migration detail |
+| --- | --- | --- |
+| `New-VM` | `New-ZStackVM` | Select a ZStack root volume template, L3 network, sizing and explicit initial state. |
+| `Set-VM` | `Set-ZStackVM` | Update the supplied metadata or change CPU and memory on a stopped VM. |
+| `Suspend-VM` | `Suspend-ZStackVM`, `Resume-ZStackVM` | Use ZStack's in-memory pause and resume states. |
+| `Stop-VM` or `Stop-VMGuest` | `Stop-ZStackVM` | Review the workflow for graceful ACPI shutdown and explicit HA behavior. |
+| `Restart-VM` | `Restart-ZStackVM` | Wait for the platform reboot request and observe VM state. Verify guest startup separately when required. |
+| `Remove-VM` | `Remove-ZStackVM`, `Restore-ZStackVM` | Use a recoverable VM deletion policy and confirm deletion. Recovery is a separate operation. |
+
+[VMware VM cmdlet reference](https://developer.broadcom.com/powercli/latest/products/vmwarevsphereandvsan/categories/vm)
+
+## Disk and device operations
+
+| VMware PowerCLI pattern | ZStack cmdlets and migration scope |
+| --- | --- |
+| `New-HardDisk`, `Remove-HardDisk`, `Set-HardDisk -CapacityGB` | Use `New-ZStackVolume` and `Add-ZStackHardDisk` for provisioning and attachment. `Remove-ZStackHardDisk` detaches the data volume. Use `Remove-ZStackVolume` separately for recoverable deletion. `Set-ZStackHardDisk` grows the virtual disk to its requested total capacity. |
+| `Get-Snapshot`, `New-Snapshot`, `Remove-Snapshot` | Use the `*-ZStackVolumeSnapshot` commands on individual ZStack volumes. Each snapshot captures one ZStack volume. |
+| `New-NetworkAdapter`, `Remove-NetworkAdapter` | Use `New-ZStackNetworkAdapter -L3Network` and `Remove-ZStackNetworkAdapter`. Use the ZStack L3 network reference and retain the returned adapter identity. |
+| `Get-CDDrive`, `Set-CDDrive -IsoPath/-NoMedia` | Use `Get-ZStackCDDrive` and `Set-ZStackCDDrive -IsoImage/-NoMedia`. Select a registered ZStack ISO image and the exact virtual drive. |
+
+## Platform cmdlets
+
+Usage reports, ZQL, IAM, security group and load balancer inventories, and long jobs use the native module naming and connection conventions. A long job uses the UUID returned by ZStack's long-job inventory. Wait errors distinguish a backend Failed or Canceled state from a client deadline. Wait and resume return the same inventory projection as Get, read back by UUID within the caller's deadline. The module does not expose a percentage when the API only reports job state.
+
+A command may add `-RunAsync` when its successful submission returns a typed long-job UUID, a fresh connection can read the same job by UUID, and real acceptance verifies target ownership, permission, terminal states and retry behavior. An API callback location or a resource UUID alone does not satisfy that contract. Platform write candidates continue to use their documented CLI paths while those contracts are assessed.

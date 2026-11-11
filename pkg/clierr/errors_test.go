@@ -12,7 +12,7 @@ func TestWrappedErrorClassification(t *testing.T) {
 		err  error
 		code Kind
 		exit int
-	}{{context.Canceled, Canceled, 130}, {context.DeadlineExceeded, Timeout, 6}, {io.ErrShortWrite, Output, 9}, {Wrap(Conflict, fmt.Errorf("state")), Conflict, 5}, {&HTTPError{Status: 503, Code: "ID.1000", Message: "secret"}, Auth, 3}} {
+	}{{context.Canceled, Canceled, 130}, {context.DeadlineExceeded, Timeout, 6}, {io.ErrShortWrite, Output, 9}, {Wrap(Conflict, fmt.Errorf("state")), Conflict, 5}, {&HTTPError{Status: 503, Code: "ID.1000", Message: "secret"}, Auth, 3}, {&HTTPError{Status: 503, Code: "ID.1002", Message: "secret"}, Auth, 3}} {
 		d := Describe(fmt.Errorf("operation: %w", tc.err))
 		if d.Code != tc.code || d.ExitCode != tc.exit {
 			t.Fatalf("%+v", d)

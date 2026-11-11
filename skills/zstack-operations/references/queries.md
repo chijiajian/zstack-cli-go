@@ -41,3 +41,5 @@ zstack-cli zql "query vmInstance.uuid where uuid='VM_UUID' return with (zwatch{r
 ```
 
 第二条命令的两个 VM_UUID 必须相同。读取 results[0].returnWith.cpu 并核对 labels 和 time；空序列表示缺少采样。环境级负载仍用 monitor usage。用资源名拼接 ZQL 有引号转义风险，优先用已确认的十六进制 UUID。
+
+ZQL 支持 `--request-timeout`，用于限制认证和查询的合计时间。

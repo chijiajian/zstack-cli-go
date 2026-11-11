@@ -873,12 +873,15 @@ Flags:
       --memory string                Memory size (e.g., '8G', alternative to instance-offering)
   -o, --output string                Output format: json, yaml, table, wide, or name
       --primary-storage string       Primary storage UUID for root volume
+      --request-timeout duration     Deadline for exact UUID lookup and mutation (default 2m0s)
       --resource-uuid string         Resource UUID
       --root-disk-offering string    Root disk offering UUID (required for ISO images)
       --root-disk-size string        Root disk size (e.g., '100G')
       --strategy string              VM creation strategy: InstantStart or CreateStopped (default "InstantStart")
       --system-tag strings           System tag(s)
       --user-tag strings             User tag(s)
+      --uuid-only                    Use exact UUIDs with the fixed JSON operation result
+  -y, --yes                          Confirm creation in exact UUID mode
       --zone string                  Zone UUID
 
 Global Flags:
@@ -1374,15 +1377,18 @@ Usage:
   zstack-cli create volume <name> [flags]
 
 Flags:
-  -d, --description string       Detailed description of the volume
-      --disk-offering string     Disk offering name or UUID
-  -h, --help                     help for volume
-      --primary-storage string   Primary storage name or UUID
-      --resource-uuid string     Resource UUID
-      --size string              Volume size, for example 10G
-      --system-tag strings       System tag list
-      --tag strings              Tag UUID list
-      --user-tag strings         User tag list
+  -d, --description string         Detailed description of the volume
+      --disk-offering string       Disk offering name or UUID
+  -h, --help                       help for volume
+      --primary-storage string     Primary storage name or UUID
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --resource-uuid string       Resource UUID
+      --size string                Volume size, for example 10G
+      --system-tag strings         System tag list
+      --tag strings                Tag UUID list
+      --user-tag strings           User tag list
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
+  -y, --yes                        Confirm volume creation in exact UUID mode
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -1675,8 +1681,10 @@ Aliases:
   instance, instances
 
 Flags:
-  -h, --help   help for instance
-  -y, --yes    Automatic yes to confirmation prompts
+  -h, --help                       help for instance
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
+  -y, --yes                        Automatic yes to confirmation prompts
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -2021,8 +2029,11 @@ Aliases:
   snapshot, snapshots
 
 Flags:
-  -h, --help   help for snapshot
-  -y, --yes    Automatic yes to confirmation prompts
+  -h, --help                       help for snapshot
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
+      --volume string              Expected parent volume UUID in exact UUID mode
+  -y, --yes                        Automatic yes to confirmation prompts
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -2120,8 +2131,10 @@ Aliases:
   volume, volumes
 
 Flags:
-  -h, --help   help for volume
-  -y, --yes    Automatic yes to confirmation prompts
+  -h, --help                       help for volume
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
+  -y, --yes                        Automatic yes to confirmation prompts
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -4193,8 +4206,11 @@ Usage:
   zstack-cli instance attach-iso <name-or-uuid> [flags]
 
 Flags:
-  -h, --help         help for attach-iso
-      --iso string   ISO image name or UUID
+      --cdrom string               Exact CD-ROM UUID in exact UUID mode
+  -h, --help                       help for attach-iso
+      --iso string                 ISO image name or UUID
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -4215,11 +4231,13 @@ Usage:
   zstack-cli instance attach-l3 <name-or-uuid> [flags]
 
 Flags:
-      --driver-type string   NIC driver type
-  -h, --help                 help for attach-l3
-      --l3-network string    L3 network name or UUID
-      --mac string           Custom MAC address
-      --static-ip string     Static IP address for the new NIC
+      --driver-type string         NIC driver type
+  -h, --help                       help for attach-l3
+      --l3-network string          L3 network name or UUID
+      --mac string                 Custom MAC address
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --static-ip string           Static IP address for the new NIC
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -4240,8 +4258,10 @@ Usage:
   zstack-cli instance attach-volume <name-or-uuid> [flags]
 
 Flags:
-  -h, --help            help for attach-volume
-      --volume string   Data volume name or UUID
+  -h, --help                       help for attach-volume
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
+      --volume string              Data volume name or UUID
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -4262,8 +4282,11 @@ Usage:
   zstack-cli instance detach-iso <name-or-uuid> [flags]
 
 Flags:
-  -h, --help         help for detach-iso
-      --iso string   ISO image name or UUID
+      --cdrom string               Exact CD-ROM UUID in exact UUID mode
+  -h, --help                       help for detach-iso
+      --iso string                 ISO image name or UUID
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -4284,8 +4307,11 @@ Usage:
   zstack-cli instance detach-l3 <name-or-uuid> [flags]
 
 Flags:
-  -h, --help                help for detach-l3
-      --l3-network string   L3 network name or UUID
+  -h, --help                       help for detach-l3
+      --l3-network string          L3 network name or UUID
+      --nic string                 Exact NIC UUID in exact UUID mode
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -4306,8 +4332,10 @@ Usage:
   zstack-cli instance detach-volume <name-or-uuid> [flags]
 
 Flags:
-  -h, --help            help for detach-volume
-      --volume string   Data volume name or UUID
+  -h, --help                       help for detach-volume
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
+      --volume string              Data volume name or UUID
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -4333,7 +4361,9 @@ Usage:
   zstack-cli instance pause <name-or-uuid> [flags]
 
 Flags:
-  -h, --help   help for pause
+  -h, --help                       help for pause
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -4354,7 +4384,9 @@ Usage:
   zstack-cli instance recover <name-or-uuid> [flags]
 
 Flags:
-  -h, --help   help for recover
+  -h, --help                       help for recover
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -4380,7 +4412,9 @@ Usage:
   zstack-cli instance restart <name-or-uuid> [flags]
 
 Flags:
-  -h, --help   help for restart
+  -h, --help                       help for restart
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -4406,7 +4440,9 @@ Usage:
   zstack-cli instance resume <name-or-uuid> [flags]
 
 Flags:
-  -h, --help   help for resume
+  -h, --help                       help for resume
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -4457,8 +4493,10 @@ Usage:
   zstack-cli instance stop <name-or-uuid> [flags]
 
 Flags:
-  -h, --help      help for stop
-      --stop-ha   Completely shut down HA VM if applicable (default true)
+  -h, --help                       help for stop
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --stop-ha                    Completely shut down HA VM if applicable (default true)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -4487,8 +4525,10 @@ Flags:
       --memory string               Memory size, for example 4G
       --name string                 New VM name
       --platform string             VM platform
+      --request-timeout duration    Deadline for exact UUID lookup and mutation (default 2m0s)
       --reserved-memory string      Reserved memory size
       --state string                VM state
+      --uuid-only                   Use exact UUIDs with the fixed JSON operation result
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -4557,6 +4597,7 @@ Usage:
 Flags:
   -h, --help                       help for resume
       --request-timeout duration   Deadline for resolution and action completion (default 2m0s)
+      --uuid-only                  Require exact UUID without name fallback
   -y, --yes                        Automatic yes to confirmation prompts
 
 Global Flags:
@@ -5462,13 +5503,16 @@ Usage:
   zstack-cli snapshot create <volume-name-or-uuid> [flags]
 
 Flags:
-  -d, --description string     Detailed description of the snapshot
-  -h, --help                   help for create
-      --name string            Snapshot name
-      --resource-uuid string   Resource UUID
-      --system-tag strings     System tag list
-      --tag strings            Tag UUID list
-      --user-tag strings       User tag list
+  -d, --description string         Detailed description of the snapshot
+  -h, --help                       help for create
+      --name string                Snapshot name
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --resource-uuid string       Resource UUID
+      --system-tag strings         System tag list
+      --tag strings                Tag UUID list
+      --user-tag strings           User tag list
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
+  -y, --yes                        Confirm snapshot creation in exact UUID mode
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -5488,8 +5532,11 @@ Usage:
   zstack-cli snapshot revert <snapshot-name-or-uuid> [flags]
 
 Flags:
-  -h, --help   help for revert
-  -y, --yes    Automatic yes to confirmation prompts
+  -h, --help                       help for revert
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
+      --volume string              Expected parent volume UUID in exact UUID mode
+  -y, --yes                        Automatic yes to confirmation prompts
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -6161,8 +6208,11 @@ Usage:
   zstack-cli volume attach <name-or-uuid> [flags]
 
 Flags:
-  -h, --help              help for attach
-      --instance string   VM instance name or UUID
+  -h, --help                       help for attach
+      --instance string            VM instance name or UUID
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
+  -y, --yes                        Confirm the operation in exact UUID mode
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -6182,7 +6232,11 @@ Usage:
   zstack-cli volume detach <name-or-uuid> [flags]
 
 Flags:
-  -h, --help   help for detach
+  -h, --help                       help for detach
+      --instance string            Expected VM UUID in exact UUID mode
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
+  -y, --yes                        Confirm the operation in exact UUID mode
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -6202,7 +6256,10 @@ Usage:
   zstack-cli volume recover <name-or-uuid> [flags]
 
 Flags:
-  -h, --help   help for recover
+  -h, --help                       help for recover
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
+  -y, --yes                        Confirm the operation in exact UUID mode
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -6222,8 +6279,11 @@ Usage:
   zstack-cli volume resize <name-or-uuid> [flags]
 
 Flags:
-  -h, --help          help for resize
-      --size string   New total volume size, for example 20G (growth only)
+  -h, --help                       help for resize
+      --request-timeout duration   Deadline for exact UUID lookup and mutation (default 2m0s)
+      --size string                New total volume size, for example 20G (growth only)
+      --uuid-only                  Use exact UUIDs with the fixed JSON operation result
+  -y, --yes                        Confirm the operation in exact UUID mode
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -6298,6 +6358,7 @@ Flags:
   -o, --output string       Output format: text, table, json, or yaml (default "text")
       --progress            Print state changes to stderr
       --timeout duration    Maximum time to wait (default 10m0s)
+      --uuid-only           Require exact UUID and wait for VM state without name fallback
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -6323,6 +6384,7 @@ Flags:
   -o, --output string       Output format: text, table, json, or yaml (default "text")
       --progress            Print state changes to stderr
       --timeout duration    Maximum time to wait (default 10m0s)
+      --uuid-only           Require exact UUID and return the observed job on a terminal mismatch in JSON mode
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default
@@ -6364,8 +6426,9 @@ Examples:
   zstack-cli zql "query vmInstance.uuid where name='web-01' limit 10" --context lab
 
 Flags:
-  -h, --help            help for zql
-  -o, --output string   Output format: json (preserves the server's results and returnWith data) (default "json")
+  -h, --help                       help for zql
+  -o, --output string              Output format: json (preserves the server's results and returnWith data) (default "json")
+      --request-timeout duration   Deadline for authentication and the ZQL request (default 2m0s)
 
 Global Flags:
       --context string        Use a saved context for this command without changing the default

@@ -103,6 +103,10 @@ Wait polls the state of a resource. A job defaults to the Succeeded target. Fail
 
 VM recovery requires Destroyed and data-volume recovery requires Deleted. Recover root volumes through their VM. Expunged resources cannot be recovered. Resize uses the new total capacity and only accepts growth. G means 1024³ bytes. Guest partitions and filesystems need their own expansion. Recover/resize dry-run is offline and does not establish current resource state.
 
+For exact UUID lifecycle automation, use `--uuid-only -o json` with `--yes` or `--dry-run`. This mode applies to VM create, update, pause, resume, stop, restart, delete and recover. The JSON result uses `operation` and `items`. The deadline covers lookup and mutation. Exact creation requires `--resource-uuid` and an explicit `--strategy`. Exact stop sends `--stop-ha` only when supplied. Wait for an exact VM state with `wait instance VM_UUID --uuid-only --for Stopped -o json`. [PowerShell lifecycle examples](../examples/powershell/README.md#vm-lifecycle)
+
+Device writes support `--uuid-only -o json` with `--yes` or `--dry-run`. The response identifies the `operation`, `targetUuid`, resulting `uuid`, and `status`. Exact detach commands take the expected owner. For example, `instance detach-l3 VM_UUID --nic NIC_UUID` removes only that adapter, and `instance detach-iso VM_UUID --cdrom DRIVE_UUID` ejects media from that drive. Include the exact-mode flags for both examples. See the [PowerShell device workflow](powershell.md#disks-volume-snapshots-and-vm-devices).
+
 ## 5. IAM management
 
 | Resource | Create | Update | Delete | Additional behavior |
@@ -155,11 +159,11 @@ For other IAM resources, for example `delete account test-account`, the CLI prom
 zstack-cli get jobs -o json
 zstack-cli describe job JOB_UUID -o json
 zstack-cli job resume JOB_UUID --dry-run -o json
-zstack-cli job resume JOB_UUID --yes --request-timeout 2m -o json
+zstack-cli job resume JOB_UUID --uuid-only --yes --request-timeout 2m -o json
 zstack-cli job clean JOB_UUID --yes -o json
 ```
 
-Resume accepts Suspended. Clean accepts Succeeded, Failed or Canceled. Dry-run previews the request, while execution resolves and checks the current state. Continue with `wait job` when completion is needed after resume. Local tests cover state protection and request contracts. Existing live long jobs have not been resumed or cleaned during validation.
+Resume accepts Suspended. After the request, it reads back the same UUID within the request deadline and succeeds only if the task has moved to a recognized state other than Suspended. Clean accepts Succeeded, Failed or Canceled. Dry-run previews the request, while execution resolves and checks the current state. Continue with `wait long-job JOB_UUID --uuid-only -o json` when completion is needed. Exact UUID mode prevents name fallback. A different terminal state produces the observed job on stdout in JSON mode and a conflict exit code.
 
 ## 7. Automation errors
 
@@ -244,7 +248,7 @@ Capacity includes vCPU, memory, logical primary storage and physical primary sto
 Use `get instances web-01` for exact-name selection, `get instances -q 'uuid=VM_UUID'` for a UUID filter, and `describe instance VM_UUID` for details. For projections, counts, relations or VM-specific ZWatch metrics, use `zql` and pass the whole statement as one quoted argument.
 
 ```sh
-zstack-cli zql "query vmInstance.name where uuid='VM_UUID' limit 1" --context lab
+zstack-cli zql --request-timeout 30s "query vmInstance.name where uuid='VM_UUID' limit 1" --context lab
 ```
 
 The selected server parses ZQL. Supported syntax and visible resources depend on server version and account permissions. JSON output preserves results, aggregate fields and returnWith. See [query examples](../examples/queries.en.md) for per-VM CPU time series.

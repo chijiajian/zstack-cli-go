@@ -3,7 +3,7 @@
 以下 UUID/context 是占位符，示例不是可以直接连续执行的脚本。先查询目标身份、关联和状态，并确认操作在用户授权范围内。
 
 ```sh
-zstack-cli wait instance VM_UUID --context lab --for Stopped --timeout 5m -o json --error-format json
+zstack-cli wait instance VM_UUID --uuid-only --context lab --for Stopped --timeout 5m -o json --error-format json
 zstack-cli wait job JOB_UUID --context lab --timeout 10m -o json --error-format json
 zstack-cli volume resize VOLUME_UUID --context lab --size 40G --dry-run -o json
 zstack-cli volume resize VOLUME_UUID --context lab --size 40G -o json --error-format json
@@ -13,6 +13,8 @@ zstack-cli volume recover VOLUME_UUID --context lab -o json --error-format json
 
 wait 不启动、恢复或取消资源。job 默认等待 Succeeded，其他资源需要 for；显式等待 Failed 时到达 Failed 是条件成功。等待成功遇到 Failed/Canceled 则非零。进度写 stderr，自动解析诊断时不要混用 progress。
 
+VM 写入可用精确 UUID 模式，例如 `zstack-cli instance pause VM_UUID --uuid-only --dry-run --context lab -o json`。正式执行需换成 `--yes`。检查 JSON 中的逐目标状态，并按 UUID 核对后续状态。
+
 实例恢复要求 Destroyed；数据盘恢复要求 Deleted；根盘随实例恢复，expunge 后不能恢复。扩容要求 Ready 且目标总容量大于当前值，G 按 1024³ 字节计算。扩容不调整 guest 分区/文件系统。先读取当前容量，不把 size 当增量。恢复/扩容预览是离线的，不能证明服务器会接受请求。
 
 ```sh
@@ -21,10 +23,23 @@ zstack-cli volume detach VOLUME_UUID --context lab
 zstack-cli snapshot create VOLUME_UUID --name TEST_SNAPSHOT --context lab -o json
 zstack-cli snapshot revert SNAPSHOT_UUID --context lab --yes
 zstack-cli delete snapshot SNAPSHOT_UUID --context lab --yes
-zstack-cli job resume JOB_UUID --context lab --yes -o json
+zstack-cli job resume JOB_UUID --uuid-only --context lab --yes -o json
 zstack-cli job clean JOB_UUID --context lab --yes -o json
 ```
 
 snapshot revert 会改变盘内容。job resume 仅接受 Suspended，clean 仅接受 Succeeded/Failed/Canceled；resume 返回不等于作业完成，必要时继续 wait。不要把 get 查询出的失败任务自动 clean。
 
 写后查询核对 UUID 和目标属性：挂载的 vmInstanceUuid、扩容后的 size、恢复后的 state/status。缺少字段不能算验证成功。服务器可能直接彻底清理删除对象，此时报告无法验证 recover，不擅自创建替代对象。
+
+设备写入使用 `--uuid-only -o json`，并传入 `--yes` 或 `--dry-run`。独立数据盘卸载要求指定预期 VM UUID，快照恢复和删除要求指定预期父卷 UUID。选择网卡和光驱时优先使用精确设备 UUID。
+
+```sh
+zstack-cli volume detach VOLUME_UUID --instance VM_UUID --context lab --uuid-only --yes -o json
+zstack-cli snapshot revert SNAPSHOT_UUID --volume VOLUME_UUID --context lab --uuid-only --yes -o json
+zstack-cli instance detach-l3 VM_UUID --nic NIC_UUID --context lab --uuid-only --yes -o json
+zstack-cli instance detach-iso VM_UUID --cdrom DRIVE_UUID --context lab --uuid-only --yes -o json
+```
+
+ISO 卸载保留光驱和 VM。确认同一 ISO 在 VM 上只关联目标光驱再卸载。卷快照删除只允许叶子快照。写操作结果未知时，先查询设备与父资源关系。
+
+精确 ID 的脚本可以使用 `wait long-job --uuid-only`。终态与目标不一致时，JSON 保留该任务的观测状态，退出码为冲突。

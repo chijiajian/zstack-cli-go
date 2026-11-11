@@ -54,7 +54,7 @@ function Assert-CloudInventoryContracts {
     $compute = Get-ZStackInstanceOffering -Id offering-a -Server $Connection
     $diskOffering = Get-ZStackDiskOffering -Name 'one*' -Server $Connection
     Assert-CloudContract ($image.Id -ceq 'image-a' -and $image.CapacityGB -eq 1 -and $compute.NumCpu -eq 2 -and $compute.MemoryGB -eq 2 -and
-        $diskOffering.CapacityBytes -eq 1073741824L -and @(Get-ZStackImage -MediaType RootVolumeTemplate -Server $Connection).Count -eq 0) 'deployment inventory distinguishes image media, compute and disk offerings'
+        $diskOffering.CapacityBytes -eq 1073741824L -and (Get-ZStackImage -MediaType RootVolumeTemplate -Server $Connection).Id -ceq 'image-root') 'deployment inventory distinguishes image media, compute and disk offerings'
     $l2 = Get-ZStackL2Network -Zone $zone
     $l3 = Get-ZStackL3Network -L2Network $l2
     $range = Get-ZStackIPRange -L3Network $l3

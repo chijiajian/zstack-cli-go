@@ -36,17 +36,19 @@ function Convert-CloudVM {
             BrandId = $Connection.BrandId
             Generation = $Connection.Generation
         }
-        $Connection.Objects.Add($vm.PSObject, $vm.Id)
+        $Connection.Objects.Add($vm.PSObject, @{ Id = $vm.Id; Type = 'VM'; Epoch = [int] $Connection.VMEpochs[$vm.Id] })
         $vm
     }
 }
 
 function Read-CloudVMInventory {
-    param($Connection, [string] $Id, [double] $TimeoutSeconds = 120)
+    param($Connection, [string] $Id, [double] $TimeoutSeconds = 120, [switch] $IncludeDescription)
 
     $null = Get-CloudCliPath 'vmMemoryBytes'
     $milliseconds = [Math]::Max(1, [long] [Math]::Floor($TimeoutSeconds * 1000))
-    $arguments = @('get', 'instances', '--all-pages', '--sort', '+uuid', '--request-timeout', "${milliseconds}ms", '--fields', 'uuid,name,cpuNum,memorySizeBytes,state', '-o', 'json')
+    $fields = 'uuid,name,cpuNum,memorySizeBytes,state'
+    if ($IncludeDescription) { $fields += ',description' }
+    $arguments = @('get', 'instances', '--all-pages', '--sort', '+uuid', '--request-timeout', "${milliseconds}ms", '--fields', $fields, '-o', 'json')
     if ($Id) { $arguments += @('-q', "uuid=$Id") }
     $result = Invoke-CloudConnectedCli $Connection $arguments $TimeoutSeconds
     $rows = Convert-CliResult $result 'QueryVM' -Shape Array -Target $Connection.Id

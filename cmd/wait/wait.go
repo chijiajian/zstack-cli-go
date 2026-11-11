@@ -17,11 +17,13 @@ package wait
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	zstackclient "github.com/chijiajian/zstack-cli-go/pkg/client"
+	"github.com/chijiajian/zstack-cli-go/pkg/clierr"
 	"github.com/chijiajian/zstack-cli-go/pkg/waiter"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -57,6 +59,12 @@ func newWaitResourceCmd(resourceType string, aliases []string, short string) *co
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runWait(cmd, resourceType, args[0])
 		},
+	}
+	if resourceType == "long-job" {
+		cmd.Flags().Bool("uuid-only", false, "Require exact UUID and return the observed job on a terminal mismatch in JSON mode")
+	}
+	if resourceType == "instance" {
+		cmd.Flags().Bool("uuid-only", false, "Require exact UUID and wait for VM state without name fallback")
 	}
 	defaultTarget := ""
 	if resourceType == "long-job" {
@@ -99,7 +107,13 @@ func runWait(cmd *cobra.Command, resourceType string, identifier string) error {
 	if err != nil {
 		return err
 	}
-	resolved, err := cli.Resolve(ctx, resourceType, identifier, zstackclient.ResolveAuto)
+	exact, _ := cmd.Flags().GetBool("uuid-only")
+	var resolved zstackclient.ResolvedResource
+	if exact {
+		resolved, err = cli.ResolveExactUUID(ctx, resourceType, identifier)
+	} else {
+		resolved, err = cli.Resolve(ctx, resourceType, identifier, zstackclient.ResolveAuto)
+	}
 	if err != nil {
 		return err
 	}
@@ -109,6 +123,8 @@ func runWait(cmd *cobra.Command, resourceType string, identifier string) error {
 	evaluate := waiter.Match
 	if resourceType == "long-job" {
 		evaluate = waiter.Job
+	} else if exact {
+		evaluate = waiter.VM
 	}
 	progress, _ := cmd.Flags().GetBool("progress")
 	var notify func(waiter.Observation) error
@@ -122,10 +138,23 @@ func runWait(cmd *cobra.Command, resourceType string, identifier string) error {
 		}
 	}
 	result, err := waiter.Run(ctx, convert(resolved), target, interval, func(ctx context.Context) (waiter.Observation, error) {
+		if exact {
+			r, err := cli.ResolveExactUUID(ctx, resourceType, resolved.UUID)
+			return convert(r), err
+		}
 		r, e := cli.Resolve(ctx, resourceType, resolved.UUID, zstackclient.ResolveUUID)
 		return convert(r), e
 	}, evaluate, notify)
 	if err != nil {
+		var terminal *waiter.JobTerminalError
+		if exact && resourceType == "long-job" && errors.As(err, &terminal) {
+			if output == "json" {
+				if outputErr := json.NewEncoder(cmd.OutOrStdout()).Encode(result); outputErr != nil {
+					return clierr.Wrap(clierr.Output, outputErr)
+				}
+			}
+			return clierr.Wrap(clierr.Conflict, err)
+		}
 		return err
 	}
 	switch output {

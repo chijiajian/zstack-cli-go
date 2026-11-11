@@ -48,14 +48,16 @@ $requirements = @{
     'Disconnect-CloudServer' = 'passwordStdin'
     'Get-CloudVM' = 'vmMemoryBytes'
     'Start-CloudVM' = @('vmMemoryBytes', 'startResultV1')
-    'Wait-CloudVM' = 'vmMemoryBytes'
+    'Wait-CloudVM' = @('vmMemoryBytes', 'vmLifecycleV1')
 }
 $privateFiles = @(
     'private/process/Invoke-CliProcess.ps1', 'branding/Resolve-Message.ps1',
     'private/process/Convert-CliResult.ps1', 'private/process/Test-CliContract.ps1', 'private/connections/ConnectionRegistry.ps1',
     'private/objects/Convert-CloudVM.ps1', 'private/objects/Resolve-CloudVMTarget.ps1',
-    'private/queries/ResourceInventory.ps1',
-    'private/mutations/Invoke-CloudShouldProcess.ps1', 'private/mutations/Wait-CloudVMState.ps1'
+    'private/queries/ResourceInventory.ps1', 'private/queries/PlatformInventory.ps1',
+    'private/queries/PlatformReports.ps1', 'private/queries/LongJob.ps1',
+    'private/mutations/Invoke-CloudShouldProcess.ps1', 'private/mutations/Wait-CloudVMState.ps1',
+    'private/mutations/Invoke-CloudVMOperation.ps1', 'private/mutations/Invoke-CloudDeviceWrite.ps1'
 )
 $helpSummaries = @{
     'Connect-CloudServer' = 'Connects to the API with an account credential or an access key.'
@@ -63,6 +65,21 @@ $helpSummaries = @{
     'Get-CloudVM' = 'Returns virtual machines by name or ID from the selected connection.'
     'Start-CloudVM' = 'Starts selected virtual machines and waits for them to run.'
     'Wait-CloudVM' = 'Waits for a virtual machine to reach the requested state.'
+}
+$lifecycleHelp = [ordered]@{
+    'New-CloudVM' = 'Creates a VM from a root volume template and waits for the selected state.'
+    'Set-CloudVM' = 'Updates specified VM metadata or stopped VM CPU and memory.'
+    'Suspend-CloudVM' = 'Pauses a running VM in memory.'
+    'Resume-CloudVM' = 'Resumes a paused VM.'
+    'Stop-CloudVM' = 'Requests a graceful VM shutdown.'
+    'Restart-CloudVM' = 'Requests a VM reboot and verifies its running state.'
+    'Remove-CloudVM' = 'Deletes a stopped VM under a recoverable deletion policy.'
+    'Restore-CloudVM' = 'Recovers a deleted VM to Stopped.'
+}
+foreach ($command in $lifecycleHelp.GetEnumerator()) {
+    $entries[$command.Key] = $command.Key.Replace('-Cloud', '-') + '.ps1'
+    $requirements[$command.Key] = 'vmLifecycleV1'
+    $helpSummaries[$command.Key] = $command.Value
 }
 $inventoryHelp = [ordered]@{
     'Get-CloudHardDisk' = 'Returns disks attached to the supplied live VM objects.'
@@ -83,6 +100,55 @@ $inventoryHelp = [ordered]@{
 foreach ($command in $inventoryHelp.GetEnumerator()) {
     $entries[$command.Key] = $command.Key.Replace('Get-Cloud', 'Get-') + '.ps1'
     $requirements[$command.Key] = 'resourceInventoryV1'
+    $helpSummaries[$command.Key] = $command.Value
+}
+$deviceHelp = [ordered]@{
+    'New-CloudVolume' = 'Creates an independent data volume.'
+    'Remove-CloudVolume' = 'Deletes a detached data volume under a recoverable deletion policy.'
+    'Restore-CloudVolume' = 'Recovers a deleted data volume.'
+    'Add-CloudHardDisk' = 'Attaches an existing data volume to a VM.'
+    'Remove-CloudHardDisk' = 'Detaches a data volume and keeps the underlying volume.'
+    'Set-CloudHardDisk' = 'Expands a virtual disk to the requested total capacity.'
+    'Get-CloudVolumeSnapshot' = 'Returns individual volume snapshots.'
+    'New-CloudVolumeSnapshot' = 'Creates a snapshot of a single volume.'
+    'Restore-CloudVolumeSnapshot' = 'Reverts a single volume to a snapshot.'
+    'Remove-CloudVolumeSnapshot' = 'Deletes a leaf volume snapshot.'
+    'New-CloudNetworkAdapter' = 'Attaches an adapter on the selected L3 network.'
+    'Remove-CloudNetworkAdapter' = 'Removes the selected VM adapter by exact UUID.'
+    'Get-CloudCDDrive' = 'Returns the virtual drives and attached ISO IDs for a VM.'
+    'Set-CloudCDDrive' = 'Inserts or ejects ISO media on the selected virtual drive.'
+}
+foreach ($command in $deviceHelp.GetEnumerator()) {
+    $entries[$command.Key] = $command.Key.Replace('-Cloud', '-') + '.ps1'
+    $requirements[$command.Key] = 'deviceLifecycleV1'
+    $helpSummaries[$command.Key] = $command.Value
+}
+$platformHelp = [ordered]@{
+    'Get-CloudUsage' = 'Returns capacity and sampled host load from the selected cloud.'
+    'Invoke-CloudZql' = 'Runs a ZQL query or count and returns each server result set.'
+    'Get-CloudLongJob' = 'Queries real cloud long jobs by name or ID.'
+    'Wait-CloudLongJob' = 'Waits for a real cloud long job to reach a terminal state.'
+    'Resume-CloudLongJob' = 'Resumes an explicitly selected suspended cloud long job.'
+    'Get-CloudAccount' = 'Returns visible ZStack accounts.'
+    'Get-CloudUser' = 'Returns visible ZStack account users.'
+    'Get-CloudRole' = 'Returns visible roles.'
+    'Get-CloudPolicy' = 'Returns visible policies and statement counts.'
+    'Get-CloudProject' = 'Returns visible IAM2 projects.'
+    'Get-CloudSecurityGroup' = 'Returns security groups.'
+    'Get-CloudSecurityGroupRule' = 'Returns rules for the selected security groups or connection.'
+    'Get-CloudVip' = 'Returns virtual IPs.'
+    'Get-CloudLoadBalancer' = 'Returns load balancers, optionally scoped to selected virtual IPs.'
+    'Get-CloudLoadBalancerListener' = 'Returns listeners for the selected load balancers or connection.'
+    'Get-CloudLoadBalancerServerGroup' = 'Returns server groups for the selected load balancers or connection.'
+}
+foreach ($command in $platformHelp.GetEnumerator()) {
+    $entries[$command.Key] = $command.Key.Replace('-Cloud', '-') + '.ps1'
+    $requirements[$command.Key] = switch -Wildcard ($command.Key) {
+        '*Usage' { 'usageV1' }
+        '*Zql' { 'zqlV1' }
+        '*LongJob' { 'longJobV1' }
+        default { 'platformInventoryV1' }
+    }
     $helpSummaries[$command.Key] = $command.Value
 }
 $messages = @('branding/messages.en.json', 'branding/messages.zh-CN.json')

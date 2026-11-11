@@ -48,6 +48,7 @@ function Connect-CloudServer {
             Id = $id; BrandId = $connection.BrandId; Endpoint = $Server; Generation = $id
             Directory = $directory; ConfigPath = $configPath; ContextName = $id; CliPath = $cliPath; ApiTimeZone = $ApiTimeZone
             Public = $connection
+            VMEpochs = [System.Collections.Generic.Dictionary[string,int]]::new([StringComparer]::Ordinal)
             Objects = [System.Runtime.CompilerServices.ConditionalWeakTable[object,object]]::new()
         }
         $registered = $true

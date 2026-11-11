@@ -28,3 +28,13 @@ The live test was authorized for the two temporary target VMs. The control-side 
 | Candidate test account | Create request returned no success confirmation. Lookup was denied. The password test used a separate authorized environment. | Unknown. An IAM-authorized operator still needs to confirm existence before taking action. |
 
 See [BMAD story 6.4](../../bmad-output/stories/6.4.release-evidence.story.md) for the acceptance record.
+
+## ZStack migration candidate
+
+The original ZStack-only loopback run built the Epic 11 source as test version 0.1.2. It passed 137 checks on each of PowerShell 7.4.20 and 7.6.6 on Windows 11 x64. The checks cover the eight compatibility exports, inventory pipelines and CSV shape, command collisions, confirmation handling, an asynchronous start timeout, and private session cleanup. The [migration corpus](../migration/README.md) links eight adapted public scenarios to the relevant checks.
+
+The review rerun rebuilt and installed `ZStack.PowerCLI` 0.1.4 using `-ModuleVersion 0.1.4 -ZStackOnly`. Both Windows runtimes passed 141 checks, including an assertion for the installed version. Each report records the SHA-256 of the ZIP built for its run. The migration assessment recorded 13 of 13 selected, automatically assessed cases and listed the deferred OEM case separately.
+
+The delivery check on Windows with PowerShell 7.6.6 installed packages built from the merged 0.1.3 source and the 0.1.4 candidate side by side. A fresh session selected 0.1.4 and exposed eight legacy commands. An explicit rollback selected 0.1.3 and exposed four. The bundled CLI checksum matched after installation. Both Windows runtimes passed real inventory and CSV checks against the authorized test cloud. The 7.6.6 live run also verified ordered start, graceful stop, and state checks on two temporary VMs.
+
+On the temporary data volume, the live test created a snapshot, changed a guest block, restored the snapshot, and verified the original block checksum from the rebooted guest. Follow-up queries confirmed the temporary VMs, volumes, devices and snapshots were absent. The Windows runner was retained.

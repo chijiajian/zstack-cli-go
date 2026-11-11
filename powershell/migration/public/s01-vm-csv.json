@@ -1,0 +1,9 @@
+{
+  "source": "https://github.com/aws-samples/sample-vmware-collector-v2/blob/main/README.md",
+  "before": "Get-VM -Name $pattern -Server $server | Select-Object Name,NumCpu,MemoryGB,PowerState,Id | Export-Csv $file -NoTypeInformation",
+  "after": "Get-VM -Name $pattern -Server $server | Select-Object Name,NumCpu,MemoryGB,PowerState,Id | Export-Csv $file -NoTypeInformation",
+  "supportedBehavior": "Keep wildcard VM selection and the CSV columns. Supply a ZStack connection and use the returned ZStack UUIDs.",
+  "unsupported": [],
+  "changes": [],
+  "replacements": []
+}

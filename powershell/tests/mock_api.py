@@ -255,6 +255,9 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             action, payload = next(iter(body.items()))
             self.record_write(action, payload)
+            if action == "startVmInstance":
+                self.reply({"location": "/zstack/v1/api-jobs/migration-start-timeout"}, 202)
+                return
             if action == "rebootVmInstance":
                 location = f"/zstack/v1/api-jobs/reboot-{uuid}"
                 REBOOT_JOBS[location] = uuid
@@ -297,6 +300,9 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 VMS["vm-a"]["state"] = "Running"
                 self.reply({"inventory": {**VMS["vm-a"], "state": "Starting"}})
+            return
+        if url.path == "/zstack/v1/api-jobs/migration-start-timeout" and self.headers.get("Authorization") == "OAuth test-session":
+            self.reply({}, 202)
             return
         if url.path == "/zstack/v1/accounts/sessions/test-session/valid":
             self.reply({"valid": True})

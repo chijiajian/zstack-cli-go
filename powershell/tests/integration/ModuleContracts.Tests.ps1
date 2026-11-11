@@ -2,7 +2,9 @@ param(
     [string] $WindowsCliPath,
     [string] $DevelopmentCliPath,
     [string] $ReportPath,
-    [bool] $Benchmark
+    [version] $ModuleVersion,
+    [bool] $Benchmark,
+    [bool] $ZStackOnly
 )
 
 Describe 'PowerShell module and packaged CLI' {
@@ -11,13 +13,17 @@ Describe 'PowerShell module and packaged CLI' {
         $arguments = @('-NoLogo', '-NoProfile', '-NonInteractive', '-File', (Join-Path $PSScriptRoot '../Run-Contracts.ps1'), '-WindowsCliPath', $WindowsCliPath)
         if ($DevelopmentCliPath) { $arguments += @('-DevelopmentCliPath', $DevelopmentCliPath) }
         if ($ReportPath) { $arguments += @('-ReportPath', $ReportPath) }
+        if ($ModuleVersion) { $arguments += @('-ModuleVersion', $ModuleVersion.ToString()) }
         if ($Benchmark) { $arguments += '-Benchmark' }
+        if ($ZStackOnly) { $arguments += '-ZStackOnly' }
         # Exercise compatibility imports in the same kind of clean session a customer uses.
         $result = & $shell @arguments
         $LASTEXITCODE | Should -Be 0
         $json = $result -join "`n"
         $report = $json.Substring($json.IndexOf("{", [StringComparison]::Ordinal)) | ConvertFrom-Json
         $report.cloud | Should -Be 'loopback mock'
+        if ($ModuleVersion) { $report.moduleVersion | Should -Be $ModuleVersion.ToString() }
+        $report.zstackOnly | Should -Be $ZStackOnly
         $report.passed.Count | Should -BeGreaterOrEqual 26
         if ($Benchmark) {
             $benchmarkResult = $report.benchmark

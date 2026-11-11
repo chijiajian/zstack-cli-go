@@ -1,0 +1,23 @@
+{
+  "source": "https://github.com/alanrenouf/vCheck-vSphere",
+  "before": "Get-Datastore -Server $server | Select-Object Name,CapacityGB,FreeSpaceGB\nGet-VirtualPortGroup -Server $server | Select-Object Name",
+  "after": "Get-ZStackPrimaryStorage -Server $server | Select-Object Name,CapacityGB,FreeSpaceGB\nGet-ZStackL2Network -Server $server | ForEach-Object { Get-ZStackL3Network -L2Network $_ } | Select-Object Name,L2NetworkId",
+  "supportedBehavior": "Keep capacity reporting and use native L2/L3 relationships for network reports.",
+  "unsupported": [],
+  "changes": [
+    {
+      "location": "Scenario workflow",
+      "reason": "Keep capacity reporting and use native L2/L3 relationships for network reports."
+    }
+  ],
+  "replacements": [
+    {
+      "from": "Get-Datastore",
+      "to": "Get-ZStackPrimaryStorage"
+    },
+    {
+      "from": "Get-VirtualPortGroup",
+      "to": "Get-ZStackL3Network"
+    }
+  ]
+}

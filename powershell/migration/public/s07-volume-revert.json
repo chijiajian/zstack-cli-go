@@ -1,0 +1,21 @@
+{
+  "source": "https://knowledge.broadcom.com/external/article/308360/performing-common-virtual-machinerelated.html",
+  "before": "$vm | New-Snapshot -Name $name",
+  "after": "$dataDisk | New-ZStackVolumeSnapshot -Name $name",
+  "supportedBehavior": "Use an explicit data volume, a stopped guest for rollback and independent guest data verification.",
+  "unsupported": [
+    "Whole-VM snapshot"
+  ],
+  "changes": [
+    {
+      "location": "Scenario workflow",
+      "reason": "Use an explicit data volume, a stopped guest for rollback and independent guest data verification."
+    }
+  ],
+  "replacements": [
+    {
+      "from": "New-Snapshot",
+      "to": "New-ZStackVolumeSnapshot"
+    }
+  ]
+}

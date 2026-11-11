@@ -1,0 +1,22 @@
+{
+  "source": "https://github.com/aws-samples/sample-vmware-collector-v2/blob/main/README.md",
+  "before": "Get-Stat -Entity $vm -Stat cpu.usage.average -Start $since",
+  "after": "Get-ZStackUsage -Server $server -Section Load",
+  "supportedBehavior": "A report may use current host-level samples if that satisfies its requirements.",
+  "unsupported": [
+    "Per-VM historical samples and percentiles",
+    "Get-View and ExtensionData"
+  ],
+  "changes": [
+    {
+      "location": "Scenario workflow",
+      "reason": "A report may use current host-level samples if that satisfies its requirements."
+    }
+  ],
+  "replacements": [
+    {
+      "from": "Get-Stat",
+      "to": "Get-ZStackUsage"
+    }
+  ]
+}

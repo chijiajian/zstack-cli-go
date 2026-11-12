@@ -18,7 +18,7 @@ A Go CLI for ZStack compute, storage, networking and IAM operations. It provides
 
 ## Install the CLI
 
-Download an archive matching your OS and architecture from [GitHub Releases](https://github.com/chijiajian/zstack-cli-go/releases). Extract the binary and put it on PATH as `zstack-cli` (`zstack-cli.exe` on Windows). Release binaries may have the version and platform in their filenames, so rename them or use the full filename.
+Download an archive matching your OS and architecture from [GitHub Releases](https://github.com/terraform-zstack-modules/zstack-cli-go/releases). Extract the binary and put it on PATH as `zstack-cli` (`zstack-cli.exe` on Windows). Release binaries may have the version and platform in their filenames, so rename them or use the full filename.
 
 | OS | Archive selection |
 | --- | --- |

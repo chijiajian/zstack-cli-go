@@ -24,7 +24,7 @@
 
 ## PowerShell 模块
 
-- [PowerShell 模块预览](powershell.zh-CN.md)
+- [ZStack PowerCLI 安装与使用](powershell.zh-CN.md)
 - [PowerShell 资源查询与报表示例](../examples/powershell/inventory.zh-CN.md)
 - [VMware PowerCLI 迁移映射](../powershell/contracts/compatibility.md#inventory-and-reporting)
 

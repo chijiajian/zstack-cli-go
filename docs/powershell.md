@@ -1,36 +1,37 @@
-# PowerShell module preview
+# ZStack PowerCLI for PowerShell
 
 [English](powershell.md) | [简体中文](powershell.zh-CN.md) | [Documentation](README.md)
 
-The preview targets Windows x64 and PowerShell 7.4 or later. See the [evidence record](../powershell/release/acceptance-checklist.md) for the exact tested combinations. `ZStack.PowerCLI` is the example brand. The package contains the CLI executable, so module users install only the module package. Go, Python and Pester are development dependencies.
+[`ZStack.PowerCLI`](https://www.powershellgallery.com/packages/ZStack.PowerCLI) is published on PowerShell Gallery for Windows x64 and PowerShell 7.4 or later. Version 1.1.4 is the first Gallery release. The module includes the Windows CLI executable, so users install only the module. Go, Python and Pester are development dependencies. See the [acceptance record](../powershell/release/acceptance-checklist.md) for the exact tested combinations and remaining customer-validation work.
 
 ## Install and load
 
-Obtain the complete ZIP and SHA-256 from your provider. On Windows, run the [offline installer](../powershell/packaging/Install-Offline.ps1) against that ZIP. The installer defaults to your user module directory. Alternatively, extract the ZIP into a trusted directory and import the manifest by full path.
+On Windows, use PowerShell 7.4 or later to install the published module from `PSGallery`:
 
 ```powershell
-# Replace the path, version and checksum with the supplied package details.
-$manifest = .\Install-Offline.ps1 -Archive .\ZStack.PowerCLI-0.1.2-windows-amd64.zip -SHA256 '<provider checksum>'
-Import-Module $manifest
+Find-PSResource -Name ZStack.PowerCLI -Repository PSGallery
+Install-PSResource -Name ZStack.PowerCLI -Repository PSGallery -Scope CurrentUser
+Import-Module ZStack.PowerCLI
+Get-Module ZStack.PowerCLI
 ```
 
-After installation into a directory on `$env:PSModulePath`, you can use `Import-Module ZStack.PowerCLI`. Import loads local files. Installation from a configured module repository is a separate step once the provider publishes there. Keep each version in its own directory and open a fresh session when switching versions. [Upgrade and rollback](../powershell/packaging/Upgrade-Policy.md)
+To reproduce the first published version, add `-Version 1.1.4` to `Install-PSResource` and use `Import-Module ZStack.PowerCLI -RequiredVersion 1.1.4`. To install a newer published version later, run `Update-PSResource -Name ZStack.PowerCLI -Repository PSGallery`. Open a new session before importing a different installed version. [Upgrade and rollback](../powershell/packaging/Upgrade-Policy.md)
 
-Installing an upgrade preserves the CLI used by existing connections. If the upgrade package fails validation, the installed versions remain available. To roll back, start a new session, import the previous version and reconnect.
+For a provider-built offline or OEM package, obtain its ZIP and SHA-256 from that provider and use the [offline installer](../powershell/packaging/Install-Offline.ps1). Those ZIPs are separate from the published Gallery package and the CLI assets in GitHub Releases. Installing an upgrade preserves the CLI used by existing connections. To roll back, start a new session, import the previous version and reconnect.
 
 ## Module repositories and publication
 
-Local installation and `Import-Module` do not require registering the module with PowerShell or PowerShell Gallery. `PSGallery` is a commonly preconfigured client repository. A "default repository" only affects which configured source an install or search command selects when none is specified; it does not mean this module has been published or reviewed by Microsoft. Use `Get-PSResourceRepository` to inspect the client configuration. If PSGallery was removed, `Register-PSResourceRepository -PSGallery` restores it. Register a private repository by its address on each client that needs it, and specify `-Repository` when installing to select the intended source.
+Installing or importing `ZStack.PowerCLI` does not require registering the module itself. `PSGallery` is a commonly preconfigured client repository. A "default repository" only affects which configured source a command searches when `-Repository` is omitted; it is not a Microsoft endorsement. Use `Get-PSResourceRepository` to inspect the client configuration. If PSGallery was removed, `Register-PSResourceRepository -PSGallery` restores it. Register a private repository by its address on each client that needs it, and specify `-Repository` when installing to select the intended source.
 
-Publishing to PowerShell Gallery requires a Gallery account and API key, an approved module name and package owner, and distribution rights for the bundled binary. Publish the complete module directory, not the offline ZIP shown above. The generated manifest contains version, author, description, license URI, and Windows/PowerShell Core tags; brand configuration can also supply `projectUri`. Validate the generated file with `Test-ModuleManifest`. The license URI must match the delivered license. The `ZStack.PowerCLI` brand points its help and project URIs to this source repository. Confirm the public brand, links, signing policy, and customer acceptance before publishing. [Publication status](../powershell/release/acceptance-checklist.md)
+The published [1.1.4 package](https://www.powershellgallery.com/packages/ZStack.PowerCLI/1.1.4) lists `ZStack` as its author, Apache 2.0 as its license, and this organization repository as its project. The module manifest also carries the Windows/PowerShell Core tags. [Publication and acceptance status](../powershell/release/acceptance-checklist.md)
 
-The tag release workflow publishes `ZStack.PowerCLI` to PSGallery after the Go checks, Windows PowerShell contracts, and GitHub Release succeed. It accepts stable `vMAJOR.MINOR.PATCH` tags; prerelease tags containing `-` skip the Gallery job. The module version follows the tag. Store the Gallery API key as a repository **Actions secret** named `PSGALLERY_API_KEY` in `terraform-zstack-modules/zstack-cli-go` (Settings → Secrets and variables → Actions), not as a plain variable. The key needs permission to push new packages and versions for `ZStack.PowerCLI`. A missing secret fails the Gallery job. Creating the secret or publishing a stable tag is a separate release action; the workflow file alone does not publish a package.
+The [tag release workflow](../.github/workflows/release.yml) publishes `ZStack.PowerCLI` to PSGallery after the Go checks, Windows PowerShell contracts, and GitHub Release succeed. It accepts stable `vMAJOR.MINOR.PATCH` tags; prerelease tags containing `-` skip the Gallery job. The module version follows the tag. The Gallery API key is stored as the repository **Actions secret** `PSGALLERY_API_KEY`, never as a plain variable. Create a replacement key before the current one expires and update that secret; a missing or expired key fails future Gallery publishing.
 
 ## Migrate a script
 
 Use a ZStack account and the API endpoint in `host[:port]` form. See [migration examples](../examples/powershell/README.md) and the [parameter compatibility matrix](../powershell/contracts/compatibility.md).
 
-| Task | Native preview | Migration notes |
+| Task | Native command | Migration notes |
 | --- | --- | --- |
 | Connect | `Connect-ZStackServer -Server HOST -Credential (Get-Credential)` | Account login saves only the session. Pass the returned connection explicitly when more than one is active. |
 | Inventory | `Get-ZStackVM -Name 'web*' -Server $server` | `Name`, `NumCpu`, `MemoryGB`, `PowerState` and `Id` are available. `Id` is a ZStack UUID. `MemoryGB` uses 2³⁰ bytes per unit. |

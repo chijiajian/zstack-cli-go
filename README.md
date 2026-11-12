@@ -12,6 +12,7 @@ A Go CLI for ZStack compute, storage, networking and IAM operations. It provides
 | User manual | [Manual](docs/usage-en.md) | [使用手册](docs/usage-zh.md) |
 | Agent execution | [Guide](docs/agents.en.md) | [执行指南](docs/agents.md) |
 | Skill installation | [Installation](skills/README.en.md) | [安装说明](skills/README.md) |
+| PowerShell module | [ZStack PowerCLI](docs/powershell.md) | [ZStack PowerCLI](docs/powershell.zh-CN.md) |
 | Workflow examples | [Examples](examples/README.en.md) | [操作示例](examples/README.md) |
 
 [Command reference](docs/reference/commands.md) and [machine-readable command index](docs/reference/commands.json) are generated from CLI help. They list the current source tree's commands, flags, aliases and defaults. Use your installed binary's `--help` to confirm available features.
@@ -27,14 +28,25 @@ Download an archive matching your OS and architecture from [GitHub Releases](htt
 | macOS Apple silicon | `darwin_arm64` |
 | Windows x64 | `windows_amd64.zip` |
 
+### PowerShell module on Windows x64
+
+If you want PowerShell cmdlets instead of the standalone CLI, install [`ZStack.PowerCLI`](https://www.powershellgallery.com/packages/ZStack.PowerCLI) from PowerShell Gallery in PowerShell 7.4 or later. The module includes the Windows CLI, so no separate CLI download is needed for module use.
+
+```powershell
+Install-PSResource -Name ZStack.PowerCLI -Repository PSGallery -Scope CurrentUser
+Import-Module ZStack.PowerCLI
+```
+
+See the [PowerShell guide](docs/powershell.md) for version pinning, upgrades, commands and compatibility notes.
+
 ### Run directly after extraction
 
-Open a terminal in the extracted directory and invoke the binary. Examples use v1.1.3 filenames. Substitute your version or architecture when needed. Normal execution and Skill installation require only the release binary.
+Open a terminal in the extracted directory and invoke the binary. Examples use v1.1.4 filenames. Substitute your version or architecture when needed. Normal execution and Skill installation require only the release binary.
 
 **macOS Apple silicon**
 
 ```sh
-mv zstack-cli-go_v1.1.3_darwin_arm64 zstack-cli
+mv zstack-cli-go_v1.1.4_darwin_arm64 zstack-cli
 chmod +x zstack-cli
 ./zstack-cli version
 ./zstack-cli skill install --agent codex
@@ -42,12 +54,12 @@ chmod +x zstack-cli
 ./zstack-cli monitor usage --context lab
 ```
 
-On Intel Macs, change the source filename in the first line to `zstack-cli-go_v1.1.3_darwin_amd64`.
+On Intel Macs, change the source filename in the first line to `zstack-cli-go_v1.1.4_darwin_amd64`.
 
 **Windows x64, PowerShell**
 
 ```powershell
-Rename-Item ./zstack-cli-go_v1.1.3_windows_amd64.exe zstack-cli.exe
+Rename-Item ./zstack-cli-go_v1.1.4_windows_amd64.exe zstack-cli.exe
 ./zstack-cli.exe version
 ./zstack-cli.exe skill install --agent codex
 ./zstack-cli.exe login 10.255.255.21:8080 --username admin --context-name lab --save-password=false
@@ -59,13 +71,13 @@ Extract the ZIP in File Explorer and open a terminal in that folder. For paths c
 **Linux x64**
 
 ```sh
-mv zstack-cli-go_v1.1.3_linux_amd64 zstack-cli
+mv zstack-cli-go_v1.1.4_linux_amd64 zstack-cli
 chmod +x zstack-cli
 ./zstack-cli version
 ./zstack-cli skill install --agent codex
 ```
 
-For ARM64, use the filename `zstack-cli-go_v1.1.3_linux_arm64`.
+For ARM64, use the filename `zstack-cli-go_v1.1.4_linux_arm64`.
 
 ### Make the CLI discoverable by terminals and agents
 

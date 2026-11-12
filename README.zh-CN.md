@@ -12,6 +12,7 @@
 | 使用手册 | [Manual](docs/usage-en.md) | [使用手册](docs/usage-zh.md) |
 | Agent 执行 | [Guide](docs/agents.en.md) | [执行指南](docs/agents.md) |
 | Skill 安装 | [Installation](skills/README.en.md) | [安装说明](skills/README.md) |
+| PowerShell 模块 | [ZStack PowerCLI](docs/powershell.md) | [ZStack PowerCLI](docs/powershell.zh-CN.md) |
 | 操作示例 | [Examples](examples/README.en.md) | [操作示例](examples/README.md) |
 
 [命令参考](docs/reference/commands.md)和[机器可读命令索引](docs/reference/commands.json)由 CLI 帮助自动生成，包含当前源码的命令、参数、别名和默认值。已安装版本的能力可通过对应子命令的 `--help` 核对。
@@ -27,14 +28,25 @@
 | macOS Apple 芯片 | `darwin_arm64` |
 | Windows x64 | `windows_amd64.zip` |
 
+### Windows x64 上的 PowerShell 模块
+
+若需要 PowerShell 命令而不是独立 CLI，可在 PowerShell 7.4 或更高版本中从 PowerShell Gallery 安装 [`ZStack.PowerCLI`](https://www.powershellgallery.com/packages/ZStack.PowerCLI)。模块已包含 Windows CLI，无需为模块另行下载 CLI。
+
+```powershell
+Install-PSResource -Name ZStack.PowerCLI -Repository PSGallery -Scope CurrentUser
+Import-Module ZStack.PowerCLI
+```
+
+版本固定、升级、命令和兼容说明见 [PowerShell 指南](docs/powershell.zh-CN.md)。
+
 ### 解压后直接运行
 
-进入解压目录，用下面的实际二进制文件执行。示例版本为 v1.1.3，其他版本或架构请替换对应文件名。常规运行和 Skill 安装只需要发布包内的二进制。
+进入解压目录，用下面的实际二进制文件执行。示例版本为 v1.1.4，其他版本或架构请替换对应文件名。常规运行和 Skill 安装只需要发布包内的二进制。
 
 **macOS Apple 芯片**
 
 ```sh
-mv zstack-cli-go_v1.1.3_darwin_arm64 zstack-cli
+mv zstack-cli-go_v1.1.4_darwin_arm64 zstack-cli
 chmod +x zstack-cli
 ./zstack-cli version
 ./zstack-cli skill install --agent codex
@@ -42,12 +54,12 @@ chmod +x zstack-cli
 ./zstack-cli monitor usage --context lab
 ```
 
-Intel Mac 将第一行源文件名改为 `zstack-cli-go_v1.1.3_darwin_amd64`。
+Intel Mac 将第一行源文件名改为 `zstack-cli-go_v1.1.4_darwin_amd64`。
 
 **Windows x64，PowerShell**
 
 ```powershell
-Rename-Item ./zstack-cli-go_v1.1.3_windows_amd64.exe zstack-cli.exe
+Rename-Item ./zstack-cli-go_v1.1.4_windows_amd64.exe zstack-cli.exe
 ./zstack-cli.exe version
 ./zstack-cli.exe skill install --agent codex
 ./zstack-cli.exe login 10.255.255.21:8080 --username admin --context-name lab --save-password=false
@@ -59,13 +71,13 @@ Rename-Item ./zstack-cli-go_v1.1.3_windows_amd64.exe zstack-cli.exe
 **Linux x64**
 
 ```sh
-mv zstack-cli-go_v1.1.3_linux_amd64 zstack-cli
+mv zstack-cli-go_v1.1.4_linux_amd64 zstack-cli
 chmod +x zstack-cli
 ./zstack-cli version
 ./zstack-cli skill install --agent codex
 ```
 
-ARM64 使用文件名 `zstack-cli-go_v1.1.3_linux_arm64`。
+ARM64 使用文件名 `zstack-cli-go_v1.1.4_linux_arm64`。
 
 ### 让终端和 agent 找到 CLI
 

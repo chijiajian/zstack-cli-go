@@ -1,30 +1,31 @@
-# PowerShell 模块预览版
+# ZStack PowerCLI PowerShell 模块
 
 [English](powershell.md) | [简体中文](powershell.zh-CN.md) | [文档目录](README.zh-CN.md)
 
-预览版面向 Windows x64 和 PowerShell 7.4 或更高版本。准确的已测试组合见[验收记录](../powershell/release/acceptance-checklist.md)。`ZStack.PowerCLI` 为示例品牌。模块包已包含 CLI，用户只需安装模块包。Go、Python 和 Pester 用于开发验证。
+[`ZStack.PowerCLI`](https://www.powershellgallery.com/packages/ZStack.PowerCLI) 已发布到 PowerShell Gallery，适用于 Windows x64 和 PowerShell 7.4 或更高版本。1.1.4 是首个 Gallery 版本。模块包已包含 Windows CLI，用户只需安装模块。Go、Python 和 Pester 用于开发验证。准确的已测试组合及仍待完成的客户验证见[验收记录](../powershell/release/acceptance-checklist.md)。
 
 ## 安装与加载
 
-从提供方获取完整 ZIP 和 SHA-256。Windows 上可用[离线安装脚本](../powershell/packaging/Install-Offline.ps1)安装，默认放到当前用户的模块目录。也可以将 ZIP 解压至可信目录，通过完整路径导入模块清单。
+在 Windows 上使用 PowerShell 7.4 或更高版本，从 `PSGallery` 安装已发布模块：
 
 ```powershell
-# 请替换为提供方给出的路径、版本和校验值。
-$manifest = .\Install-Offline.ps1 -Archive .\ZStack.PowerCLI-0.1.2-windows-amd64.zip -SHA256 '<提供方校验值>'
-Import-Module $manifest
+Find-PSResource -Name ZStack.PowerCLI -Repository PSGallery
+Install-PSResource -Name ZStack.PowerCLI -Repository PSGallery -Scope CurrentUser
+Import-Module ZStack.PowerCLI
+Get-Module ZStack.PowerCLI
 ```
 
-安装至 `$env:PSModulePath` 后，可用 `Import-Module ZStack.PowerCLI`。导入读取本地文件。提供方发布到模块仓库后，从仓库获取模块是单独的安装步骤。各版本使用独立目录，切换版本时打开新会话。[升级与回退](../powershell/packaging/Upgrade-Policy.md)
+若要固定首个发布版本，在 `Install-PSResource` 命令中添加 `-Version 1.1.4`，并使用 `Import-Module ZStack.PowerCLI -RequiredVersion 1.1.4`。今后安装已发布的新版本可执行 `Update-PSResource -Name ZStack.PowerCLI -Repository PSGallery`。切换已安装版本前请打开新会话。[升级与回退](../powershell/packaging/Upgrade-Policy.md)
 
-安装新版时，已有连接继续使用原版本自带的 CLI。如果新版包校验失败，已安装的版本仍可使用。需要回退时，在新会话中导入旧版并重新连接。
+对于提供方自行构建的离线包或 OEM 包，先从该提供方获取 ZIP 和 SHA-256，再使用[离线安装脚本](../powershell/packaging/Install-Offline.ps1)。这些 ZIP 与 Gallery 模块包及 GitHub Releases 中的 CLI 产物不同。安装新版时，已有连接继续使用原版本自带的 CLI。回退时，在新会话中导入旧版并重新连接。
 
 ## 模块仓库与发布
 
-本地安装和 `Import-Module` 不要求向 PowerShell 或 PowerShell Gallery 注册模块。`PSGallery` 是 PowerShell 客户端常见的预置模块仓库；“默认仓库”只表示在未指定仓库时，安装/查找命令会按客户端配置选择仓库，不代表本模块已发布或微软已审核。用 `Get-PSResourceRepository` 查看当前配置；若 PSGallery 已被移除，可用 `Register-PSResourceRepository -PSGallery` 恢复。企业私有仓库须在客户端按其地址注册；安装时显式指定 `-Repository` 可避免选错来源。
+安装或导入 `ZStack.PowerCLI` 无需注册模块本身。`PSGallery` 是 PowerShell 客户端常见的预置模块仓库；“默认仓库”只表示未指定 `-Repository` 时命令按客户端配置选择查找来源，不代表微软为模块背书。用 `Get-PSResourceRepository` 查看当前配置；若 PSGallery 已被移除，可用 `Register-PSResourceRepository -PSGallery` 恢复。企业私有仓库须在客户端按其地址注册；安装时显式指定 `-Repository` 可避免选错来源。
 
-若决定发布到 PowerShell Gallery，发布方需要 Gallery 账户及 API Key、正式模块名和包所有者，并确认包内二进制的分发权。发布的是完整模块目录，不是本指南的离线 ZIP。模块清单生成版本、作者、描述、许可证 URI 和 Windows/PowerShell Core 标签，并支持品牌配置里的可选 `projectUri`。生成后可用 `Test-ModuleManifest` 检查。许可证 URI 应与实际交付许可证一致；`ZStack.PowerCLI` 的帮助及项目地址指向当前源码仓库，正式发布前须确认对外品牌、链接、签名策略和客户验收。[发布验收状态](../powershell/release/acceptance-checklist.md)
+已发布的 [1.1.4 模块包](https://www.powershellgallery.com/packages/ZStack.PowerCLI/1.1.4) 标注作者为 `ZStack`、许可证为 Apache 2.0，项目地址指向当前组织仓库。模块清单还包含 Windows/PowerShell Core 标签。[发布与验收状态](../powershell/release/acceptance-checklist.md)
 
-tag 发布流程会在 Go 检查、Windows PowerShell 契约测试和 GitHub Release 成功后，将 `ZStack.PowerCLI` 发布至 PSGallery。只接受稳定版 `v主版本.次版本.修订号` 标签；带 `-` 的预发布标签跳过 Gallery 任务。模块版本跟随 tag。请在 `terraform-zstack-modules/zstack-cli-go` 的 Settings → Secrets and variables → Actions 中，将 Gallery API Key 保存为仓库 **Actions Secret** `PSGALLERY_API_KEY`，不要放在普通 Variable。Key 需允许为 `ZStack.PowerCLI` 发布新包及新版本。缺少 Secret 时 Gallery 任务会失败。创建 Secret 或推送稳定版 tag 是另外的发布操作；仅添加工作流文件不会发布模块。
+[tag 发布流程](../.github/workflows/release.yml)会在 Go 检查、Windows PowerShell 契约测试和 GitHub Release 成功后，将 `ZStack.PowerCLI` 发布至 PSGallery。只接受稳定版 `v主版本.次版本.修订号` 标签；带 `-` 的预发布标签跳过 Gallery 任务。模块版本跟随 tag。Gallery API Key 保存在仓库 **Actions Secret** `PSGALLERY_API_KEY` 中，不放在普通 Variable。请在当前 Key 过期前创建替代 Key 并更新 Secret；Key 缺失或过期会使今后的 Gallery 发布失败。
 
 ## 迁移脚本
 

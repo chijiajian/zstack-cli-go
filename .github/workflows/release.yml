@@ -14,8 +14,13 @@ jobs:
     permissions:
       contents: read
 
+  powershell-contracts:
+    uses: ./.github/workflows/powershell.yml
+    permissions:
+      contents: read
+
   goreleaser:
-    needs: checks
+    needs: [checks, powershell-contracts]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -53,3 +58,60 @@ jobs:
           cd dist
           sha256sum zstack-operations-skill.tar.gz > zstack-operations-skill.tar.gz.sha256
           gh release upload "$GITHUB_REF_NAME" zstack-operations-skill.tar.gz zstack-operations-skill.tar.gz.sha256 --clobber
+
+  powershell-gallery:
+    needs: goreleaser
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build tagged Windows CLI
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:GITHUB_REF_NAME -cnotmatch '\Av(\d+\.\d+\.\d+)\z') { throw 'Gallery publishing requires a vMAJOR.MINOR.PATCH tag.' }
+          $version = $Matches[1]
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "MODULE_VERSION=$version"
+          $ldflags = "-s -w -X github.com/chijiajian/zstack-cli-go/cmd.version=$version -X github.com/chijiajian/zstack-cli-go/cmd.commit=$env:GITHUB_SHA"
+          go build -trimpath -ldflags $ldflags -o "$env:RUNNER_TEMP/zstack-cli.exe" .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $actual = & "$env:RUNNER_TEMP/zstack-cli.exe" version
+          if ($LASTEXITCODE -ne 0 -or $actual -cne "zstack-cli version: $version, commit: $env:GITHUB_SHA") {
+            throw 'Tagged CLI version does not match the package metadata.'
+          }
+      - name: Stage and validate PowerShell module
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $package = & ./powershell/packaging/Build-Package.ps1 `
+            -BrandConfig ./powershell/branding/examples/zstack.json `
+            -CliPath "$env:RUNNER_TEMP/zstack-cli.exe" `
+            -ModuleVersion $env:MODULE_VERSION -CliVersion $env:MODULE_VERSION `
+            -CliCommit $env:GITHUB_SHA -OutputDirectory "$env:RUNNER_TEMP/powershell-package"
+          $manifest = Join-Path $package.Directory 'ZStack.PowerCLI.psd1'
+          $module = Test-ModuleManifest -Path $manifest -ErrorAction Stop
+          if ($module.Name -cne 'ZStack.PowerCLI' -or $module.Version.ToString() -cne $env:MODULE_VERSION) {
+            throw 'Generated module name or version does not match the tag.'
+          }
+          Add-Content -LiteralPath $env:GITHUB_ENV -Value "MODULE_DIR=$($package.Directory)"
+      - name: Publish PowerShell module to Gallery
+        shell: pwsh
+        env:
+          PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:PSGALLERY_API_KEY)) { throw 'PSGALLERY_API_KEY repository secret is missing.' }
+          if (-not (Get-Module -ListAvailable Microsoft.PowerShell.PSResourceGet | Where-Object Version -ge '1.2.0')) {
+            Install-Module Microsoft.PowerShell.PSResourceGet -RequiredVersion 1.2.0 -Repository PSGallery -Scope CurrentUser -Force -ErrorAction Stop
+          }
+          Import-Module Microsoft.PowerShell.PSResourceGet -MinimumVersion 1.2.0 -ErrorAction Stop
+          Publish-PSResource -Path $env:MODULE_DIR -Repository PSGallery -ApiKey $env:PSGALLERY_API_KEY -ErrorAction Stop

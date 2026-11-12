@@ -10,4 +10,11 @@
     CmdletsToExport = @()
     VariablesToExport = @()
     AliasesToExport = @()
+    PrivateData = @{
+        PSData = @{
+            LicenseUri = '__LICENSE_URI__'
+            Tags = @('Windows', 'x64', 'PSEdition_Core')
+__PROJECT_URI_LINE__
+        }
+    }
 }

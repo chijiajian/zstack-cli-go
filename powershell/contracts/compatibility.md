@@ -6,7 +6,7 @@ The table describes the ZStack compatibility subset in packages built from the c
 | --- | --- | --- | --- |
 | `Connect-VIServer` | `Connect-ZStackServer` | `Server`, `Credential` | `login --password-stdin --save-password=false --no-switch` |
 | `Disconnect-VIServer` | `Disconnect-ZStackServer` | `Server` connection objects | `logout --context` |
-| `Get-VM` | `Get-ZStackVM` | `Name` (arrays, position 0, wildcard), `Id`, `Server` | `get instances --all-pages --sort +uuid -o json` |
+| `Get-VM` | `Get-ZStackVM` | `Name` (arrays, position 0, wildcard; native `-Exact` for literal names), `Id`, `Server` | Native `-Exact` adds a server-side name condition; other names use `get instances --all-pages --sort +uuid -o json` |
 | `Get-HardDisk` | `Get-ZStackHardDisk` | `VM` (live objects or pipeline), `Name`, `Id`, `Server` | `get disks` |
 | `Get-NetworkAdapter` | `Get-ZStackNetworkAdapter` | `VM` (live objects or pipeline), `Id`, `Server`. The wrapper looks up the ZStack L3 network name. | `get nics`, `get l3-networks` |
 | `Get-VMHost` | `Get-ZStackVMHost` | `Name`, `Id`, `Server`, `Location` (live ZStack cluster objects) | `get hosts` |

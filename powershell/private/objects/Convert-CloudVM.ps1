@@ -42,7 +42,7 @@ function Convert-CloudVM {
 }
 
 function Read-CloudVMInventory {
-    param($Connection, [string] $Id, [double] $TimeoutSeconds = 120, [switch] $IncludeDescription)
+    param($Connection, [string] $Id, [string] $ExactName, [double] $TimeoutSeconds = 120, [switch] $IncludeDescription)
 
     $null = Get-CloudCliPath 'vmMemoryBytes'
     $milliseconds = [Math]::Max(1, [long] [Math]::Floor($TimeoutSeconds * 1000))
@@ -50,12 +50,20 @@ function Read-CloudVMInventory {
     if ($IncludeDescription) { $fields += ',description' }
     $arguments = @('get', 'instances', '--all-pages', '--sort', '+uuid', '--request-timeout', "${milliseconds}ms", '--fields', $fields, '-o', 'json')
     if ($Id) { $arguments += @('-q', "uuid=$Id") }
+    if ($ExactName) { $arguments += @('-q', "name=$ExactName") }
     $result = Invoke-CloudConnectedCli $Connection $arguments $TimeoutSeconds
     $rows = Convert-CliResult $result 'QueryVM' -Shape Array -Target $Connection.Id
     if ($Id) {
         foreach ($row in $rows) {
             if ($row -isnot [System.Collections.IDictionary] -or $row['uuid'] -cne $Id) {
                 throw (New-CloudError -Operation ResolveVM -Failure WrongIdentity -Target $Id)
+            }
+        }
+    }
+    if ($ExactName) {
+        foreach ($row in $rows) {
+            if ($row -isnot [System.Collections.IDictionary] -or $row['name'] -cne $ExactName) {
+                throw (New-CloudError -Operation QueryVM -Failure WrongIdentity -Target $ExactName)
             }
         }
     }

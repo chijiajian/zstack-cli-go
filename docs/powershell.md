@@ -55,7 +55,7 @@ Use `Get-Help Get-ZStackVM -Full` or the corresponding OEM command to see the br
 
 Use a module package built with the matching Windows x64 CLI. The following commands are available in packages built from this source. Each resource produces a PowerShell object with a ZStack UUID in `Id`, a `ConnectionId`, and resource-specific properties. An empty query emits no objects. [Inventory examples](../examples/powershell/inventory.md) · [VMware migration mappings](../powershell/contracts/compatibility.md#inventory-and-reporting) · [Package build policy](../powershell/packaging/Upgrade-Policy.md)
 
-Use `-Server` to select a connection when multiple connections are active. Queries scoped by a live parent object inherit its connection. An explicit `-Server` must match that connection. Where supported, `-Id` matches ZStack UUIDs exactly. `Get-ZStackVM -Name NAME -Exact` accepts full names, filters on the server with case-sensitive matching, and supports name arrays. VM name queries without `-Exact` read all VMs before matching locally without regard to case, including `*`, `?`, and `[]` wildcard patterns.
+Use `-Server` to select a connection when multiple connections are active. Queries scoped by a live parent object inherit its connection. An explicit `-Server` must match that connection. Where supported, `-Id` matches ZStack UUIDs exactly. `Get-ZStackVM -Name NAME -Exact` accepts full names, filters on the server with case-sensitive matching, and supports name arrays. It treats `*`, `?`, and brackets in names as literal characters. VM name queries without `-Exact` read all VMs before matching locally without regard to case, including PowerShell wildcard patterns.
 
 | Cmdlet | Resource filters | Report properties |
 | --- | --- | --- |

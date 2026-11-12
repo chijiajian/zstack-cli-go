@@ -23,7 +23,7 @@ RESOURCE_ROWS = {
         {"uuid": "disk-b", "name": "data", "vmInstanceUuid": "vm-b", "type": "Data", "size": 1610612737},
         {"uuid": "disk-c", "name": "spare", "lastVmInstanceUuid": "vm-a", "type": "Data"},
     ],
-    "volume-snapshots": [],
+    "volume-snapshots": [{"uuid": "snap-baseline", "name": "baseline", "volumeUuid": "disk-c", "state": "Enabled", "status": "Ready"}],
     "vm-instances/cdroms": [
         {"uuid": "cdrom-a", "name": "primary drive", "vmInstanceUuid": "vm-a", "isoUuid": "", "deviceId": 0},
         {"uuid": "cdrom-b", "name": "secondary drive", "vmInstanceUuid": "vm-a", "isoUuid": "image-other", "deviceId": 1},
@@ -85,6 +85,7 @@ RESOURCE_REQUESTS = {}
 RESOURCE_CONDITIONS = {}
 READS = 0
 LAST_CONDITION = None
+VM_READ_CONDITIONS = []
 START_REQUESTS = 0
 START_JOB_POLLS = 0
 START_JOB = "/zstack/v1/api-jobs/test-start"
@@ -281,6 +282,7 @@ class Handler(BaseHTTPRequestHandler):
         url = urlsplit(self.path)
         if url.path == "/test/reads":
             self.reply({"inventoryReads": READS, "lastInventoryCondition": LAST_CONDITION,
+                        "inventoryConditions": VM_READ_CONDITIONS,
                         "startRequests": START_REQUESTS, "startJobPolls": START_JOB_POLLS,
                         "resourceRequests": RESOURCE_REQUESTS, "resourceConditions": RESOURCE_CONDITIONS})
             return
@@ -350,6 +352,7 @@ class Handler(BaseHTTPRequestHandler):
         if resource == "vm-instances":
             READS += 1
             LAST_CONDITION = condition
+            VM_READ_CONDITIONS.append(condition)
             rows = list(VMS.values())
         elif resource == "global-configurations":
             rows = [{"category": category, "name": "deletionPolicy", "value": "Delay"} for category in ("vm", "volume")]
@@ -374,6 +377,13 @@ class Handler(BaseHTTPRequestHandler):
             rows = [row for row in rows if row.get(field) in allowed]
         if resource == "vm-instances" and condition == "uuid=wrong-identity":
             rows = [VMS["vm-b"]]
+        if resource == "vm-instances" and condition == "name=wrong-identity":
+            rows = [VMS["vm-b"]]
+        if resource == "vm-instances" and condition == "name=web[0]*":
+            rows = [{"uuid": "vm-literal-pattern", "name": "web[0]*", "state": "Stopped", "cpuNum": 1, "memorySize": 1073741824}]
+        if resource == "vm-instances" and condition == "name=bulk":
+            rows = [{"uuid": f"vm-bulk-{i:03}", "name": "bulk", "state": "Running", "cpuNum": 1, "memorySize": 1073741824}
+                    for i in range(105)]
         if resource == "volumes" and condition == "uuid=wrong-inventory":
             rows = RESOURCE_ROWS["volumes"][:1]
 

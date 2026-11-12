@@ -258,7 +258,13 @@ else:
     $caseMiss = @(Get-ZStackVM -Name 'WEB-PROD' -Exact -Server $connection)
     $after = Invoke-RestMethod "http://$endpoint/test/reads"
     Assert-CloudContract ($caseMiss.Count -eq 0 -and $after.inventoryReads -eq ($before.inventoryReads + 1) -and
-        $after.inventoryConditions[-1] -ceq 'name=WEB-PROD') 'exact VM name preserves server case sensitivity'
+        $after.inventoryConditions[-1] -ceq 'name=WEB-PROD') 'exact VM name removes case-only server matches'
+    $before = $after
+    $caseTwins = @(Get-ZStackVM -Name 'web-prod' -Exact -Server $connection)
+    $after = Invoke-RestMethod "http://$endpoint/test/reads"
+    Assert-CloudContract ($caseTwins.Count -eq 1 -and $caseTwins[0].Id -ceq 'vm-b' -and
+        $after.inventoryReads -eq ($before.inventoryReads + 1) -and
+        $after.inventoryConditions[-1] -ceq 'name=web-prod') 'exact VM name retains only the exact-case row'
     $before = $after
     $namedVMs = @(Get-ZStackVM -Name @('web-prod', '开发 VM') -Exact -Server $connection)
     $after = Invoke-RestMethod "http://$endpoint/test/reads"

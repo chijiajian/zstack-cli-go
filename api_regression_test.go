@@ -101,6 +101,46 @@ func TestGetInstancesNameFiltersOnServer(t *testing.T) {
 	}
 }
 
+func TestGetInstancesNameReturnsEmptyAndDuplicateMatches(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		ids  []string
+	}{
+		{name: "missing"},
+		{name: "shared", ids: []string{"vm-a", "vm-b"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			requests := make(chan string, 2)
+			cfg := mockConfig(t, func(w http.ResponseWriter, r *http.Request) {
+				requests <- r.URL.Query().Get("q")
+				rows := make([]map[string]any, 0, len(tc.ids))
+				if r.URL.Query().Get("q") == "name="+tc.name {
+					for _, id := range tc.ids {
+						rows = append(rows, map[string]any{"uuid": id, "name": tc.name})
+					}
+				}
+				inventory(w, rows...)
+			})
+			stdout, stderr, err := invokeCLI(t, cfg, "", "get", "instances", tc.name, "--context", "mock", "--limit", "2", "--fields", "name,uuid", "-o", "json")
+			if err != nil {
+				t.Fatalf("name query failed: %v stderr=%s", err, stderr)
+			}
+			var rows []map[string]any
+			if err := json.Unmarshal([]byte(stdout), &rows); err != nil || len(rows) != len(tc.ids) {
+				t.Fatalf("unexpected name query result: %v rows=%v", err, rows)
+			}
+			for i, id := range tc.ids {
+				if rows[i]["uuid"] != id || rows[i]["name"] != tc.name {
+					t.Fatalf("unexpected row %d: %v", i, rows[i])
+				}
+			}
+			if len(requests) != 1 || <-requests != "name="+tc.name {
+				t.Fatal("name query did not use one exact server-side condition")
+			}
+		})
+	}
+}
+
 func TestDestructiveDryRunSendsNoWrites(t *testing.T) {
 	for _, action := range []string{"delete", "expunge"} {
 		for _, resource := range []string{"instance", "image"} {

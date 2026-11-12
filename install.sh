@@ -3,7 +3,7 @@ set -e
 
 # --- Variables ---
 BIN_NAME="zstack-cli"
-GITHUB_REPO="chijiajian/zstack-cli-go"
+GITHUB_REPO="terraform-zstack-modules/zstack-cli-go"
 VERSION=${1:-$(curl -s "https://api.github.com/repos/$GITHUB_REPO/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")')}
 OS=$(uname | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)

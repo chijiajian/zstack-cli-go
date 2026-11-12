@@ -55,7 +55,7 @@ OEM 包使用提供方给定的模块名和命令前缀。不同品牌共用对�
 
 使用匹配的 Windows x64 CLI 构建模块包后，即可使用下表的命令。每个资源输出一个 PowerShell 对象，包含 ZStack UUID（`Id`）、`ConnectionId` 和资源专有属性。空查询不输出对象。[资源盘点示例](../examples/powershell/inventory.zh-CN.md) · [VMware 迁移映射](../powershell/contracts/compatibility.md#inventory-and-reporting) · [模块打包说明](../powershell/packaging/Upgrade-Policy.md)
 
-有多个连接时，用 `-Server` 指定其中一个。传入当前会话中查询到的父资源对象时，查询会继承其连接。显式传入的 `-Server` 必须与该连接一致。命令支持 `-Id` 时按 ZStack UUID 精确匹配。`Get-ZStackVM -Name NAME -Exact` 接受完整名称，由服务端按大小写精确筛选，支持名称数组。不加 `-Exact` 的 VM 名称查询会读取全部 VM 后在本地不区分大小写地匹配，包括 `*`、`?` 和 `[]` 通配符。
+有多个连接时，用 `-Server` 指定其中一个。传入当前会话中查询到的父资源对象时，查询会继承其连接。显式传入的 `-Server` 必须与该连接一致。命令支持 `-Id` 时按 ZStack UUID 精确匹配。`Get-ZStackVM -Name NAME -Exact` 接受完整名称，由服务端按大小写精确筛选，支持名称数组；名称中的 `*`、`?` 和方括号按普通字符处理。不加 `-Exact` 的 VM 名称查询会读取全部 VM 后在本地不区分大小写地匹配，包括 PowerShell 通配符。
 
 | 命令 | 资源筛选 | 常用报表字段 |
 | --- | --- | --- |

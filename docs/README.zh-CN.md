@@ -27,6 +27,7 @@
 - [ZStack PowerCLI 安装与使用](powershell.zh-CN.md)
 - [PowerShell 资源查询与报表示例](../examples/powershell/inventory.zh-CN.md)
 - [VMware PowerCLI 迁移映射](../powershell/contracts/compatibility.md#inventory-and-reporting)
+- [名称查询测试计划](../powershell/tests/name-query-plan.zh-CN.md)
 
 ## 功能规划
 

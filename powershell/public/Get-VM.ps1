@@ -20,21 +20,19 @@ function Get-CloudVM {
         Convert-CloudVM (Read-CloudVMInventory $connection -Id $Id[0]) $connection
         return
     }
-    $patterns = @($Name | Where-Object { $null -ne $_ } | ForEach-Object {
-        if ($_ -eq '') { throw 'Name must not be empty.' }
-        [System.Management.Automation.WildcardPattern]::new($_, 'IgnoreCase')
-    })
     if ($Exact) {
-        if ($patterns.Count -eq 0 -or
-            @($Name | Where-Object { [System.Management.Automation.WildcardPattern]::ContainsWildcardCharacters($_) }).Count -gt 0) {
-            throw 'Specify one or more literal names with -Name and -Exact.'
-        }
+        if ($null -eq $Name -or $Name.Count -eq 0) { throw 'Specify one or more names with -Name and -Exact.' }
         $matches = @(foreach ($literalName in $Name) {
+            if ([string]::IsNullOrEmpty($literalName)) { throw 'Name must not be empty.' }
             foreach ($row in (Read-CloudVMInventory $connection -ExactName $literalName)) { $row }
         })
         Convert-CloudVM @($matches | Sort-Object { $_['uuid'] } -Unique) $connection
         return
     }
+    $patterns = @($Name | Where-Object { $null -ne $_ } | ForEach-Object {
+        if ($_ -eq '') { throw 'Name must not be empty.' }
+        [System.Management.Automation.WildcardPattern]::new($_, 'IgnoreCase')
+    })
     $rows = Read-CloudVMInventory $connection
     if ($PSCmdlet.ParameterSetName -eq 'Name' -and $patterns.Count -eq 0) {
         Convert-CloudVM $rows $connection

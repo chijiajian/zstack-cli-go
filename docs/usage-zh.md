@@ -243,7 +243,7 @@ cleanup-only 从 journal 读取资源，不需要重新传 image/network。必�
 
 ## 10. 指定云主机与 ZQL
 
-按精确名称列出云主机使用 `get instances web-01`，按 UUID 过滤使用 `get instances -q 'uuid=VM_UUID'`。单台详情使用 `describe instance VM_UUID`。需要投影、计数、关联查询或按 VM 读取 ZWatch 指标时，使用顶层 `zql` 命令，并将完整语句作为一个带引号的参数传入。
+使用 `get instances web-01` 向服务端发送完整名称条件；有些服务端也会返回仅大小写不同的名称。按 UUID 过滤使用 `get instances -q 'uuid=VM_UUID'`，单台详情使用 `describe instance VM_UUID`。需要投影、计数、关联查询或按 VM 读取 ZWatch 指标时，使用顶层 `zql` 命令，并将完整语句作为一个带引号的参数传入。
 
 ```sh
 zstack-cli zql --request-timeout 30s "query vmInstance.name where uuid='VM_UUID' limit 1" --context lab

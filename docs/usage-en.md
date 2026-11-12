@@ -245,7 +245,7 @@ Capacity includes vCPU, memory, logical primary storage and physical primary sto
 
 ## 10. Individual VMs and ZQL
 
-Use `get instances web-01` for exact-name selection, `get instances -q 'uuid=VM_UUID'` for a UUID filter, and `describe instance VM_UUID` for details. For projections, counts, relations or VM-specific ZWatch metrics, use `zql` and pass the whole statement as one quoted argument.
+Use `get instances web-01` to send a full-name condition to the server; some servers also return names that differ only in case. Use `get instances -q 'uuid=VM_UUID'` for a UUID filter, and `describe instance VM_UUID` for details. For projections, counts, relations or VM-specific ZWatch metrics, use `zql` and pass the whole statement as one quoted argument.
 
 ```sh
 zstack-cli zql --request-timeout 30s "query vmInstance.name where uuid='VM_UUID' limit 1" --context lab

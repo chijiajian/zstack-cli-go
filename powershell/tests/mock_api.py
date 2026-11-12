@@ -379,6 +379,10 @@ class Handler(BaseHTTPRequestHandler):
             rows = [VMS["vm-b"]]
         if resource == "vm-instances" and condition == "name=wrong-identity":
             rows = [VMS["vm-b"]]
+        if resource == "vm-instances" and condition == "name=WEB-PROD":
+            rows = [VMS["vm-b"]]
+        if resource == "vm-instances" and condition == "name=web-prod":
+            rows = [VMS["vm-b"], {"uuid": "vm-case-variant", "name": "WEB-PROD", "state": "Running", "cpuNum": 1, "memorySize": 1073741824}]
         if resource == "vm-instances" and condition == "name=web[0]*":
             rows = [{"uuid": "vm-literal-pattern", "name": "web[0]*", "state": "Stopped", "cpuNum": 1, "memorySize": 1073741824}]
         if resource == "vm-instances" and condition == "name=web?0":

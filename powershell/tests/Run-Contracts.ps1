@@ -233,13 +233,38 @@ else:
     }
     $vms = @(Get-ZStackVM -Server $connection)
     Assert-CloudContract ($vms.Count -eq 3 -and (Get-ZStackVM '开发*').Id -eq 'vm-a') 'inventory, wildcard and Chinese arguments'
-    Assert-CloudContract ((Get-ZStackVM -Name 'WEB-PROD').Id -eq 'vm-b') 'default VM name query stays case-insensitive'
+    $before = Invoke-RestMethod "http://$endpoint/test/reads"
+    $caseMatch = Get-ZStackVM -Name 'WEB-PROD' -Server $connection
+    $after = Invoke-RestMethod "http://$endpoint/test/reads"
+    Assert-CloudContract ($caseMatch.Id -eq 'vm-b' -and $after.inventoryReads -eq ($before.inventoryReads + 1) -and
+        $null -eq $after.inventoryConditions[-1]) 'default VM name query stays case-insensitive'
+    $before = $after
     $namedVM = Get-ZStackVM -Name '开发 VM' -Exact -Server $connection
-    $request = Invoke-RestMethod "http://$endpoint/test/reads"
-    Assert-CloudContract ($namedVM.Id -ceq 'vm-a' -and $request.lastInventoryCondition -ceq 'name=开发 VM') 'exact VM name filters on the server'
-    Assert-CloudContract (@(Get-ZStackVM -Name 'missing' -Exact -Server $connection).Count -eq 0) 'missing literal VM name emits no object'
-    Assert-CloudContract (@(Get-ZStackVM -Name @('web-prod', '开发 VM') -Exact -Server $connection).Count -eq 2) 'multiple literal VM names query without scanning inventory'
-    Assert-CloudContract (Test-CloudRejected { Get-ZStackVM -Name 'web*' -Exact -Server $connection } 'Specify one or more literal names') 'exact VM name rejects wildcard patterns'
+    $after = Invoke-RestMethod "http://$endpoint/test/reads"
+    Assert-CloudContract ($namedVM.Id -ceq 'vm-a' -and $after.inventoryReads -eq ($before.inventoryReads + 1) -and
+        $after.inventoryConditions[-1] -ceq 'name=开发 VM') 'exact VM name makes one filtered read'
+    $before = $after
+    $missing = @(Get-ZStackVM -Name 'missing' -Exact -Server $connection)
+    $after = Invoke-RestMethod "http://$endpoint/test/reads"
+    Assert-CloudContract ($missing.Count -eq 0 -and $after.inventoryReads -eq ($before.inventoryReads + 1) -and
+        $after.inventoryConditions[-1] -ceq 'name=missing') 'missing exact VM name does not fall back to full inventory'
+    $before = $after
+    $namedVMs = @(Get-ZStackVM -Name @('web-prod', '开发 VM') -Exact -Server $connection)
+    $after = Invoke-RestMethod "http://$endpoint/test/reads"
+    $newConditions = @($after.inventoryConditions | Select-Object -Skip $before.inventoryReads)
+    Assert-CloudContract ($namedVMs.Count -eq 2 -and $after.inventoryReads -eq ($before.inventoryReads + 2) -and
+        ($newConditions -join '|') -ceq 'name=web-prod|name=开发 VM') 'exact VM name array makes only filtered reads'
+    $before = $after
+    $literalPattern = @(Get-ZStackVM -Name 'web[0]*' -Exact -Server $connection)
+    $after = Invoke-RestMethod "http://$endpoint/test/reads"
+    Assert-CloudContract ($literalPattern.Count -eq 1 -and $literalPattern[0].Name -ceq 'web[0]*' -and
+        $after.inventoryReads -eq ($before.inventoryReads + 1) -and
+        $after.inventoryConditions[-1] -ceq 'name=web[0]*') 'exact VM name treats wildcard characters literally'
+    $before = $after
+    Assert-CloudContract (Test-CloudRejected { Get-ZStackVM -Exact -Server $connection } 'Specify one or more names') 'exact VM name requires a name'
+    $after = Invoke-RestMethod "http://$endpoint/test/reads"
+    Assert-CloudContract ($after.inventoryReads -eq $before.inventoryReads) 'invalid exact VM name makes no read'
+    Assert-CloudContract (Test-CloudRejected { Get-ZStackVM -Name 'wrong-identity' -Exact -Server $connection } 'QueryVM.Protocol') 'exact VM name rejects mismatched server response'
     $null = Get-ZStackVM -Id vm-a
     $request = Invoke-RestMethod "http://$endpoint/test/reads"
     Assert-CloudContract ($request.lastInventoryCondition -ceq 'uuid=vm-a') 'single VM lookup filters on the server'

@@ -71,6 +71,36 @@ func inventory(w http.ResponseWriter, objects ...map[string]any) {
 	_ = json.NewEncoder(w).Encode(map[string]any{"inventories": objects})
 }
 
+func TestGetInstancesNameFiltersOnServer(t *testing.T) {
+	const name = "开发 VM [prod]*"
+	requests := make(chan string, 4)
+	cfg := mockConfig(t, func(w http.ResponseWriter, r *http.Request) {
+		requests <- r.Method + " " + r.URL.Path + "?" + r.URL.RawQuery
+		if r.URL.Query().Get("q") == "name="+name {
+			inventory(w, map[string]any{"uuid": "vm-name", "name": name})
+			return
+		}
+		inventory(w, map[string]any{"uuid": "wrong", "name": "wrong"})
+	})
+	stdout, stderr, err := invokeCLI(t, cfg, "", "get", "instances", name, "--context", "mock", "--limit", "2", "--fields", "name,uuid", "-o", "json")
+	if err != nil {
+		t.Fatalf("name query failed: %v stderr=%s", err, stderr)
+	}
+	var rows []map[string]any
+	if err := json.Unmarshal([]byte(stdout), &rows); err != nil || len(rows) != 1 || rows[0]["name"] != name {
+		t.Fatalf("unexpected name query result: %v rows=%v", err, rows)
+	}
+	if len(requests) != 1 {
+		t.Fatalf("expected one server request, got %d", len(requests))
+	}
+	request := <-requests
+	parsed, err := http.NewRequest(http.MethodGet, "http://example.invalid"+strings.TrimPrefix(request, "GET "), nil)
+	if err != nil || !strings.HasPrefix(request, "GET /zstack/v1/vm-instances?") ||
+		parsed.URL.Query().Get("q") != "name="+name || parsed.URL.Query().Get("limit") != "2" {
+		t.Fatalf("unexpected server query: %q err=%v", request, err)
+	}
+}
+
 func TestDestructiveDryRunSendsNoWrites(t *testing.T) {
 	for _, action := range []string{"delete", "expunge"} {
 		for _, resource := range []string{"instance", "image"} {

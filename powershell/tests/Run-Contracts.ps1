@@ -251,9 +251,9 @@ else:
     $before = $after
     $namedVMs = @(Get-ZStackVM -Name @('web-prod', '开发 VM') -Exact -Server $connection)
     $after = Invoke-RestMethod "http://$endpoint/test/reads"
-    $newConditions = @($after.inventoryConditions | Select-Object -Skip $before.inventoryReads)
     Assert-CloudContract ($namedVMs.Count -eq 2 -and $after.inventoryReads -eq ($before.inventoryReads + 2) -and
-        ($newConditions -join '|') -ceq 'name=web-prod|name=开发 VM') 'exact VM name array makes only filtered reads'
+        $after.inventoryConditions[-2] -ceq 'name=web-prod' -and
+        $after.inventoryConditions[-1] -ceq 'name=开发 VM') 'exact VM name array makes only filtered reads'
     $before = $after
     $literalPattern = @(Get-ZStackVM -Name 'web[0]*' -Exact -Server $connection)
     $after = Invoke-RestMethod "http://$endpoint/test/reads"

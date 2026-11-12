@@ -1,0 +1,55 @@
+name: PowerShell Gallery install smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Stable ZStack.PowerCLI version already published to PSGallery
+        required: true
+        default: '1.1.4'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  gallery-install:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        pwsh: ['7.4.20', '7.6.6']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare pinned PowerShell
+        shell: pwsh
+        env:
+          PWSH_VERSION: ${{ matrix.pwsh }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = $env:PWSH_VERSION
+          $archive = Join-Path $env:RUNNER_TEMP 'powershell.zip'
+          Invoke-WebRequest -Uri "https://github.com/PowerShell/PowerShell/releases/download/v$version/powershell-$version-win-x64.zip" -OutFile $archive
+          Expand-Archive -LiteralPath $archive -DestinationPath "$env:RUNNER_TEMP/gallery-pwsh"
+      - name: Install and test published module
+        shell: pwsh
+        env:
+          MODULE_VERSION: ${{ inputs.version }}
+          PWSH_VERSION: ${{ matrix.pwsh }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:MODULE_VERSION -cnotmatch '\A\d+\.\d+\.\d+\z') { throw 'A stable MAJOR.MINOR.PATCH version is required.' }
+          $commit = git rev-list -n 1 "v$env:MODULE_VERSION"
+          if ($LASTEXITCODE -ne 0 -or $commit -cnotmatch '\A[0-9a-f]{40}\z') { throw 'The matching release tag was not found.' }
+          $report = Join-Path $env:RUNNER_TEMP "gallery-install-$env:PWSH_VERSION.json"
+          & "$env:RUNNER_TEMP/gallery-pwsh/pwsh.exe" -NoLogo -NoProfile -NonInteractive -File ./powershell/tests/Test-GalleryInstall.ps1 -ModuleVersion $env:MODULE_VERSION -ExpectedCommit $commit -ReportPath $report
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: gallery-install-${{ matrix.pwsh }}
+          path: ${{ runner.temp }}/gallery-install-${{ matrix.pwsh }}.json
+          if-no-files-found: error

@@ -2,6 +2,8 @@
 
 On 2026-11-12, [`ZStack.PowerCLI` 1.1.4](https://www.powershellgallery.com/packages/ZStack.PowerCLI/1.1.4) became the first public Gallery package. The [v1.1.4 release workflow](https://github.com/terraform-zstack-modules/zstack-cli-go/actions/runs/43152847403) passed Go and Windows PowerShell contract checks, created the [GitHub Release](https://github.com/terraform-zstack-modules/zstack-cli-go/releases/tag/v1.1.4), and completed the Gallery publishing job. The Gallery package reports author `ZStack`, Apache 2.0, and the organization repository as its project; its current Gallery owner is `chijiajian`. The release workflow did not run against a real ZStack cloud; the cloud evidence below is from earlier, separately authorized tests.
 
+On the previous Windows 11 test VM, a clean user profile with no prior `ZStack.PowerCLI` installation used portable PowerShell 7.6.6 to install version 1.1.4 from PSGallery. The installed module imported, exported 57 native functions and the opt-in `Get-VM` compatibility entry point, and contained a Windows CLI whose SHA-256 matched the package manifest and whose version and commit matched the release tag. Calling `Get-ZStackVM` without a connection returned the expected `NotConnected` error. This Gallery installation smoke test made no ZStack API request. The VM's user-scope module and portable PowerShell remain available for follow-up testing.
+
 | Evidence | Current state |
 | --- | --- |
 | Go behavior and race checks | Local fake API and repository `make verify` |

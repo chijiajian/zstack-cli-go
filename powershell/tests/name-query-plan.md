@@ -38,4 +38,12 @@ Against the user-designated isolated test cloud, the current source CLI used a t
 
 On the Windows test VM, a temporary copy of the Gallery 1.1.5 module was patched with the VM command from PR source commit `c4fadd3`. `Get-ZStackVM -Name NAME -Exact` returned the same Running VM (1 vCPU, 1 GiB). Repeated name input returned one VM; a missing name and a literal `*` suffix returned zero. The PowerShell session was disconnected and the temporary module copy removed. No resource writes or access keys were created.
 
-This sampled one existing VM name path. The complete 26-resource name matrix was not run against a live cloud; the loopback CI suite covers it. The PR source ran from a temporary module copy, so this does not imply the new code has been published to Gallery.
+This first pass sampled one existing VM name path. The PR source ran from a temporary module copy, so this does not imply the new code has been published to Gallery.
+
+## Plan rerun and expanded live checks, 2026-11-12
+
+Local `make verify` passed (Go vet, uncached race tests, 49 Python cases, and Go build); `make docs-check` checked 227 command paths. PR Windows contract tests passed on PowerShell 7.4 and 7.6. Their logs contain the N03–N09 assertions and all 26 exported `Get-* -Name` cases. The English and Chinese PowerShell guides describe `-Name`, `-Exact`, and wildcard behavior consistently with the commands.
+
+The test cloud was first counted through read-only CLI calls: each resource type corresponding to the 26 commands held at most 100 items; roles had the most at 69, followed by images at 22. On the Windows test VM, a temporary copy of Gallery 1.1.5 loaded the PR VM command. All 16 `Get-* -Name` commands with an existing sample returned exactly the expected UUID from an uppercased name; the other 10 resource types were empty and returned zero for a missing name. `Get-ZStackHardDisk` used an existing VM parent object. Compatibility `Get-VM -Name`, VM `-Exact`, duplicate-name deduplication, and a literal `*` suffix also passed. The final PowerShell connection was logged out, and an audit found no remaining temporary config directories. No access key was created and no cloud resource was changed.
+
+The live cloud lacks a VM with Chinese and wildcard characters in its name, 105 same-name VMs, and a deliberately wrong-identity server response. Those N01, N05, N06, and N07 edge cases remain verified through loopback fixtures. The 10 empty resource types could only exercise the no-result path in the live cloud; CI verifies their positive name matches. Early expanded-check attempts with a temporary module import error did not confirm remote logout; a later audit found no remaining local temporary config directories. The successful rerun logged out normally.

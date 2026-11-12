@@ -23,7 +23,7 @@ RESOURCE_ROWS = {
         {"uuid": "disk-b", "name": "data", "vmInstanceUuid": "vm-b", "type": "Data", "size": 1610612737},
         {"uuid": "disk-c", "name": "spare", "lastVmInstanceUuid": "vm-a", "type": "Data"},
     ],
-    "volume-snapshots": [],
+    "volume-snapshots": [{"uuid": "snap-baseline", "name": "baseline", "volumeUuid": "disk-c", "state": "Enabled", "status": "Ready"}],
     "vm-instances/cdroms": [
         {"uuid": "cdrom-a", "name": "primary drive", "vmInstanceUuid": "vm-a", "isoUuid": "", "deviceId": 0},
         {"uuid": "cdrom-b", "name": "secondary drive", "vmInstanceUuid": "vm-a", "isoUuid": "image-other", "deviceId": 1},
@@ -381,6 +381,9 @@ class Handler(BaseHTTPRequestHandler):
             rows = [VMS["vm-b"]]
         if resource == "vm-instances" and condition == "name=web[0]*":
             rows = [{"uuid": "vm-literal-pattern", "name": "web[0]*", "state": "Stopped", "cpuNum": 1, "memorySize": 1073741824}]
+        if resource == "vm-instances" and condition == "name=bulk":
+            rows = [{"uuid": f"vm-bulk-{i:03}", "name": "bulk", "state": "Running", "cpuNum": 1, "memorySize": 1073741824}
+                    for i in range(105)]
         if resource == "volumes" and condition == "uuid=wrong-inventory":
             rows = RESOURCE_ROWS["volumes"][:1]
 

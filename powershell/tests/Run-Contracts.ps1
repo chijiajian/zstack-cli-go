@@ -14,6 +14,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'ContractSupport.ps1')
 . (Join-Path $PSScriptRoot 'InventoryContracts.ps1')
+. (Join-Path $PSScriptRoot 'NameQueryContracts.ps1')
 . (Join-Path $PSScriptRoot 'LifecycleContracts.ps1')
 . (Join-Path $PSScriptRoot 'DeviceContracts.ps1')
 . (Join-Path $PSScriptRoot 'PlatformContracts.ps1')
@@ -239,6 +240,11 @@ else:
     Assert-CloudContract ($caseMatch.Id -eq 'vm-b' -and $after.inventoryReads -eq ($before.inventoryReads + 1) -and
         $null -eq $after.inventoryConditions[-1]) 'default VM name query stays case-insensitive'
     $before = $after
+    $wildcardMatch = @(Get-ZStackVM -Name 'web-*' -Server $connection)
+    $after = Invoke-RestMethod "http://$endpoint/test/reads"
+    Assert-CloudContract ($wildcardMatch.Count -eq 1 -and $wildcardMatch[0].Id -ceq 'vm-b' -and
+        $after.inventoryReads -eq ($before.inventoryReads + 1) -and $null -eq $after.inventoryConditions[-1]) 'wildcard VM name query keeps local matching'
+    $before = $after
     $namedVM = Get-ZStackVM -Name '开发 VM' -Exact -Server $connection
     $after = Invoke-RestMethod "http://$endpoint/test/reads"
     Assert-CloudContract ($namedVM.Id -ceq 'vm-a' -and $after.inventoryReads -eq ($before.inventoryReads + 1) -and
@@ -249,11 +255,28 @@ else:
     Assert-CloudContract ($missing.Count -eq 0 -and $after.inventoryReads -eq ($before.inventoryReads + 1) -and
         $after.inventoryConditions[-1] -ceq 'name=missing') 'missing exact VM name does not fall back to full inventory'
     $before = $after
+    $caseMiss = @(Get-ZStackVM -Name 'WEB-PROD' -Exact -Server $connection)
+    $after = Invoke-RestMethod "http://$endpoint/test/reads"
+    Assert-CloudContract ($caseMiss.Count -eq 0 -and $after.inventoryReads -eq ($before.inventoryReads + 1) -and
+        $after.inventoryConditions[-1] -ceq 'name=WEB-PROD') 'exact VM name preserves server case sensitivity'
+    $before = $after
     $namedVMs = @(Get-ZStackVM -Name @('web-prod', '开发 VM') -Exact -Server $connection)
     $after = Invoke-RestMethod "http://$endpoint/test/reads"
     Assert-CloudContract ($namedVMs.Count -eq 2 -and $after.inventoryReads -eq ($before.inventoryReads + 2) -and
         $after.inventoryConditions[-2] -ceq 'name=web-prod' -and
         $after.inventoryConditions[-1] -ceq 'name=开发 VM') 'exact VM name array makes only filtered reads'
+    $before = $after
+    $deduplicated = @(Get-ZStackVM -Name @('web-prod', 'web-prod') -Exact -Server $connection)
+    $after = Invoke-RestMethod "http://$endpoint/test/reads"
+    Assert-CloudContract ($deduplicated.Count -eq 1 -and $deduplicated[0].Id -ceq 'vm-b' -and
+        $after.inventoryReads -eq ($before.inventoryReads + 2) -and
+        $after.inventoryConditions[-2] -ceq 'name=web-prod' -and $after.inventoryConditions[-1] -ceq 'name=web-prod') 'duplicate exact VM names produce one object'
+    $before = $after
+    $bulk = @(Get-ZStackVM -Name 'bulk' -Exact -Server $connection)
+    $after = Invoke-RestMethod "http://$endpoint/test/reads"
+    Assert-CloudContract ($bulk.Count -eq 105 -and $bulk[0].Name -ceq 'bulk' -and $bulk[-1].Name -ceq 'bulk' -and
+        $after.inventoryReads -eq ($before.inventoryReads + 2) -and
+        $after.inventoryConditions[-2] -ceq 'name=bulk' -and $after.inventoryConditions[-1] -ceq 'name=bulk') 'exact VM name pagination keeps the server filter on every page'
     $before = $after
     $literalPattern = @(Get-ZStackVM -Name 'web[0]*' -Exact -Server $connection)
     $after = Invoke-RestMethod "http://$endpoint/test/reads"
@@ -274,6 +297,7 @@ else:
     $csv = @($vms | Where-Object PowerState -eq 'PoweredOn' | Select-Object Name, NumCpu, MemoryGB | ConvertTo-Csv -NoTypeInformation)
     Assert-CloudContract ($csv.Count -eq 2 -and $csv[1] -match 'web-prod') 'existing CSV report pipeline'
     Assert-CloudInventoryContracts $connection $endpoint $vms $credential $module -ZStackOnly:$ZStackOnly
+    Assert-CloudNameQueryContracts $connection $vms $module
 
     $oldBinary = Join-Path (Split-Path -Parent $manifest) 'bin/windows-amd64/zstack-cli.exe'
     $oldHash = (Get-FileHash -LiteralPath $oldBinary -Algorithm SHA256).Hash

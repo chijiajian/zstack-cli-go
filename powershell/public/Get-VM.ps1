@@ -2,6 +2,7 @@ function Get-CloudVM {
     [CmdletBinding(DefaultParameterSetName = 'Name')]
     param(
         [Parameter(Position = 0, ParameterSetName = 'Name')] [ValidateNotNullOrEmpty()] [string[]] $Name,
+        [Parameter(ParameterSetName = 'Name')] [switch] $Exact,
         [Parameter(Mandatory, ParameterSetName = 'Id')] [ValidateNotNullOrEmpty()] [ValidatePattern('\A[A-Za-z0-9-]+\z')] [string[]] $Id,
         [object] $Server,
         [switch] $Detail
@@ -23,6 +24,17 @@ function Get-CloudVM {
         if ($_ -eq '') { throw 'Name must not be empty.' }
         [System.Management.Automation.WildcardPattern]::new($_, 'IgnoreCase')
     })
+    if ($Exact) {
+        if ($patterns.Count -eq 0 -or
+            @($Name | Where-Object { [System.Management.Automation.WildcardPattern]::ContainsWildcardCharacters($_) }).Count -gt 0) {
+            throw 'Specify one or more literal names with -Name and -Exact.'
+        }
+        $matches = @(foreach ($literalName in $Name) {
+            foreach ($row in (Read-CloudVMInventory $connection -ExactName $literalName)) { $row }
+        })
+        Convert-CloudVM @($matches | Sort-Object { $_['uuid'] } -Unique) $connection
+        return
+    }
     $rows = Read-CloudVMInventory $connection
     if ($PSCmdlet.ParameterSetName -eq 'Name' -and $patterns.Count -eq 0) {
         Convert-CloudVM $rows $connection

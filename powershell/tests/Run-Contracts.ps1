@@ -284,9 +284,18 @@ else:
         $after.inventoryReads -eq ($before.inventoryReads + 1) -and
         $after.inventoryConditions[-1] -ceq 'name=web[0]*') 'exact VM name treats wildcard characters literally'
     $before = $after
+    $literalQuestion = @(Get-ZStackVM -Name 'web?0' -Exact -Server $connection)
+    $after = Invoke-RestMethod "http://$endpoint/test/reads"
+    Assert-CloudContract ($literalQuestion.Count -eq 1 -and $literalQuestion[0].Name -ceq 'web?0' -and
+        $after.inventoryReads -eq ($before.inventoryReads + 1) -and
+        $after.inventoryConditions[-1] -ceq 'name=web?0') 'exact VM name treats question marks literally'
+    $before = $after
     Assert-CloudContract (Test-CloudRejected { Get-ZStackVM -Exact -Server $connection } 'Specify one or more names') 'exact VM name requires a name'
     $after = Invoke-RestMethod "http://$endpoint/test/reads"
     Assert-CloudContract ($after.inventoryReads -eq $before.inventoryReads) 'invalid exact VM name makes no read'
+    Assert-CloudContract (Test-CloudRejected { Get-ZStackVM -Name @('web-prod', '') -Exact -Server $connection } 'empty') 'exact VM name rejects an empty array element'
+    $after = Invoke-RestMethod "http://$endpoint/test/reads"
+    Assert-CloudContract ($after.inventoryReads -eq $before.inventoryReads) 'invalid exact VM name array makes no read'
     Assert-CloudContract (Test-CloudRejected { Get-ZStackVM -Name 'wrong-identity' -Exact -Server $connection } 'QueryVM.Protocol') 'exact VM name rejects mismatched server response'
     $null = Get-ZStackVM -Id vm-a
     $request = Invoke-RestMethod "http://$endpoint/test/reads"

@@ -14,9 +14,9 @@ The scope includes CLI `get instances NAME`, PowerShell `Get-ZStackVM -Name`, `G
 | N02 | CLI missing name and two VMs with one name | Empty list or both matches; one filtered request per query | `TestGetInstancesNameReturnsEmptyAndDuplicateMatches` |
 | N03 | Regular VM `-Name` with changed case and wildcard | Correct result; request trace records current local filtering | `Run-Contracts.ps1` |
 | N04 | VM `-Exact`: Chinese, missing, case mismatch, name array, repeated input | Every name is filtered on the server; no preceding full read or missing-name fallback; UUIDs deduplicate | `Run-Contracts.ps1` |
-| N05 | VM `-Exact` name contains `*` and brackets | Literal name resolves; request preserves the name condition | `Run-Contracts.ps1` |
+| N05 | VM `-Exact` name contains `*`, `?`, and brackets | Literal name resolves; request preserves the name condition | `Run-Contracts.ps1` |
 | N06 | 105 VMs share a name across the default 100-row page | Return 105 objects; both pages carry the same name condition | `Run-Contracts.ps1` |
-| N07 | `-Exact` without a name and a mismatched server row | Invalid input makes no query; wrong identity raises a protocol error | `Run-Contracts.ps1` |
+| N07 | `-Exact` without a name, an empty name-array element, or a mismatched server row | Invalid input makes no query; wrong identity raises a protocol error | `Run-Contracts.ps1` |
 | N08 | Every exported `Get-* -Name` cmdlet | Fixture table covers all exported name selectors; uppercase full names select the expected resource; account sample is row 105 | `NameQueryContracts.ps1` |
 | N09 | Compatibility `Get-VM`, cross-connection objects, authorization and request failures | Preserve compatibility filtering, connection boundaries and existing error classification | `MigrationContracts.ps1`, `InventoryContracts.ps1`, `Run-Contracts.ps1` |
 

@@ -381,6 +381,8 @@ class Handler(BaseHTTPRequestHandler):
             rows = [VMS["vm-b"]]
         if resource == "vm-instances" and condition == "name=web[0]*":
             rows = [{"uuid": "vm-literal-pattern", "name": "web[0]*", "state": "Stopped", "cpuNum": 1, "memorySize": 1073741824}]
+        if resource == "vm-instances" and condition == "name=web?0":
+            rows = [{"uuid": "vm-literal-question", "name": "web?0", "state": "Stopped", "cpuNum": 1, "memorySize": 1073741824}]
         if resource == "vm-instances" and condition == "name=bulk":
             rows = [{"uuid": f"vm-bulk-{i:03}", "name": "bulk", "state": "Running", "cpuNum": 1, "memorySize": 1073741824}
                     for i in range(105)]

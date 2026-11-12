@@ -14,9 +14,9 @@
 | N02 | CLI 不存在名称、两个 VM 重名 | 空列表或两个匹配项；每次只发一条带名称条件的请求 | `TestGetInstancesNameReturnsEmptyAndDuplicateMatches` |
 | N03 | VM 普通 `-Name` 的大小写和通配符 | 结果正确；请求轨迹明确记录当前本地筛选行为 | `Run-Contracts.ps1` |
 | N04 | VM `-Exact`：中文、无结果、大小写不一致、名称数组、重复输入 | 每个名称都由服务端筛选；没有先前的全量读取或未命中后的全量回退；输出按 UUID 去重 | `Run-Contracts.ps1` |
-| N05 | VM `-Exact` 名称本身含 `*` 与方括号 | 按普通字符查到该 VM；请求的名称条件保持原样 | `Run-Contracts.ps1` |
+| N05 | VM `-Exact` 名称本身含 `*`、`?` 与方括号 | 按普通字符查到该 VM；请求的名称条件保持原样 | `Run-Contracts.ps1` |
 | N06 | 105 个 VM 同名，跨过默认 100 条分页边界 | 返回 105 个对象；两页均携带相同的名称条件 | `Run-Contracts.ps1` |
-| N07 | `-Exact` 未提供名称、服务端返回错误名称 | 无效输入不发查询；身份不符时报协议错误 | `Run-Contracts.ps1` |
+| N07 | `-Exact` 未提供名称、名称数组含空元素、服务端返回错误名称 | 无效输入不发查询；身份不符时报协议错误 | `Run-Contracts.ps1` |
 | N08 | 每个公开 `Get-* -Name` 命令 | 测试表覆盖所有导出的名称选择器；大小写变化后的完整名称选中预期资源；账户样本在第 105 条 | `NameQueryContracts.ps1` |
 | N09 | 兼容 `Get-VM`、跨连接对象、权限与请求失败 | 维持兼容过滤、连接边界和已有错误分类 | `MigrationContracts.ps1`、`InventoryContracts.ps1`、`Run-Contracts.ps1` |
 

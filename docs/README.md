@@ -24,7 +24,7 @@ Update both language versions in the same change. Keep executable commands, defa
 
 ## PowerShell module
 
-- [PowerShell module preview](powershell.md)
+- [ZStack PowerCLI installation and usage](powershell.md)
 - [PowerShell inventory and reporting examples](../examples/powershell/inventory.md)
 - [VMware PowerCLI migration mappings](../powershell/contracts/compatibility.md#inventory-and-reporting)
 

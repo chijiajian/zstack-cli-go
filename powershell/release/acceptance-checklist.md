@@ -1,4 +1,6 @@
-# PowerShell preview acceptance
+# PowerShell acceptance and publication record
+
+On 2026-11-12, [`ZStack.PowerCLI` 1.1.4](https://www.powershellgallery.com/packages/ZStack.PowerCLI/1.1.4) became the first public Gallery package. The [v1.1.4 release workflow](https://github.com/terraform-zstack-modules/zstack-cli-go/actions/runs/43152847403) passed Go and Windows PowerShell contract checks, created the [GitHub Release](https://github.com/terraform-zstack-modules/zstack-cli-go/releases/tag/v1.1.4), and completed the Gallery publishing job. The Gallery package reports author `ZStack`, Apache 2.0, and the organization repository as its project; its current Gallery owner is `chijiajian`. The release workflow did not run against a real ZStack cloud; the cloud evidence below is from earlier, separately authorized tests.
 
 | Evidence | Current state |
 | --- | --- |
@@ -10,9 +12,10 @@
 | Query benchmark | Each native Windows 0.1.1 run queried 10,000 VMs over 20 paired samples and made 4,000 inventory requests across 40 measured queries. On 7.4.20, the added p95 was −215.82 ms and combined peak commit was 179.68 MiB. On 7.6.6, the values were 127.72 ms and 178.50 MiB. Both runs met the 500 ms and 512 MiB targets. |
 | Real ZStack API | Preview 0.1.2 passed account/password against the authorized test environment and AK/SK against the cloud test environment, using Windows 11 Enterprise LTSC x64 and PowerShell 7.6.6. Both runs connected, queried their dedicated stopped VM, confirmed that `WhatIf` left it stopped, started it, waited for Running and disconnected. An independent API read confirmed both target UUIDs were Running. |
 | Customer scripts | Pending sanitized representative scripts |
-| Public or OEM publication | Pending real brand/repository/signing identities and explicit publication approval |
+| Public ZStack package | `ZStack.PowerCLI` 1.1.4 published to PSGallery; tag release workflow completed successfully |
+| OEM publication | No OEM package published; provider identity, repository, signing and acceptance remain separate decisions |
 
-Use the [evidence template](evidence-template.md) to record future acceptance runs. **Production and OEM publication decision: no-go.** The preview is available for controlled validation. Representative customer scripts, production brand/repository/signing identities and publication approval remain pending.
+Use the [evidence template](evidence-template.md) to record future acceptance runs. The public ZStack package is available; representative customer scripts and production acceptance are still pending. OEM publication needs its own provider identity, repository, signing and approval. The dated preview test results below retain their original scope.
 
 The timing delta uses the CLI's default JSON output as the baseline. The module requests a smaller field projection for the same inventory. Windows measured the benchmark process tree's peak commit using a Job Object. PowerShell 7.6.6 passed with the original kit. PowerShell 7.4.20 passed after the fixture startup wait was extended and began distinguishing a process exit from a readiness timeout. The installed module and CLI were identical in both runs. The CLI identified itself as `dev` / `none`. Go recorded base revision `4855aca5bc47c99ae362070456773840240a5` with workspace modifications. Its SHA-256 was `4346f93766ff7e2e59d4b7ca5e0862c741ef6e90e31ecf2f3cdf50b8fe63eb`. The offline QA kits had SHA-256 `0cf8bd465bd2596ba15258e98ac61d4c821b25ad50e6f9cc9df52e9fafe19f2f` (original) and `72970a78e681dd993b6f2c4669cdd722a5ceaa543e73ef3c790c54a3ca146586` (updated fixture).
 

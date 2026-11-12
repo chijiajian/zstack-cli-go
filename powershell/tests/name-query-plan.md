@@ -30,4 +30,12 @@ The scope includes CLI `get instances NAME`, PowerShell `Get-ZStackVM -Name`, `G
 
 Regular PowerShell `-Name` still reads the full inventory to preserve case-insensitive wildcard behavior. Multiple VM UUIDs passed to `-Id` also read the full inventory, and other resource name selectors use the same local filtering path. Correct N08 results do not establish acceptable query cost; these are separate scalability improvements.
 
-Gallery validation should be a separately authorized read-only sample on the designated Windows test VM. Record the package version, connection context, name, result count, state and query scope. Limit the target, avoid a full inventory query, and keep credentials and raw server responses out of reports. Merging, tagging and publishing require a separate explicit user instruction.
+Gallery validation uses a read-only sample on the designated Windows test VM. Record the package version, connection context, name, result count, state and query scope. Limit the target, avoid a full inventory query, and keep credentials and raw server responses out of reports. Merging, tagging and publishing require a separate explicit user instruction.
+
+## Read-only live record, 2026-11-12
+
+Against the user-designated isolated test cloud, the current source CLI used a temporary account session without saving the password. It counted 3 VMs, sampled at most 5, and queried one sampled VM by its full name with a maximum of 3 results. Exactly one VM matched. A missing name returned an empty list, and the temporary CLI session was logged out.
+
+On the Windows test VM, a temporary copy of the Gallery 1.1.5 module was patched with the VM command from PR source commit `c4fadd3`. `Get-ZStackVM -Name NAME -Exact` returned the same Running VM (1 vCPU, 1 GiB). Repeated name input returned one VM; a missing name and a literal `*` suffix returned zero. The PowerShell session was disconnected and the temporary module copy removed. No resource writes or access keys were created.
+
+This sampled one existing VM name path. The complete 26-resource name matrix was not run against a live cloud; the loopback CI suite covers it. The PR source ran from a temporary module copy, so this does not imply the new code has been published to Gallery.

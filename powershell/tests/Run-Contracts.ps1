@@ -232,8 +232,8 @@ else:
         Assert-CloudContract ($acl.AreAccessRulesProtected -and $rules.Count -eq 1 -and $rules[0].IdentityReference.Value -eq $userSid) 'Windows private session directory ACL'
     }
     $vms = @(Get-ZStackVM -Server $connection)
-    Assert-CloudContract ($vms.Count -eq 3 -and (Get-ZStackVM '开发*').Id -eq 'vm-a' -and
-        (Get-ZStackVM -Name 'WEB-PROD').Id -eq 'vm-b') 'inventory, wildcard, case-insensitive names and Chinese arguments'
+    Assert-CloudContract ($vms.Count -eq 3 -and (Get-ZStackVM '开发*').Id -eq 'vm-a') 'inventory, wildcard and Chinese arguments'
+    Assert-CloudContract ((Get-ZStackVM -Name 'WEB-PROD').Id -eq 'vm-b') 'default VM name query stays case-insensitive'
     $namedVM = Get-ZStackVM -Name '开发 VM' -Exact -Server $connection
     $request = Invoke-RestMethod "http://$endpoint/test/reads"
     Assert-CloudContract ($namedVM.Id -ceq 'vm-a' -and $request.lastInventoryCondition -ceq 'name=开发 VM') 'exact VM name filters on the server'

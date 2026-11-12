@@ -232,7 +232,14 @@ else:
         Assert-CloudContract ($acl.AreAccessRulesProtected -and $rules.Count -eq 1 -and $rules[0].IdentityReference.Value -eq $userSid) 'Windows private session directory ACL'
     }
     $vms = @(Get-ZStackVM -Server $connection)
-    Assert-CloudContract ($vms.Count -eq 3 -and (Get-ZStackVM '开发*').Id -eq 'vm-a') 'inventory, wildcard and Chinese arguments'
+    Assert-CloudContract ($vms.Count -eq 3 -and (Get-ZStackVM '开发*').Id -eq 'vm-a' -and
+        (Get-ZStackVM -Name 'WEB-PROD').Id -eq 'vm-b') 'inventory, wildcard, case-insensitive names and Chinese arguments'
+    $namedVM = Get-ZStackVM -Name '开发 VM' -Exact -Server $connection
+    $request = Invoke-RestMethod "http://$endpoint/test/reads"
+    Assert-CloudContract ($namedVM.Id -ceq 'vm-a' -and $request.lastInventoryCondition -ceq 'name=开发 VM') 'exact VM name filters on the server'
+    Assert-CloudContract (@(Get-ZStackVM -Name 'missing' -Exact -Server $connection).Count -eq 0) 'missing literal VM name emits no object'
+    Assert-CloudContract (@(Get-ZStackVM -Name @('web-prod', '开发 VM') -Exact -Server $connection).Count -eq 2) 'multiple literal VM names query without scanning inventory'
+    Assert-CloudContract (Test-CloudRejected { Get-ZStackVM -Name 'web*' -Exact -Server $connection } 'Specify one or more literal names') 'exact VM name rejects wildcard patterns'
     $null = Get-ZStackVM -Id vm-a
     $request = Invoke-RestMethod "http://$endpoint/test/reads"
     Assert-CloudContract ($request.lastInventoryCondition -ceq 'uuid=vm-a') 'single VM lookup filters on the server'

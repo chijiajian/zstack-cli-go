@@ -60,7 +60,7 @@ signs:
 
 release:
   github:
-    owner: chijiajian
+    owner: terraform-zstack-modules
     name: zstack-cli-go
   prerelease: auto
   draft: false

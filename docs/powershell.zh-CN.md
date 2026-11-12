@@ -18,6 +18,14 @@ Import-Module $manifest
 
 安装新版时，已有连接继续使用原版本自带的 CLI。如果新版包校验失败，已安装的版本仍可使用。需要回退时，在新会话中导入旧版并重新连接。
 
+## 模块仓库与发布
+
+本地安装和 `Import-Module` 不要求向 PowerShell 或 PowerShell Gallery 注册模块。`PSGallery` 是 PowerShell 客户端常见的预置模块仓库；“默认仓库”只表示在未指定仓库时，安装/查找命令会按客户端配置选择仓库，不代表本模块已发布或微软已审核。用 `Get-PSResourceRepository` 查看当前配置；若 PSGallery 已被移除，可用 `Register-PSResourceRepository -PSGallery` 恢复。企业私有仓库须在客户端按其地址注册；安装时显式指定 `-Repository` 可避免选错来源。
+
+若决定发布到 PowerShell Gallery，发布方需要 Gallery 账户及 API Key、正式模块名和包所有者，并确认包内二进制的分发权。发布的是完整模块目录，不是本指南的离线 ZIP。模块清单生成版本、作者、描述、许可证 URI 和 Windows/PowerShell Core 标签，并支持品牌配置里的可选 `projectUri`。生成后可用 `Test-ModuleManifest` 检查。许可证 URI 应与实际交付许可证一致；`ZStack.PowerCLI` 的帮助及项目地址指向当前源码仓库，正式发布前须确认对外品牌、链接、签名策略和客户验收。[发布验收状态](../powershell/release/acceptance-checklist.md)
+
+tag 发布流程会在 Go 检查、Windows PowerShell 契约测试和 GitHub Release 成功后，将 `ZStack.PowerCLI` 发布至 PSGallery。只接受稳定版 `v主版本.次版本.修订号` 标签；带 `-` 的预发布标签跳过 Gallery 任务。模块版本跟随 tag。请在 `terraform-zstack-modules/zstack-cli-go` 的 Settings → Secrets and variables → Actions 中，将 Gallery API Key 保存为仓库 **Actions Secret** `PSGALLERY_API_KEY`，不要放在普通 Variable。Key 需允许为 `ZStack.PowerCLI` 发布新包及新版本。缺少 Secret 时 Gallery 任务会失败。创建 Secret 或推送稳定版 tag 是另外的发布操作；仅添加工作流文件不会发布模块。
+
 ## 迁移脚本
 
 使用 ZStack 账户及 `host[:port]` 格式的 API 地址。参见[迁移示例](../examples/powershell/README.zh-CN.md)和[参数兼容矩阵](../powershell/contracts/compatibility.md)。

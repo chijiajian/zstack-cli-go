@@ -6,5 +6,6 @@
   "configNamespace": "acme-powershell",
   "publisher": "Acme",
   "helpUri": "https://example.invalid/acme/powershell",
+  "licenseUri": "https://www.apache.org/licenses/LICENSE-2.0",
   "moduleGuid": "f3d3d45e-652e-4309-9a6f-91c62f6f8be1"
 }

@@ -7,8 +7,13 @@ function Read-CloudBrand {
     }
     $brand = ConvertFrom-Json -InputObject $raw -AsHashtable -ErrorAction Stop
     if ($brand.displayName -match '[\x00-\x1f\x7f]' -or $brand.publisher -match '[\x00-\x1f\x7f]') { throw 'Brand text must be a single line.' }
-    $uri = [uri] $brand.helpUri
-    if (-not $uri.IsAbsoluteUri -or $uri.Scheme -cne 'https' -or -not $uri.Host -or $uri.UserInfo) { throw 'Brand help URI must be HTTPS.' }
+    foreach ($key in 'helpUri', 'licenseUri', 'projectUri') {
+        if (-not $brand.Contains($key)) { continue }
+        $uri = [uri] $brand[$key]
+        if (-not $uri.IsAbsoluteUri -or $uri.Scheme -cne 'https' -or -not $uri.Host -or $uri.UserInfo) {
+            throw "Brand $key must be an HTTPS URL without user information."
+        }
+    }
     return $brand
 }
 

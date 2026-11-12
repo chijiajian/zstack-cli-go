@@ -6,6 +6,7 @@ on:
   pull_request:
     paths: ['powershell/**', 'cmd/**', 'pkg/**', 'go.*', '.github/workflows/powershell.yml']
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read

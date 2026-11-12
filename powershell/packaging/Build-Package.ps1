@@ -201,14 +201,18 @@ foreach ($brand in $brands) {
             '__MODULE__' = $name; '__VERSION__' = $version; '__GUID__' = $brand.moduleGuid
             '__PUBLISHER__' = $brand.publisher.Replace("'", "''")
             '__DESCRIPTION__' = $brand.displayName.Replace("'", "''")
+            '__LICENSE_URI__' = $brand.licenseUri.Replace("'", "''")
+            '__PROJECT_URI_LINE__' = if ($brand.Contains('projectUri')) { "            ProjectUri = '$($brand.projectUri.Replace("'", "''"))'" } else { '' }
             '__PREFIX__' = $brand.commandPrefix
             '__EXPORTS__' = (@($commands | ForEach-Object { "'$($_.name)'" }) -join ', ')
             '__LEGACYEXPORTS__' = (@($legacyNames | ForEach-Object { "'$_'" }) -join ', ')
         }
-        $tokenPattern = '__[A-Z]+__'
+        $tokenPattern = '__[A-Z_]+__'
         $replaceToken = [System.Text.RegularExpressions.MatchEvaluator] { param($match) return $tokens[$match.Value] }
         $manifest = Get-Content -Raw -LiteralPath (Join-Path $source 'module/Module.psd1.template')
-        [regex]::Replace($manifest, $tokenPattern, $replaceToken) | Set-Content -LiteralPath (Join-Path $moduleRoot "$name.psd1") -NoNewline -Encoding utf8
+        $manifest = [regex]::Replace($manifest, $tokenPattern, $replaceToken)
+        if ($manifest -match $tokenPattern) { throw 'Unresolved module manifest placeholder.' }
+        $manifest | Set-Content -LiteralPath (Join-Path $moduleRoot "$name.psd1") -NoNewline -Encoding utf8
         Copy-Item -LiteralPath (Join-Path $source 'module/Module.psm1') -Destination (Join-Path $moduleRoot "$name.psm1")
         @{ schemaVersion = 1; privateFiles = $privateFiles; commands = $commands } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $moduleRoot 'exports.json') -Encoding utf8
         $manifest = [ordered]@{

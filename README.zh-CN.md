@@ -18,7 +18,7 @@
 
 ## 安装 CLI
 
-在 [GitHub Releases](https://github.com/chijiajian/zstack-cli-go/releases) 下载对应操作系统和架构的压缩包。解压后将二进制加入 PATH，可重命名为 `zstack-cli`，Windows 使用 `zstack-cli.exe`。发布包中的文件名可能带版本和平台，也可直接使用完整文件名调用。
+在 [GitHub Releases](https://github.com/terraform-zstack-modules/zstack-cli-go/releases) 下载对应操作系统和架构的压缩包。解压后将二进制加入 PATH，可重命名为 `zstack-cli`，Windows 使用 `zstack-cli.exe`。发布包中的文件名可能带版本和平台，也可直接使用完整文件名调用。
 
 | 操作系统 | 选择的压缩包 |
 | --- | --- |

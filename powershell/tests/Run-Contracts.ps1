@@ -117,6 +117,13 @@ else:
     $builder = Join-Path $source 'packaging/Build-Package.ps1'
     $brands = @((Join-Path $source 'branding/examples/zstack.json'))
     if (-not $ZStackOnly) { $brands += Join-Path $source 'branding/examples/acme.json' }
+    $invalidBrand = Get-Content -LiteralPath $brands[0] -Raw | ConvertFrom-Json -AsHashtable
+    $invalidBrand.licenseUri = 'https://sample:synthetic@example.invalid/license'
+    $invalidBrandPath = Join-Path $work 'invalid-brand.json'
+    $invalidBrand | ConvertTo-Json | Set-Content -LiteralPath $invalidBrandPath -Encoding utf8
+    Assert-CloudContract (Test-CloudRejected {
+        & $builder -BrandConfig $invalidBrandPath -CliPath $WindowsCliPath -ModuleVersion $ModuleVersion -OutputDirectory (Join-Path $work 'invalid packages')
+    } 'licenseUri') 'brand license URI rejects user information'
     $rejectedPath = Join-Path $work 'rejected packages'
     $build = @{ BrandConfig = $brands; CliPath = $WindowsCliPath; ModuleVersion = $ModuleVersion; OutputDirectory = $rejectedPath }
     Assert-CloudContract (Test-CloudRejected { & $builder @build -CliVersion 'invalid-fixture-version' } 'CliVersionMismatch') 'packager rejects a mismatched CLI version'
@@ -124,8 +131,24 @@ else:
     Assert-CloudContract (-not (Test-Path -LiteralPath $rejectedPath)) 'CLI mismatch leaves no package output'
     $build.OutputDirectory = Join-Path $work 'packages'
     $packages = @(& $builder @build)
+    $zstackData = Import-PowerShellDataFile -LiteralPath (Join-Path $packages[0].Directory 'ZStack.PowerCLI.psd1')
+    $zstackPackage = Get-Content -LiteralPath (Join-Path $packages[0].Directory 'package.json') -Raw | ConvertFrom-Json -AsHashtable
+    Assert-CloudContract ($zstackData.ModuleVersion -eq $ModuleVersion.ToString() -and $zstackData.Author -eq 'ZStack' -and
+        $zstackData.Description -eq 'ZStack PowerCLI' -and
+        $zstackData.PrivateData.PSData.LicenseUri -eq 'https://www.apache.org/licenses/LICENSE-2.0' -and
+        $zstackData.PrivateData.PSData.ProjectUri -eq 'https://github.com/terraform-zstack-modules/zstack-cli-go' -and
+        $zstackPackage.brand.helpUri -eq 'https://github.com/terraform-zstack-modules/zstack-cli-go/blob/main/docs/powershell.md' -and
+        @($zstackData.PrivateData.PSData.Tags).Count -eq 3) 'Gallery metadata in ZStack manifest'
+    $compatibilityData = Import-PowerShellDataFile -LiteralPath (Join-Path $packages[0].Directory 'Compatibility/ZStack.PowerCLI.Compatibility.psd1')
+    Assert-CloudContract ($compatibilityData.PrivateData.PSData.LicenseUri -eq $zstackData.PrivateData.PSData.LicenseUri -and
+        $compatibilityData.PrivateData.PSData.ProjectUri -eq $zstackData.PrivateData.PSData.ProjectUri) 'bundled compatibility manifest metadata'
+    $null = Test-ModuleManifest -Path (Join-Path $packages[0].Directory 'ZStack.PowerCLI.psd1') -ErrorAction Stop
+    Assert-CloudContract $true 'generated ZStack manifest validates'
     if (-not $ZStackOnly) {
         Assert-CloudContract ($packages.Count -eq 2) 'two OEM packages'
+        $acmeData = Import-PowerShellDataFile -LiteralPath (Join-Path $packages[1].Directory 'Acme.Cloud.psd1')
+        Assert-CloudContract ($acmeData.PrivateData.PSData.LicenseUri -eq 'https://www.apache.org/licenses/LICENSE-2.0' -and
+            -not $acmeData.PrivateData.PSData.Contains('ProjectUri')) 'optional OEM project URI omitted'
         foreach ($file in 'private/process/Invoke-CliProcess.ps1', 'private/objects/Convert-CloudVM.ps1', 'bin/windows-amd64/zstack-cli.exe') {
             $a = (Get-FileHash -LiteralPath (Join-Path $packages[0].Directory $file)).Hash
             $b = (Get-FileHash -LiteralPath (Join-Path $packages[1].Directory $file)).Hash
@@ -141,7 +164,7 @@ else:
     $module = Import-Module -Name $manifest -PassThru
     Assert-CloudContract ($module.Version -eq $ModuleVersion) 'installed module matches the requested test version'
     Assert-CloudContract ($module.ExportedFunctions.Count -eq 57 -and -not $module.ExportedFunctions.ContainsKey('Get-VM')) 'ZStack native export scope'
-    $helpCases = @(@{ Command = 'Get-ZStackVM'; Name = 'ZStack PowerCLI'; Namespace = 'zstack-powershell'; Uri = 'https://example.invalid/zstack/powershell' })
+    $helpCases = @(@{ Command = 'Get-ZStackVM'; Name = 'ZStack PowerCLI'; Namespace = 'zstack-powershell'; Uri = 'https://github.com/terraform-zstack-modules/zstack-cli-go/blob/main/docs/powershell.md' })
     if (-not $ZStackOnly) {
         $acme = Import-Module -Name (Join-Path $packages[1].Directory 'Acme.Cloud.psd1') -PassThru
         Assert-CloudContract ($acme.ExportedFunctions.Count -eq 57 -and $acme.ExportedFunctions.ContainsKey('New-AcmeVM') -and $acme.ExportedFunctions.ContainsKey('Get-AcmeHardDisk') -and $acme.ExportedFunctions.ContainsKey('Set-AcmeCDDrive')) 'OEM export scopes'

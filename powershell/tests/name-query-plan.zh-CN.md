@@ -6,17 +6,17 @@
 
 名称查询同时检查**结果**与**实际请求**。一个返回正确 VM 的测试，如果实现先读取全量再做一次精确查询，也必须失败。自动测试只使用 Go 的本机 HTTP 服务和 PowerShell 的本机模拟 API，不访问真实云，不执行云端写操作。
 
-范围包括 CLI `get instances NAME`、PowerShell `Get-ZStackVM -Name`、`Get-ZStackVM -Name -Exact`、兼容模块 `Get-VM -Name`，以及所有公开的 `Get-* -Name` 资源命令。`-Exact` 是区分大小写的服务端精确查询；普通 `-Name` 保留不区分大小写的 PowerShell 通配符语义。
+范围包括 CLI `get instances NAME`、PowerShell `Get-ZStackVM -Name`、`Get-ZStackVM -Name -Exact`、兼容模块 `Get-VM -Name`，以及所有公开的 `Get-* -Name` 资源命令。`-Exact` 向服务端发送名称条件，并在本地只保留大小写完全匹配的结果；普通 `-Name` 保留不区分大小写的 PowerShell 通配符语义。
 
 | 编号 | 场景与输入 | 必须断言 | 自动用例 |
 | --- | --- | --- | --- |
 | N01 | CLI 完整中文名称，含空格、方括号和 `*` | 一次请求；服务端 `q=name=...`、`limit=2`；仅返回同名资源 | `TestGetInstancesNameFiltersOnServer` |
 | N02 | CLI 不存在名称、两个 VM 重名 | 空列表或两个匹配项；每次只发一条带名称条件的请求 | `TestGetInstancesNameReturnsEmptyAndDuplicateMatches` |
 | N03 | VM 普通 `-Name` 的大小写和通配符 | 结果正确；请求轨迹明确记录当前本地筛选行为 | `Run-Contracts.ps1` |
-| N04 | VM `-Exact`：中文、无结果、大小写不一致、名称数组、重复输入 | 每个名称都由服务端筛选；没有先前的全量读取或未命中后的全量回退；输出按 UUID 去重 | `Run-Contracts.ps1` |
-| N05 | VM `-Exact` 名称本身含 `*` 与方括号 | 按普通字符查到该 VM；请求的名称条件保持原样 | `Run-Contracts.ps1` |
+| N04 | VM `-Exact`：中文、无结果、服务端返回大小写变体、名称数组、重复输入 | 每个名称都先由服务端筛选，再在本地严格比较大小写；没有全量读取或未命中后的全量回退；输出按 UUID 去重 | `Run-Contracts.ps1` |
+| N05 | VM `-Exact` 名称本身含 `*`、`?` 与方括号 | 按普通字符查到该 VM；请求的名称条件保持原样 | `Run-Contracts.ps1` |
 | N06 | 105 个 VM 同名，跨过默认 100 条分页边界 | 返回 105 个对象；两页均携带相同的名称条件 | `Run-Contracts.ps1` |
-| N07 | `-Exact` 未提供名称、服务端返回错误名称 | 无效输入不发查询；身份不符时报协议错误 | `Run-Contracts.ps1` |
+| N07 | `-Exact` 未提供名称、名称数组含空元素、服务端返回错误名称 | 无效输入不发查询；身份不符时报协议错误 | `Run-Contracts.ps1` |
 | N08 | 每个公开 `Get-* -Name` 命令 | 测试表覆盖所有导出的名称选择器；大小写变化后的完整名称选中预期资源；账户样本在第 105 条 | `NameQueryContracts.ps1` |
 | N09 | 兼容 `Get-VM`、跨连接对象、权限与请求失败 | 维持兼容过滤、连接边界和已有错误分类 | `MigrationContracts.ps1`、`InventoryContracts.ps1`、`Run-Contracts.ps1` |
 
@@ -47,3 +47,9 @@ Gallery 包的验证在用户指定的 Windows 测试 VM 上做只读抽样：�
 测试云先用 CLI 只读计数：26 个命令对应的资源类型均不超过 100 条，其中最多为角色 69 条、镜像 22 条。Windows 测试机随后用 Gallery 1.1.5 的临时副本载入 PR 中的 VM 命令：16 个有现成样本的 `Get-* -Name` 命令按大写名称返回且只返回预期 UUID；另外 10 类没有资源，缺失名称查询均返回 0 条。`Get-ZStackHardDisk` 使用现有 VM 父对象；兼容 `Get-VM -Name`、VM `-Exact`、重复名称去重以及字面 `*` 后缀也通过。最终 PowerShell 连接已注销，复查没有遗留的临时配置目录；没有创建 AK 或修改云资源。
 
 真实云中没有中文且带通配符字符的 VM、105 台重名 VM 或故意返回错误身份的服务端，因此 N01、N05、N06、N07 的这些边界由本机模拟接口验证。10 个空资源类型只能在真实云验证无结果路径；其正向名称匹配由 CI 用例验证。前几次扩展实测的临时模块加载错误导致部分尝试未确认远端注销，复查已无本地临时配置目录；成功复跑的连接已正常注销。
+
+## 合并后的补充检查
+
+在同一测试云，对现有 VM 使用大小写不同的完整名称，服务端仍返回原大小写的同一条记录；CLI 将该记录原样返回。旧的 PowerShell `-Exact` 把它判为 `QueryVM.Protocol`。新增 N04 回归用例模拟这种服务端行为：仅大小写不同的记录应被过滤，完全匹配的记录保留，返回无关名称仍是协议错误。更新后的源码已在 Windows 测试机只读验证：普通 `-Name` 的大小写与通配符、`-Exact` 的大小写、两个名称数组、字面 `?`/方括号的无结果路径以及兼容 `Get-VM` 均通过；连接已注销，临时模块副本已删除。
+
+真实云没有名称含字面 `?` 的 VM，因此其正向匹配由新增 N05 模拟用例验证。N07 还新增名称数组含空元素时不得发起任何查询的断言。

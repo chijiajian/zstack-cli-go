@@ -22,8 +22,8 @@ function Get-CloudVM {
     }
     if ($Exact) {
         if ($null -eq $Name -or $Name.Count -eq 0) { throw 'Specify one or more names with -Name and -Exact.' }
+        if (@($Name | Where-Object { [string]::IsNullOrEmpty($_) }).Count) { throw 'Name must not be empty.' }
         $matches = @(foreach ($literalName in $Name) {
-            if ([string]::IsNullOrEmpty($literalName)) { throw 'Name must not be empty.' }
             foreach ($row in (Read-CloudVMInventory $connection -ExactName $literalName)) { $row }
         })
         Convert-CloudVM @($matches | Sort-Object { $_['uuid'] } -Unique) $connection

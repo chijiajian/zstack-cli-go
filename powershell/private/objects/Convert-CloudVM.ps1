@@ -61,11 +61,20 @@ function Read-CloudVMInventory {
         }
     }
     if ($ExactName) {
-        foreach ($row in $rows) {
-            if ($row -isnot [System.Collections.IDictionary] -or $row['name'] -cne $ExactName) {
-                throw (New-CloudError -Operation QueryVM -Failure WrongIdentity -Target $ExactName)
+        $caseMatches = @(
+            foreach ($row in $rows) {
+                if ($row -isnot [System.Collections.IDictionary] -or $row['name'] -isnot [string]) {
+                    throw (New-CloudError -Operation QueryVM -Failure WrongIdentity -Target $ExactName)
+                }
+                if ($row['name'] -cne $ExactName) {
+                    # Some ZStack APIs apply the server name condition without case sensitivity.
+                    if ([string]::Equals($row['name'], $ExactName, [StringComparison]::OrdinalIgnoreCase)) { continue }
+                    throw (New-CloudError -Operation QueryVM -Failure WrongIdentity -Target $ExactName)
+                }
+                $row
             }
-        }
+        )
+        $rows = $caseMatches
     }
     return ,$rows
 }
